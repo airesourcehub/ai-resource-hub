@@ -33,7 +33,8 @@ document.addEventListener("DOMContentLoaded", function () {
     runway: "Descriptive prompt plus explicit camera controls (pan, dolly, focal length, rack focus).",
     sora: "Narrative, cinematic prose. Supports explicit camera direction (Director's Mode style).",
     kling: "Descriptive prompt plus a distinct camera movement cue. Supports an optional negative prompt.",
-    pika: "Descriptive prompt plus dash parameters, e.g. -ar (aspect ratio), -motion, -gs (guidance scale)."
+    pika: "Descriptive prompt plus dash parameters, e.g. -ar (aspect ratio), -motion, -gs (guidance scale).",
+    wan: "Structured 6-part prompt: camera movement, subject/scene, motion, camera language, style, atmosphere. Supports a negative prompt."
   };
 
   // ---------- TEXT / WRITING ----------
@@ -161,6 +162,21 @@ document.addEventListener("DOMContentLoaded", function () {
       if (details) kling += " " + details + ".";
       if (negative) kling += "\nNegative prompt: " + negative;
       return kling;
+    }
+
+    if (model === "wan") {
+      // Wan's documented structure: Camera Movement + Subject/Scene + Motion
+      // + Camera Language + Style + Atmosphere, plus an optional negative prompt.
+      var wan = "";
+      if (camera) wan += "Camera movement: " + camera + ". ";
+      wan += "Subject and scene: " + scene + ". ";
+      if (pacing) wan += "Motion: " + pacing + ". ";
+      if (style) wan += "Style: " + style + ". ";
+      if (mood) wan += "Atmosphere: " + mood + ". ";
+      if (details) wan += details + ". ";
+      wan = wan.trim();
+      if (negative) wan += "\nNegative prompt: " + negative;
+      return wan;
     }
 
     // veo / runway / sora — cinematic natural-language paragraph

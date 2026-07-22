@@ -1,6 +1,7 @@
 // AI Resource Hub — Gallery logic (Supabase-backed)
-// Upload an image + prompt + hashtags, store in Supabase, and search/browse
-// past prompts by keyword or hashtag.
+// Upload a photo or video + prompt + hashtags, choose public/private, and
+// search/browse past prompts by keyword or hashtag. Posting requires login;
+// browsing/searching public entries does not.
 
 document.addEventListener("DOMContentLoaded", function () {
   var isConfigured = typeof SUPABASE_URL !== "undefined" &&
@@ -8,6 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
     SUPABASE_ANON_KEY.indexOf("YOUR_SUPABASE") === -1;
 
   var setupBanner = document.getElementById("setupBanner");
+  var authRequiredBanner = document.getElementById("authRequiredBanner");
   var uploadCard = document.getElementById("uploadCard");
   var galleryGrid = document.getElementById("galleryGrid");
   var emptyState = document.getElementById("emptyState");
@@ -19,47 +21,91 @@ document.addEventListener("DOMContentLoaded", function () {
     if (galleryGrid) galleryGrid.style.display = "none";
     if (emptyState) {
       emptyState.style.display = "block";
-      emptyState.innerHTML = "Gallery backend isn't connected yet. See the README for a 5-minute Supabase setup — once configured, your uploaded prompts and photos will appear here.";
+      emptyState.innerHTML = "Gallery backend isn't connected yet. See the README for a 5-minute Supabase setup — once configured, your uploaded prompts, photos, and videos will appear here.";
     }
     return;
   }
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var allItems = [];
+  var currentUser = null;
 
-  loadGallery();
+  init();
+
+  async function init() {
+    var sessionResult = await client.auth.getSession();
+    currentUser = sessionResult.data.session ? sessionResult.data.session.user : null;
+    updateAuthGate();
+
+    client.auth.onAuthStateChange(function (_event, session) {
+      currentUser = session ? session.user : null;
+      updateAuthGate();
+      loadGallery();
+    });
+
+    loadGallery();
+  }
+
+  function updateAuthGate() {
+    if (currentUser) {
+      if (authRequiredBanner) authRequiredBanner.classList.remove("show");
+      if (uploadCard) uploadCard.style.display = "";
+    } else {
+      if (authRequiredBanner) authRequiredBanner.classList.add("show");
+      if (uploadCard) uploadCard.style.display = "none";
+    }
+  }
 
   // ---------- Upload form ----------
   var form = document.getElementById("uploadForm");
   var fileInput = document.getElementById("uploadFile");
-  var preview = document.getElementById("uploadPreview");
+  var previewImg = document.getElementById("uploadPreviewImg");
+  var previewVideo = document.getElementById("uploadPreviewVideo");
   var status = document.getElementById("uploadStatus");
 
   if (fileInput) {
     fileInput.addEventListener("change", function () {
       var file = fileInput.files[0];
       if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        preview.src = e.target.result;
-        preview.classList.add("show");
-      };
-      reader.readAsDataURL(file);
+      var isVideo = file.type.indexOf("video") === 0;
+      var url = URL.createObjectURL(file);
+
+      if (isVideo) {
+        previewVideo.src = url;
+        previewVideo.classList.add("show");
+        previewImg.classList.remove("show");
+        previewImg.removeAttribute("src");
+      } else {
+        previewImg.src = url;
+        previewImg.classList.add("show");
+        previewVideo.classList.remove("show");
+        previewVideo.removeAttribute("src");
+      }
     });
   }
 
   if (form) {
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
+
+      if (!currentUser) {
+        showStatus("Please log in to add to the gallery.", "error");
+        return;
+      }
+
       var file = fileInput.files[0];
       var promptText = document.getElementById("uploadPrompt").value.trim();
       var tagsRaw = document.getElementById("uploadTags").value.trim();
       var modelUsed = document.getElementById("uploadModel").value.trim();
+      var visibility = form.querySelector('input[name="uploadVisibility"]:checked');
+      var isPublic = !visibility || visibility.value === "public";
 
       if (!file || !promptText) {
-        showStatus("Please add both a photo and a prompt.", "error");
+        showStatus("Please add both a file and a prompt.", "error");
         return;
       }
+
+      var mediaType = file.type.indexOf("video") === 0 ? "video" : "image";
 
       var tags = tagsRaw
         .split(/[\s,]+/)
@@ -70,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       try {
         var fileExt = file.name.split(".").pop();
-        var filePath = Date.now() + "-" + Math.random().toString(36).slice(2) + "." + fileExt;
+        var filePath = currentUser.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2) + "." + fileExt;
 
         var uploadResult = await client.storage.from(SUPABASE_BUCKET).upload(filePath, file);
         if (uploadResult.error) throw uploadResult.error;
@@ -82,13 +128,17 @@ document.addEventListener("DOMContentLoaded", function () {
           image_url: imageUrl,
           prompt: promptText,
           hashtags: tags,
-          model: modelUsed || null
+          model: modelUsed || null,
+          user_id: currentUser.id,
+          is_public: isPublic,
+          media_type: mediaType
         }]);
         if (insertResult.error) throw insertResult.error;
 
         showStatus("Saved to your gallery.", "success");
         form.reset();
-        preview.classList.remove("show");
+        previewImg.classList.remove("show");
+        previewVideo.classList.remove("show");
         loadGallery();
       } catch (err) {
         console.error(err);
@@ -104,6 +154,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ---------- Load + render ----------
+  // RLS handles visibility server-side: logged out / other users only ever
+  // receive rows where is_public = true; the owner also gets their own
+  // private rows back automatically.
   async function loadGallery() {
     var result = await client
       .from(SUPABASE_TABLE)
@@ -125,7 +178,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!items.length) {
       emptyState.style.display = "block";
-      emptyState.textContent = "No entries yet — upload your first photo and prompt above.";
+      emptyState.textContent = currentUser
+        ? "No entries yet — upload your first photo or video above."
+        : "No public entries yet. Log in to add the first one.";
       return;
     }
     emptyState.style.display = "none";
@@ -133,13 +188,25 @@ document.addEventListener("DOMContentLoaded", function () {
     items.forEach(function (item) {
       var card = document.createElement("div");
       card.className = "gallery-item";
+
+      var mediaHtml = item.media_type === "video"
+        ? '<video src="' + escapeHtml(item.image_url) + '" muted loop preload="metadata"></video>'
+        : '<img src="' + escapeHtml(item.image_url) + '" alt="Gallery image" loading="lazy" />';
+
+      var badges = (item.hashtags || []).map(function (t) {
+        return '<span class="tag">#' + escapeHtml(t) + "</span>";
+      }).join("");
+
+      if (!item.is_public) {
+        badges = '<span class="tag private">Private</span>' + badges;
+      }
+
       card.innerHTML =
-        '<img src="' + escapeHtml(item.image_url) + '" alt="Gallery image" loading="lazy" />' +
+        mediaHtml +
+        (item.media_type === "video" ? '<span class="gallery-media-badge">Video</span>' : "") +
         '<div class="gallery-item-body">' +
           "<p>" + escapeHtml(item.prompt) + "</p>" +
-          '<div class="gallery-tags">' +
-            (item.hashtags || []).map(function (t) { return '<span class="tag">#' + escapeHtml(t) + "</span>"; }).join("") +
-          "</div>" +
+          '<div class="gallery-tags">' + badges + "</div>" +
         "</div>";
       card.addEventListener("click", function () { openLightbox(item); });
       galleryGrid.appendChild(card);
@@ -166,6 +233,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ---------- Lightbox ----------
   var overlay = document.getElementById("lightboxOverlay");
   var lightboxImg = document.getElementById("lightboxImg");
+  var lightboxVideo = document.getElementById("lightboxVideo");
   var lightboxPrompt = document.getElementById("lightboxPrompt");
   var lightboxTags = document.getElementById("lightboxTags");
   var lightboxCopy = document.getElementById("lightboxCopy");
@@ -173,11 +241,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function openLightbox(item) {
     if (!overlay) return;
-    lightboxImg.src = item.image_url;
+
+    if (item.media_type === "video") {
+      lightboxVideo.src = item.image_url;
+      lightboxVideo.style.display = "block";
+      lightboxImg.style.display = "none";
+      lightboxImg.removeAttribute("src");
+    } else {
+      lightboxImg.src = item.image_url;
+      lightboxImg.style.display = "block";
+      lightboxVideo.style.display = "none";
+      lightboxVideo.removeAttribute("src");
+    }
+
     lightboxPrompt.textContent = item.prompt;
-    lightboxTags.innerHTML = (item.hashtags || []).map(function (t) {
+    var badges = (item.hashtags || []).map(function (t) {
       return '<span class="tag">#' + escapeHtml(t) + "</span>";
     }).join("");
+    if (!item.is_public) badges = '<span class="tag private">Private</span>' + badges;
+    lightboxTags.innerHTML = badges;
     overlay.classList.add("open");
 
     lightboxCopy.onclick = function () {
@@ -190,11 +272,15 @@ document.addEventListener("DOMContentLoaded", function () {
   if (lightboxClose) {
     lightboxClose.addEventListener("click", function () {
       overlay.classList.remove("open");
+      lightboxVideo.pause();
     });
   }
   if (overlay) {
     overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) overlay.classList.remove("open");
+      if (e.target === overlay) {
+        overlay.classList.remove("open");
+        lightboxVideo.pause();
+      }
     });
   }
 
