@@ -1642,6 +1642,58 @@ video.upload-preview {
   cursor: default;
 }
 
+/* ---------- Cover thumbnail picker (upload / remix / edit) ---------- */
+
+.cover-picker {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--color-bg-alt);
+}
+
+.cover-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cover-mode-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.cover-mode-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.cover-frame-mode input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.cover-frame-hint {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.cover-photo-mode input[type="file"] {
+  width: 100%;
+}
+
+#editCoverResetBtn {
+  margin-top: 12px;
+}
+
 .remix-of-hidden:hover {
   text-decoration: none;
 }
