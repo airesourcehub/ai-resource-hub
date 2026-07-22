@@ -305,6 +305,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var lightboxVideo = document.getElementById("lightboxVideo");
   var lightboxTitle = document.getElementById("lightboxTitle");
   var lightboxPrompt = document.getElementById("lightboxPrompt");
+  var lightboxModel = document.getElementById("lightboxModel");
   var lightboxTags = document.getElementById("lightboxTags");
   var lightboxCopy = document.getElementById("lightboxCopy");
   var lightboxClose = document.getElementById("lightboxClose");
@@ -370,6 +371,10 @@ document.addEventListener("DOMContentLoaded", function () {
       lightboxTitle.style.display = item.title ? "block" : "none";
     }
     lightboxPrompt.textContent = item.prompt;
+    if (lightboxModel) {
+      lightboxModel.textContent = item.model ? "Model: " + item.model : "";
+      lightboxModel.style.display = item.model ? "block" : "none";
+    }
     var badges = (item.hashtags || []).map(function (t) {
       return '<span class="tag">#' + escapeHtml(t) + "</span>";
     }).join("");
