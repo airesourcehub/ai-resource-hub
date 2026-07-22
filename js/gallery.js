@@ -39,10 +39,15 @@ document.addEventListener("DOMContentLoaded", function () {
   var galleryGrid = document.getElementById("galleryGrid");
   var emptyState = document.getElementById("emptyState");
   var searchInput = document.getElementById("gallerySearch");
+  var sortSelect = document.getElementById("gallerySort");
+  var galleryToolbar = document.getElementById("galleryToolbar");
+  var openUploadBtn = document.getElementById("openUploadBtn");
+  var uploadModalOverlay = document.getElementById("uploadModalOverlay");
+  var uploadModalClose = document.getElementById("uploadModalClose");
 
   if (!isConfigured) {
     if (setupBanner) setupBanner.classList.add("show");
-    if (uploadCard) uploadCard.style.display = "none";
+    if (galleryToolbar) galleryToolbar.style.display = "none";
     if (galleryGrid) galleryGrid.style.display = "none";
     if (emptyState) {
       emptyState.style.display = "block";
@@ -54,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var allItems = [];
   var currentUser = null;
+  var likedIds = {}; // gallery_id -> true, for the current user
 
   init();
 
@@ -65,10 +71,29 @@ document.addEventListener("DOMContentLoaded", function () {
     client.auth.onAuthStateChange(function (_event, session) {
       currentUser = session ? session.user : null;
       updateAuthGate();
-      loadGallery();
+      loadLikes().then(function () {
+        renderCurrentView();
+      });
     });
 
-    loadGallery();
+    await loadGallery();
+    await loadLikes();
+    renderCurrentView();
+  }
+
+  // ---------- Upload modal ----------
+  function openUploadModal() {
+    if (uploadModalOverlay) uploadModalOverlay.classList.add("open");
+  }
+  function closeUploadModal() {
+    if (uploadModalOverlay) uploadModalOverlay.classList.remove("open");
+  }
+  if (openUploadBtn) openUploadBtn.addEventListener("click", openUploadModal);
+  if (uploadModalClose) uploadModalClose.addEventListener("click", closeUploadModal);
+  if (uploadModalOverlay) {
+    uploadModalOverlay.addEventListener("click", function (e) {
+      if (e.target === uploadModalOverlay) closeUploadModal();
+    });
   }
 
   function updateAuthGate() {
@@ -181,7 +206,9 @@ document.addEventListener("DOMContentLoaded", function () {
         previewImg.classList.remove("show");
         previewVideo.classList.remove("show");
         if (modelOtherInput) modelOtherInput.style.display = "none";
-        loadGallery();
+        await loadGallery();
+        renderCurrentView();
+        setTimeout(closeUploadModal, 900);
       } catch (err) {
         console.error(err);
         showStatus("Something went wrong: " + (err.message || err), "error");
@@ -211,7 +238,35 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     allItems = result.data || [];
-    renderGallery(allItems);
+  }
+
+  // Loads the current user's own likes so we know which hearts to fill in.
+  async function loadLikes() {
+    likedIds = {};
+    if (!currentUser) return;
+
+    var result = await client
+      .from("gallery_likes")
+      .select("gallery_id")
+      .eq("user_id", currentUser.id);
+
+    if (result.error) {
+      console.error(result.error);
+      return;
+    }
+
+    (result.data || []).forEach(function (row) {
+      likedIds[row.gallery_id] = true;
+    });
+  }
+
+  // Re-applies the current search + sort to allItems and re-renders. Call
+  // this any time allItems, likedIds, or the search/sort controls change.
+  function renderCurrentView() {
+    var query = searchInput ? searchInput.value.trim() : "";
+    var items = query ? filterItems(query) : allItems.slice();
+    items = sortItems(items, query);
+    renderGallery(items);
   }
 
   function renderGallery(items) {
@@ -232,7 +287,7 @@ document.addEventListener("DOMContentLoaded", function () {
       card.className = "gallery-item";
 
       var mediaHtml = item.media_type === "video"
-        ? '<video src="' + escapeHtml(item.image_url) + '" muted loop preload="metadata" playsinline></video>'
+        ? '<video src="' + escapeHtml(item.image_url) + '"' + posterAttr(item) + ' muted loop preload="metadata" playsinline></video>'
         : '<img src="' + escapeHtml(item.image_url) + '" alt="Gallery image" loading="lazy" />';
 
       var badges = (item.hashtags || []).map(function (t) {
@@ -243,20 +298,39 @@ document.addEventListener("DOMContentLoaded", function () {
         badges = '<span class="tag private">Private</span>' + badges;
       }
 
+      var liked = !!likedIds[item.id];
+      var likesCount = item.likes_count || 0;
+
       card.innerHTML =
         mediaHtml +
         (item.media_type === "video" ? '<span class="gallery-media-badge">Video</span>' : "") +
         '<div class="gallery-item-body">' +
           (item.title ? "<h4>" + escapeHtml(item.title) + "</h4>" : "") +
           "<p>" + escapeHtml(item.prompt) + "</p>" +
-          '<div class="gallery-tags">' + badges + "</div>" +
+          '<div class="gallery-item-footer">' +
+            '<div class="gallery-tags">' + badges + "</div>" +
+            '<button type="button" class="like-btn card-like-btn' + (liked ? " liked" : "") + '" data-gallery-id="' + escapeHtml(item.id) + '">' +
+              '<span class="like-heart">' + (liked ? "♥" : "♡") + '</span> <span class="like-count">' + likesCount + "</span>" +
+            "</button>" +
+          "</div>" +
         "</div>";
-      card.addEventListener("click", function () { openLightbox(item); });
+      card.addEventListener("click", function (e) {
+        if (e.target.closest(".card-like-btn")) return;
+        openLightbox(item);
+      });
+
+      var likeBtn = card.querySelector(".card-like-btn");
+      if (likeBtn) {
+        likeBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          toggleLike(item, likeBtn);
+        });
+      }
 
       if (item.media_type === "video") {
         var hoverPopup = null;
         card.addEventListener("mouseenter", function () {
-          hoverPopup = showHoverPreview(card, item.image_url);
+          hoverPopup = showHoverPreview(card, item);
         });
         card.addEventListener("mouseleave", function () {
           if (hoverPopup) {
@@ -270,14 +344,80 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Cloudinary can derive a still-frame JPG straight from a video's public
+  // ID (so_0 = frame at 0 seconds) — used as a <video poster> so mobile
+  // Safari shows a real thumbnail instead of a blank box (iOS doesn't decode
+  // a frame for preload="metadata" the way desktop browsers do).
+  function posterUrl(item) {
+    if (!item.cloudinary_public_id) return null;
+    return "https://res.cloudinary.com/" + CLOUDINARY_CLOUD_NAME + "/video/upload/so_0/" + item.cloudinary_public_id + ".jpg";
+  }
+
+  function posterAttr(item) {
+    var url = posterUrl(item);
+    return url ? ' poster="' + escapeHtml(url) + '"' : "";
+  }
+
+  // ---------- Likes ----------
+  async function toggleLike(item, likeBtn) {
+    if (!currentUser) {
+      window.location.href = "auth.html";
+      return;
+    }
+
+    var alreadyLiked = !!likedIds[item.id];
+    var heart = likeBtn.querySelector(".like-heart");
+    var countEl = likeBtn.querySelector(".like-count");
+
+    // Optimistic UI update
+    likeBtn.classList.toggle("liked", !alreadyLiked);
+    if (heart) heart.textContent = alreadyLiked ? "♡" : "♥";
+    item.likes_count = Math.max(0, (item.likes_count || 0) + (alreadyLiked ? -1 : 1));
+    if (countEl) countEl.textContent = item.likes_count;
+    likedIds[item.id] = !alreadyLiked;
+
+    try {
+      if (alreadyLiked) {
+        var delResult = await client
+          .from("gallery_likes")
+          .delete()
+          .eq("gallery_id", item.id)
+          .eq("user_id", currentUser.id);
+        if (delResult.error) throw delResult.error;
+      } else {
+        var insResult = await client
+          .from("gallery_likes")
+          .insert([{ gallery_id: item.id, user_id: currentUser.id }]);
+        if (insResult.error) throw insResult.error;
+      }
+
+      var stored = allItems.find(function (i) { return i.id === item.id; });
+      if (stored) stored.likes_count = item.likes_count;
+
+      if (currentLightboxItem && currentLightboxItem.id === item.id) {
+        renderLightboxLike(currentLightboxItem);
+      }
+    } catch (err) {
+      console.error(err);
+      // Roll back the optimistic update on failure
+      likedIds[item.id] = alreadyLiked;
+      item.likes_count = Math.max(0, (item.likes_count || 0) + (alreadyLiked ? 1 : -1));
+      if (heart) heart.textContent = alreadyLiked ? "♥" : "♡";
+      likeBtn.classList.toggle("liked", alreadyLiked);
+      if (countEl) countEl.textContent = item.likes_count;
+    }
+  }
+
   // Shows the video at its native resolution/aspect ratio in a floating
   // popup near the hovered card, instead of the cropped grid thumbnail.
-  function showHoverPreview(card, url) {
+  function showHoverPreview(card, item) {
     var popup = document.createElement("div");
     popup.className = "gallery-hover-preview";
 
     var video = document.createElement("video");
-    video.src = url;
+    video.src = item.image_url;
+    var poster = posterUrl(item);
+    if (poster) video.poster = poster;
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
@@ -313,16 +453,76 @@ document.addEventListener("DOMContentLoaded", function () {
     var q = query.toLowerCase();
     return allItems.filter(function (item) {
       var inPrompt = item.prompt && item.prompt.toLowerCase().indexOf(q) !== -1;
+      var inTitle = item.title && item.title.toLowerCase().indexOf(q) !== -1;
       var inTags = (item.hashtags || []).some(function (t) { return t.toLowerCase().indexOf(q) !== -1; });
-      return inPrompt || inTags;
+      return inPrompt || inTitle || inTags;
     });
   }
 
   if (searchInput) {
     searchInput.addEventListener("input", function () {
-      var q = searchInput.value.trim();
-      renderGallery(q ? filterItems(q) : allItems);
+      renderCurrentView();
     });
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener("change", function () {
+      renderCurrentView();
+    });
+  }
+
+  // ---------- Sort ----------
+  // Cheap relevance score for a search query: exact/whole-word hashtag match
+  // scores highest, then a title hit, then a prompt hit — with a small bonus
+  // for matches that occur earlier in the text.
+  function relevanceScore(item, q) {
+    var query = q.toLowerCase();
+    var score = 0;
+
+    (item.hashtags || []).forEach(function (t) {
+      var tag = t.toLowerCase();
+      if (tag === query) score += 100;
+      else if (tag.indexOf(query) !== -1) score += 40;
+    });
+
+    if (item.title) {
+      var idx = item.title.toLowerCase().indexOf(query);
+      if (idx !== -1) score += 60 - Math.min(idx, 30);
+    }
+
+    if (item.prompt) {
+      var pIdx = item.prompt.toLowerCase().indexOf(query);
+      if (pIdx !== -1) score += 20 - Math.min(pIdx / 10, 10);
+    }
+
+    return score;
+  }
+
+  function sortItems(items, query) {
+    var mode = sortSelect ? sortSelect.value : "popular";
+    var sorted = items.slice();
+
+    if (mode === "relevant" && query) {
+      sorted.sort(function (a, b) {
+        var diff = relevanceScore(b, query) - relevanceScore(a, query);
+        if (diff !== 0) return diff;
+        return (b.likes_count || 0) - (a.likes_count || 0);
+      });
+    } else if (mode === "recent") {
+      sorted.sort(function (a, b) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+    } else {
+      // "popular" default, and "relevant" with no active search query falls
+      // back to popularity too since there's nothing to rank relevance against.
+      sorted.sort(function (a, b) {
+        var diff = (b.likes_count || 0) - (a.likes_count || 0);
+        if (diff !== 0) return diff;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+    }
+
+    return sorted;
   }
 
   // ---------- Lightbox ----------
@@ -334,6 +534,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var lightboxModel = document.getElementById("lightboxModel");
   var lightboxTags = document.getElementById("lightboxTags");
   var lightboxCopy = document.getElementById("lightboxCopy");
+  var lightboxLikeBtn = document.getElementById("lightboxLikeBtn");
   var lightboxClose = document.getElementById("lightboxClose");
 
   var lightboxView = document.getElementById("lightboxView");
@@ -364,6 +565,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (item.media_type === "video") {
       lightboxVideo.src = item.image_url;
+      var poster = posterUrl(item);
+      if (poster) lightboxVideo.poster = poster;
       lightboxVideo.style.display = "block";
       lightboxImg.style.display = "none";
       lightboxImg.removeAttribute("src");
@@ -375,6 +578,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     renderLightboxView(item);
+    renderLightboxLike(item);
     exitEditMode();
 
     if (lightboxEditBtn) {
@@ -389,6 +593,32 @@ document.addEventListener("DOMContentLoaded", function () {
       lightboxCopy.textContent = "Copied ✓";
       setTimeout(function () { lightboxCopy.textContent = "Copy Prompt"; }, 1500);
     };
+
+    if (lightboxLikeBtn) {
+      lightboxLikeBtn.onclick = function () {
+        toggleLike(item, lightboxLikeBtn);
+        // Keep the matching grid card's heart/count in sync without a full re-render
+        var gridBtn = galleryGrid.querySelector('.card-like-btn[data-gallery-id="' + item.id + '"]');
+        if (gridBtn) {
+          var liked = !!likedIds[item.id];
+          gridBtn.classList.toggle("liked", liked);
+          var gh = gridBtn.querySelector(".like-heart");
+          var gc = gridBtn.querySelector(".like-count");
+          if (gh) gh.textContent = liked ? "♥" : "♡";
+          if (gc) gc.textContent = item.likes_count || 0;
+        }
+      };
+    }
+  }
+
+  function renderLightboxLike(item) {
+    if (!lightboxLikeBtn) return;
+    var liked = !!likedIds[item.id];
+    lightboxLikeBtn.classList.toggle("liked", liked);
+    var heart = lightboxLikeBtn.querySelector(".like-heart");
+    var count = lightboxLikeBtn.querySelector(".like-count");
+    if (heart) heart.textContent = liked ? "♥" : "♡";
+    if (count) count.textContent = item.likes_count || 0;
   }
 
   function renderLightboxView(item) {
@@ -512,7 +742,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         renderLightboxView(currentLightboxItem);
-        renderGallery(searchInput && searchInput.value.trim() ? filterItems(searchInput.value.trim()) : allItems);
+        renderCurrentView();
         exitEditMode();
       } catch (err) {
         console.error(err);
