@@ -619,6 +619,47 @@ section {
   display: block;
 }
 
+/* ---------- AI enhance (Prompt Generator) ---------- */
+
+.ai-enhance-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ai-enhance-status {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  display: none;
+}
+
+.ai-enhance-status.show {
+  display: inline;
+}
+
+.ai-enhance-status.success {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.ai-enhance-status.error {
+  color: var(--color-red);
+}
+
+.ai-enhance-auth-note {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+}
+
+#textPromptOutput.ai-enhanced,
+#imagePromptOutput.ai-enhanced,
+#videoPromptOutput.ai-enhanced {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
 /* ---------- Ad Slots ---------- */
 
 .ad-slot {
