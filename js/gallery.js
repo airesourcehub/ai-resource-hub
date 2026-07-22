@@ -228,21 +228,58 @@ document.addEventListener("DOMContentLoaded", function () {
       card.addEventListener("click", function () { openLightbox(item); });
 
       if (item.media_type === "video") {
-        var thumbVideo = card.querySelector("video");
-        if (thumbVideo) {
-          card.addEventListener("mouseenter", function () {
-            var playPromise = thumbVideo.play();
-            if (playPromise && playPromise.catch) playPromise.catch(function () {});
-          });
-          card.addEventListener("mouseleave", function () {
-            thumbVideo.pause();
-            thumbVideo.currentTime = 0;
-          });
-        }
+        var hoverPopup = null;
+        card.addEventListener("mouseenter", function () {
+          hoverPopup = showHoverPreview(card, item.image_url);
+        });
+        card.addEventListener("mouseleave", function () {
+          if (hoverPopup) {
+            hoverPopup.remove();
+            hoverPopup = null;
+          }
+        });
       }
 
       galleryGrid.appendChild(card);
     });
+  }
+
+  // Shows the video at its native resolution/aspect ratio in a floating
+  // popup near the hovered card, instead of the cropped grid thumbnail.
+  function showHoverPreview(card, url) {
+    var popup = document.createElement("div");
+    popup.className = "gallery-hover-preview";
+
+    var video = document.createElement("video");
+    video.src = url;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    popup.appendChild(video);
+    document.body.appendChild(popup);
+
+    function reposition() {
+      var cardRect = card.getBoundingClientRect();
+      var popupRect = popup.getBoundingClientRect();
+
+      var left = cardRect.left + cardRect.width / 2 - popupRect.width / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - popupRect.width - 8));
+
+      var top = cardRect.top - popupRect.height - 12;
+      if (top < 8) top = cardRect.bottom + 12;
+      top = Math.max(8, Math.min(top, window.innerHeight - popupRect.height - 8));
+
+      popup.style.left = left + "px";
+      popup.style.top = top + "px";
+    }
+
+    video.addEventListener("loadedmetadata", reposition);
+    reposition();
+
+    var playPromise = video.play();
+    if (playPromise && playPromise.catch) playPromise.catch(function () {});
+
+    return popup;
   }
 
   // ---------- Search ----------
