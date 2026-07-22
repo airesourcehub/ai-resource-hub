@@ -106,8 +106,9 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 16px 24px;
-  max-width: var(--max-width);
+  max-width: 1320px;
   margin: 0 auto;
 }
 
@@ -118,6 +119,8 @@ a:hover {
   font-weight: 700;
   font-size: 1.15rem;
   color: var(--color-text);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-brand .logo-mark {
@@ -136,16 +139,19 @@ a:hover {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 28px;
+  flex-wrap: nowrap;
+  gap: 18px;
   list-style: none;
   margin: 0;
   padding: 0;
+  min-width: 0;
 }
 
 .nav-links a {
   color: var(--color-text-muted);
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .nav-links a.active,
@@ -156,10 +162,12 @@ a:hover {
 .nav-cta {
   background: var(--color-accent);
   color: #fff !important;
-  padding: 9px 18px;
+  padding: 9px 16px;
   border-radius: var(--radius);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-cta:hover {
@@ -920,27 +928,31 @@ section {
 .nav-auth-slot {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .nav-auth-email {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--color-text-muted);
-  max-width: 140px;
+  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 1;
 }
 
 .nav-auth-signout {
   background: none;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 0.82rem;
+  padding: 5px 10px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-muted);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-auth-signout:hover {
@@ -1092,12 +1104,13 @@ video.upload-preview {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
   border-radius: 999px;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   line-height: 1;
   color: var(--color-text-muted);
