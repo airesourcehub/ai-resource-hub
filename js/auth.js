@@ -62,7 +62,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
       var result = await client.auth.signUp({ email: email, password: password });
       if (result.error) {
-        showStatus(signupStatus, result.error.message, "error");
+        var msg = (result.error.message || "").toLowerCase();
+        if (msg.indexOf("already registered") !== -1 || msg.indexOf("already exists") !== -1) {
+          showStatus(signupStatus, "This email is already registered. Try logging in instead.", "error");
+        } else if (msg.indexOf("password") !== -1) {
+          showStatus(signupStatus, result.error.message, "error");
+        } else {
+          // Most likely blocked by the invite-only allowlist (or an
+          // unexpected server error) — either way, point them to the
+          // request-access flow below rather than showing a raw DB error.
+          showStatus(
+            signupStatus,
+            "This email isn't approved for sign-up yet. Email the admin or submit a request below.",
+            "error"
+          );
+          var requestEmailField = document.getElementById("requestEmail");
+          if (requestEmailField && !requestEmailField.value) requestEmailField.value = email;
+        }
         return;
       }
 
@@ -71,6 +87,38 @@ document.addEventListener("DOMContentLoaded", function () {
       } else {
         showStatus(signupStatus, "Account created. Check your email to confirm, then log in.", "success");
         signupForm.reset();
+      }
+    });
+  }
+
+  // ---------- Request access ----------
+  var requestForm = document.getElementById("requestAccessForm");
+  var requestStatus = document.getElementById("requestStatus");
+
+  if (requestForm) {
+    requestForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      var reqEmail = document.getElementById("requestEmail").value.trim();
+      var reqMessage = document.getElementById("requestMessage").value.trim();
+
+      if (!reqEmail) {
+        showStatus(requestStatus, "Please enter your email.", "error");
+        return;
+      }
+
+      showStatus(requestStatus, "Sending request...", "");
+
+      try {
+        var insertResult = await client.from("access_requests").insert([{
+          email: reqEmail,
+          message: reqMessage || null
+        }]);
+        if (insertResult.error) throw insertResult.error;
+        showStatus(requestStatus, "Request sent — you'll hear back once it's reviewed.", "success");
+        requestForm.reset();
+      } catch (err) {
+        console.error(err);
+        showStatus(requestStatus, "Something went wrong: " + (err.message || err), "error");
       }
     });
   }
