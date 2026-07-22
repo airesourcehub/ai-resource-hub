@@ -84,11 +84,10 @@ tool-specific prompt — filling in reasonable gaps, not just concatenating
 whatever you typed.
 
 - **How it works:** clicking the button POSTs your (non-empty) field values
-  to a Supabase Edge Function called `enhance-prompt`, which calls Claude
-  (`claude-haiku-4-5-20251001` — cheap and fast) with a system prompt
-  describing the target model's formatting conventions (the same notes
-  shown in the UI), and returns a single polished prompt that replaces the
-  output box's contents.
+  to a Supabase Edge Function called `enhance-prompt`, which calls Zhipu
+  AI's GLM model (`glm-4.6`) with a system prompt describing the target
+  model's formatting conventions (the same notes shown in the UI), and
+  returns a single polished prompt that replaces the output box's contents.
 - **Requires login.** Logged-out visitors only see the free template
   builder (no button at all — a "Log in to enhance" note shows instead).
   This isn't just a UI hint: the edge function itself decodes the caller's
@@ -97,27 +96,33 @@ whatever you typed.
   anon/publishable key (visible in `js/supabase-config.js`) to rack up API
   calls without ever creating an account. Combined with invite-only
   sign-up, this keeps API costs bounded to people you've actually approved.
-- **Costs real money per use** — a few thousandths of a cent per call on
-  Anthropic's API, but it does scale with usage across your whole user
+- **Costs real money per use** — a small fraction of a cent per call on
+  Zhipu AI's API, but it does scale with usage across your whole user
   base, unlike the free template mode. Worth keeping an eye on usage if the
   site gets meaningful traffic.
 - **Privacy:** unlike the rest of the generator, using this button does
-  send your field values off-device (to the edge function, then to
-  Anthropic) to generate the enhanced text. The page copy says as much.
+  send your field values off-device (to the edge function, then to Zhipu
+  AI) to generate the enhanced text. The page copy says as much.
 
 **One-time setup required** (this step needs to happen outside of what I
 can do for you — API keys should never be typed into chat or pasted into
 client-side code):
-1. Create an API key at the [Anthropic Console](https://console.anthropic.com)
-   (Settings → API Keys), on an account with billing enabled.
+1. Create an API key at the [Z.ai / Zhipu AI platform](https://z.ai)
+   (or `https://open.bigmodel.cn` if you're on the China-region platform),
+   on an account with billing/credits enabled.
 2. In your Supabase project (`ai-resource-hub`, `flzhhgfkpdmszucoljpu`), go
    to **Edge Functions → Secrets** (or run
-   `supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref flzhhgfkpdmszucoljpu`
-   with the Supabase CLI) and add a secret named exactly `ANTHROPIC_API_KEY`
+   `supabase secrets set GLM_API_KEY=... --project-ref flzhhgfkpdmszucoljpu`
+   with the Supabase CLI) and add a secret named exactly `GLM_API_KEY`
    with that key as the value.
 3. That's it — no redeploy needed, the function reads the secret at request
    time. Until this is set, the button shows a friendly "AI enhancement
    isn't configured yet" error instead of failing silently.
+4. Optional: the function defaults to the international `api.z.ai`
+   endpoint. If your key was issued on the China-region `bigmodel.cn`
+   platform and calls fail, add a second secret named `GLM_API_BASE_URL`
+   set to `https://open.bigmodel.cn/api/paas/v4/chat/completions` — again,
+   no redeploy needed.
 
 **Known limitations:**
 - No per-user rate limiting yet beyond "must be logged in" — if you want a
