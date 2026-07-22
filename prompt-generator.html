@@ -43,7 +43,7 @@
   <div class="page-header">
     <div class="container">
       <h1>Prompt Generator</h1>
-      <p>Fill in a few fields, pick your model, and get a prompt formatted the way that specific AI actually wants to be talked to. Everything runs in your browser — nothing is saved or sent anywhere.</p>
+      <p>Fill in a few fields, pick your model, and get a prompt formatted the way that specific AI actually wants to be talked to. The template builder runs entirely in your browser — nothing is saved or sent anywhere. Log in and hit <strong>✨ Enhance with AI</strong> to have Claude rewrite your rough input into a fully articulated prompt instead (this does send your input to our server to generate the enhanced version).</p>
     </div>
   </div>
 
@@ -102,6 +102,13 @@
             <h3>Your prompt</h3>
             <p class="model-note" id="textModelNote"></p>
             <textarea id="textPromptOutput" readonly></textarea>
+            <div class="ai-enhance-row">
+              <button type="button" class="btn btn-primary ai-enhance-btn" id="textEnhanceBtn">✨ Enhance with AI</button>
+              <span class="ai-enhance-status" id="textEnhanceStatus"></span>
+            </div>
+            <p class="info-banner ai-enhance-auth-note" id="textEnhanceAuthNote" style="display:none;">
+              <a href="auth.html">Log in or sign up</a> to have AI rewrite this into a fully articulated prompt.
+            </p>
             <div class="output-actions">
               <button class="btn btn-primary copy-btn">Copy Prompt</button>
               <button class="btn btn-secondary clear-btn">Clear</button>
@@ -161,6 +168,13 @@
             <h3>Your prompt</h3>
             <p class="model-note" id="imgModelNote"></p>
             <textarea id="imagePromptOutput" readonly></textarea>
+            <div class="ai-enhance-row">
+              <button type="button" class="btn btn-primary ai-enhance-btn" id="imgEnhanceBtn">✨ Enhance with AI</button>
+              <span class="ai-enhance-status" id="imgEnhanceStatus"></span>
+            </div>
+            <p class="info-banner ai-enhance-auth-note" id="imgEnhanceAuthNote" style="display:none;">
+              <a href="auth.html">Log in or sign up</a> to have AI rewrite this into a fully articulated prompt.
+            </p>
             <div class="output-actions">
               <button class="btn btn-primary copy-btn">Copy Prompt</button>
               <button class="btn btn-secondary clear-btn">Clear</button>
@@ -219,6 +233,13 @@
             <h3>Your prompt</h3>
             <p class="model-note" id="vidModelNote"></p>
             <textarea id="videoPromptOutput" readonly></textarea>
+            <div class="ai-enhance-row">
+              <button type="button" class="btn btn-primary ai-enhance-btn" id="vidEnhanceBtn">✨ Enhance with AI</button>
+              <span class="ai-enhance-status" id="vidEnhanceStatus"></span>
+            </div>
+            <p class="info-banner ai-enhance-auth-note" id="vidEnhanceAuthNote" style="display:none;">
+              <a href="auth.html">Log in or sign up</a> to have AI rewrite this into a fully articulated prompt.
+            </p>
             <div class="output-actions">
               <button class="btn btn-primary copy-btn">Copy Prompt</button>
               <button class="btn btn-secondary clear-btn">Clear</button>

@@ -73,6 +73,59 @@ Model prompting conventions change as these products update — if a model
 changes its syntax, update the matching branch in `js/prompt-generator.js`
 (`buildTextPrompt`, `buildImagePrompt`, `buildVideoPrompt`).
 
+## Prompt Generator: AI-enhanced mode (✨ Enhance with AI)
+
+The template builder above is 100% local — it just fills your field values
+into a fixed sentence/tag structure, which is fast and free but mechanical:
+a one-line answer produces a one-line prompt. The **✨ Enhance with AI**
+button (under the output box on every panel) instead sends your field
+values to a real AI, which rewrites them into a properly articulated,
+tool-specific prompt — filling in reasonable gaps, not just concatenating
+whatever you typed.
+
+- **How it works:** clicking the button POSTs your (non-empty) field values
+  to a Supabase Edge Function called `enhance-prompt`, which calls Claude
+  (`claude-haiku-4-5-20251001` — cheap and fast) with a system prompt
+  describing the target model's formatting conventions (the same notes
+  shown in the UI), and returns a single polished prompt that replaces the
+  output box's contents.
+- **Requires login.** Logged-out visitors only see the free template
+  builder (no button at all — a "Log in to enhance" note shows instead).
+  This isn't just a UI hint: the edge function itself decodes the caller's
+  JWT and rejects anything where `role !== "authenticated"`, which
+  specifically blocks someone from just replaying this site's public
+  anon/publishable key (visible in `js/supabase-config.js`) to rack up API
+  calls without ever creating an account. Combined with invite-only
+  sign-up, this keeps API costs bounded to people you've actually approved.
+- **Costs real money per use** — a few thousandths of a cent per call on
+  Anthropic's API, but it does scale with usage across your whole user
+  base, unlike the free template mode. Worth keeping an eye on usage if the
+  site gets meaningful traffic.
+- **Privacy:** unlike the rest of the generator, using this button does
+  send your field values off-device (to the edge function, then to
+  Anthropic) to generate the enhanced text. The page copy says as much.
+
+**One-time setup required** (this step needs to happen outside of what I
+can do for you — API keys should never be typed into chat or pasted into
+client-side code):
+1. Create an API key at the [Anthropic Console](https://console.anthropic.com)
+   (Settings → API Keys), on an account with billing enabled.
+2. In your Supabase project (`ai-resource-hub`, `flzhhgfkpdmszucoljpu`), go
+   to **Edge Functions → Secrets** (or run
+   `supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref flzhhgfkpdmszucoljpu`
+   with the Supabase CLI) and add a secret named exactly `ANTHROPIC_API_KEY`
+   with that key as the value.
+3. That's it — no redeploy needed, the function reads the secret at request
+   time. Until this is set, the button shows a friendly "AI enhancement
+   isn't configured yet" error instead of failing silently.
+
+**Known limitations:**
+- No per-user rate limiting yet beyond "must be logged in" — if you want a
+  daily-use cap per account to control costs further, ask and I can add a
+  small `prompt_enhance_usage` table + check inside the edge function.
+- The enhanced result isn't saved anywhere (matches the rest of the
+  generator) — copy it before navigating away.
+
 ## Accounts + Gallery setup (Supabase — already connected)
 
 Accounts and the Gallery are wired up to a live Supabase project:
