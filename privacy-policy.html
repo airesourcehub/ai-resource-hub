@@ -22,6 +22,7 @@
       <li><a href="prompt-generator.html">Prompt Generator</a></li>
       <li><a href="gallery.html">Gallery</a></li>
       <li><a href="about.html">About</a></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
       <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
     </ul>
   </nav>
@@ -97,7 +98,10 @@
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
 <script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
 <script>
   document.getElementById("lastUpdated").textContent = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 </script>

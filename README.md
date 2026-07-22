@@ -2,8 +2,9 @@
 
 A GitHub Pages–ready website: a curated AI resource directory, a
 per-model Prompt Generator (text, image, video — formatted for the specific
-AI you're using), and a Gallery for saving your own AI photo + prompt +
-hashtag combinations with search.
+AI you're using), user accounts (email/password), and a Gallery for saving
+your own AI photos and videos with the prompt + hashtags that made them —
+public or private, searchable.
 
 ## File structure
 
@@ -11,13 +12,16 @@ hashtag combinations with search.
 index.html               Home page
 resources.html            AI tools directory (filterable by category)
 prompt-generator.html      Prompt Generator (per-model formatting)
-gallery.html               Photo + prompt + hashtag gallery (Supabase-backed)
+gallery.html               Photo/video + prompt + hashtag gallery (Supabase-backed)
+auth.html                  Log in / sign up (email + password)
 about.html                 Mission + contact
 privacy-policy.html        Required before applying for Google AdSense
 css/style.css              Shared styles
 js/main.js                 Nav toggle, active link, resource filtering
 js/prompt-generator.js     Prompt Generator logic (all models)
 js/supabase-config.js      Live Supabase project keys (already filled in)
+js/auth.js                 Sign up / log in / log out logic
+js/auth-nav.js             Shows Log In / account state in the nav on every page
 js/gallery.js              Gallery upload / search / lightbox logic
 ```
 
@@ -57,30 +61,56 @@ form fields get reformatted into that model's actual prompting convention:
   detail, then camera/lighting last — LTX's own docs recommend this order).
   Veo, Runway, and Sora get a cinematic natural-language paragraph. Kling
   gets explicit `camera_movement:` / `style:` labels plus an optional
-  negative prompt. Pika gets dash parameters (`-motion`, `-gs`, `-ar`).
+  negative prompt. Pika gets dash parameters (`-motion`, `-gs`, `-ar`). Wan
+  2.1/2.2 gets its documented 6-part structure — camera movement, subject/
+  scene, motion, camera language, style, atmosphere — plus a negative prompt.
 
 Model prompting conventions change as these products update — if a model
 changes its syntax, update the matching branch in `js/prompt-generator.js`
 (`buildTextPrompt`, `buildImagePrompt`, `buildVideoPrompt`).
 
-## Gallery setup (Supabase — already connected)
+## Accounts + Gallery setup (Supabase — already connected)
 
-The Gallery is already wired up to a live Supabase project:
+Accounts and the Gallery are wired up to a live Supabase project:
 
 - **Organization:** airesourcehub
 - **Project:** ai-resource-hub (`flzhhgfkpdmszucoljpu`, region `us-east-1`, free tier — $0/month)
-- **Table:** `gallery_prompts` (columns: `id`, `created_at`, `image_url`, `prompt`, `hashtags text[]`, `model`), RLS enabled with public read + public insert policies
-- **Storage bucket:** `gallery-images` (public), with public read + public upload policies
+- **Auth:** Supabase Auth, email/password. Sign up and log in on `auth.html`.
+- **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`, `prompt`,
+  `hashtags text[]`, `model`, `user_id` (owner), `is_public` (boolean,
+  default true), `media_type` (`'image'` or `'video'`)
+- **Storage bucket:** `gallery-images` (public; holds both images and
+  videos), allowed types `image/*` and `video/*` (mp4, webm, mov), 100MB
+  file size limit
 - **Keys:** already filled in at `js/supabase-config.js`
 
-Nothing further to do — deploy the site as-is and the Gallery page will
-upload, search, and browse against this project.
+Nothing further to do — deploy the site as-is and accounts + the Gallery
+will work against this project. How access works:
 
-**Security note:** the "public read + public insert" policies mean anyone
-with your site's public key can add or view gallery entries — there's no
-login system yet. That's fine for a personal MVP, but before sharing the
-site publicly or opening it to other users, add Supabase Auth and restrict
-the insert policy to authenticated users.
+- Anyone can browse and search **public** gallery entries without logging in.
+- You must be logged in to post (photo or video).
+- Each entry is posted **public** (visible to everyone) or **private**
+  (visible only to you) — your choice per upload, shown as a toggle on the
+  upload form. This is enforced by Postgres row-level security, not just
+  hidden in the UI: logged-out visitors and other users are only ever sent
+  public rows by the database.
+
+**One manual step worth doing:** open your Supabase project →
+**Authentication → URL Configuration**, and set the **Site URL** to your
+live GitHub Pages URL (e.g. `https://airesourcehub.github.io/ai-resource-hub/`),
+plus add it under **Redirect URLs**. This makes email confirmation links
+land back on your live site instead of `localhost`. Also worth knowing:
+**Authentication → Providers → Email** has a "Confirm email" toggle — it's
+on by default (new users must click a confirmation link before logging in).
+Turn it off there if you'd rather signups be instant, at the cost of easier
+fake sign-ups.
+
+**Security note on "private":** the storage bucket is public, and file
+paths are random/unguessable, so a private entry's file isn't discoverable
+through the app (the database row is hidden by RLS) but the raw file URL
+itself isn't cryptographically locked down. That's a reasonable trade-off
+for an MVP; if you need true private-file security later, that means moving
+to a private bucket with signed URLs — ask and I can wire that up.
 
 **Recreating this elsewhere** (e.g. a different Supabase project): run this
 in the SQL Editor of the new project, then update `js/supabase-config.js`
@@ -93,27 +123,44 @@ create table gallery_prompts (
   image_url text not null,
   prompt text not null,
   hashtags text[] default '{}',
-  model text
+  model text,
+  user_id uuid references auth.users(id) on delete cascade,
+  is_public boolean not null default true,
+  media_type text not null default 'image'
 );
 
 alter table gallery_prompts enable row level security;
 
-create policy "Public can read gallery" on gallery_prompts
-  for select using (true);
+create policy "Read public or own" on gallery_prompts
+  for select using (is_public = true or auth.uid() = user_id);
 
-create policy "Public can insert gallery" on gallery_prompts
-  for insert with check (true);
+create policy "Insert own" on gallery_prompts
+  for insert to authenticated
+  with check (auth.uid() = user_id);
 
-insert into storage.buckets (id, name, public)
-values ('gallery-images', 'gallery-images', true)
+create policy "Update own" on gallery_prompts
+  for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Delete own" on gallery_prompts
+  for delete to authenticated
+  using (auth.uid() = user_id);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'gallery-images', 'gallery-images', true, 104857600,
+  array['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm','video/quicktime']
+)
 on conflict (id) do nothing;
 
 create policy "Public read access to gallery images"
   on storage.objects for select
   using (bucket_id = 'gallery-images');
 
-create policy "Public upload access to gallery images"
+create policy "Authenticated upload access to gallery images"
   on storage.objects for insert
+  to authenticated
   with check (bucket_id = 'gallery-images');
 ```
 
@@ -127,10 +174,13 @@ create policy "Public upload access to gallery images"
 
 ## Next steps toward a subscription model
 
-This site is intentionally backend-light for now (Supabase is only used for
-the Gallery). When you're ready to add subscriber accounts and gated tools:
+Accounts already exist (Supabase Auth), which is the foundation a paid tier
+needs. When you're ready to add subscriptions:
 - Payments: Stripe (Checkout or Billing) is the standard choice.
-- Auth/accounts: Supabase Auth (since it's already in the stack), Auth0, or
-  Memberstack are common options.
-- You can gate the Gallery, extra prompt-generator features, or new tools
-  behind a login once Supabase Auth is added — no full rebuild required.
+- Add a `subscriptions` or `plan` field tied to `auth.users` (e.g. a
+  `profiles` table with a `plan` column), set by a Stripe webhook.
+- Gate specific gallery features, prompt-generator models, or new tools
+  behind `plan = 'pro'` checks in RLS policies and in the UI.
+- Optional: add Google (or other OAuth) sign-in later via **Authentication →
+  Providers** in Supabase — requires creating OAuth credentials in Google
+  Cloud Console and pasting the Client ID/Secret into Supabase's dashboard.

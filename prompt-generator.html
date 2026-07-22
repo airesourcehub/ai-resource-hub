@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Prompt Generator — AI Resource Hub</title>
-<meta name="description" content="Free prompt generator for ChatGPT, Claude, Gemini, Midjourney, DALL-E, Stable Diffusion, Firefly, LTX Video, Veo, Runway, Sora, Kling, and Pika. Build clear, model-specific prompts with a guided form." />
+<meta name="description" content="Free prompt generator for ChatGPT, Claude, Gemini, Midjourney, DALL-E, Stable Diffusion, Firefly, LTX Video, Veo, Runway, Sora, Kling, Pika, and Wan 2.1/2.2. Build clear, model-specific prompts with a guided form." />
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -22,6 +22,7 @@
       <li><a href="prompt-generator.html">Prompt Generator</a></li>
       <li><a href="gallery.html">Gallery</a></li>
       <li><a href="about.html">About</a></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
       <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
     </ul>
   </nav>
@@ -167,6 +168,7 @@
                 <option value="sora">Sora</option>
                 <option value="kling">Kling</option>
                 <option value="pika">Pika</option>
+                <option value="wan">Wan 2.1 / 2.2</option>
               </select>
             </div>
             <div class="field">
@@ -242,7 +244,10 @@
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
 <script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
 <script src="js/prompt-generator.js"></script>
 </body>
 </html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log In / Sign Up — AI Resource Hub</title>
+<meta name="description" content="Log in or create a free AI Resource Hub account to save prompts and photos to your gallery." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+      <li><a href="about.html">About</a></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+
+  <div class="page-header">
+    <div class="container">
+      <h1>Account</h1>
+      <p>Log in or sign up to post to the Gallery.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+
+      <div class="info-banner" id="authSetupBanner">
+        The account system isn't connected yet. See <strong>README.md</strong> for the Supabase setup — once <code>js/supabase-config.js</code> has your project keys, sign up and log in will work here.
+      </div>
+
+      <div class="auth-card">
+
+        <div id="authLoggedIn" class="auth-logged-in" style="display:none;">
+          <h3 style="margin-top:0;">You're logged in</h3>
+          <p id="authLoggedInEmail"></p>
+          <a href="gallery.html" class="btn btn-primary btn-block" style="margin-bottom:10px;">Go to Gallery</a>
+          <button type="button" class="btn btn-secondary btn-block" id="authSignOutBtn">Log out</button>
+        </div>
+
+        <div id="authLoggedOut">
+          <div class="auth-tabs" id="authTabs">
+            <button class="auth-tab active" data-auth-tab="login">Log In</button>
+            <button class="auth-tab" data-auth-tab="signup">Sign Up</button>
+          </div>
+
+          <div class="auth-panel active" id="panel-login">
+            <form id="loginForm">
+              <div class="field">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" required />
+              </div>
+              <div class="field">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" required />
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Log In</button>
+              <div class="form-status" id="loginStatus"></div>
+            </form>
+          </div>
+
+          <div class="auth-panel" id="panel-signup">
+            <form id="signupForm">
+              <div class="field">
+                <label for="signupEmail">Email</label>
+                <input type="email" id="signupEmail" required />
+              </div>
+              <div class="field">
+                <label for="signupPassword">Password (min 6 characters)</label>
+                <input type="password" id="signupPassword" minlength="6" required />
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
+              <div class="form-status" id="signupStatus"></div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

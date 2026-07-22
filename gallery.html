@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Gallery — AI Resource Hub</title>
-<meta name="description" content="Upload your AI-generated photos with the prompt and hashtags used to create them, and build your own searchable prompt library." />
+<meta name="description" content="Upload your AI-generated photos and videos with the prompt and hashtags used to create them, and build your own searchable prompt library. Post publicly or keep entries private." />
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -22,6 +22,7 @@
       <li><a href="prompt-generator.html">Prompt Generator</a></li>
       <li><a href="gallery.html">Gallery</a></li>
       <li><a href="about.html">About</a></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
       <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
     </ul>
   </nav>
@@ -32,7 +33,7 @@
   <div class="page-header">
     <div class="container">
       <h1>Prompt Gallery</h1>
-      <p>Upload a photo alongside the prompt and hashtags you used to create it — build your own searchable library of what's worked.</p>
+      <p>Upload a photo or video alongside the prompt and hashtags you used to create it. Post it publicly, or keep it private in your own library.</p>
     </div>
   </div>
 
@@ -40,20 +41,25 @@
     <div class="container">
 
       <div class="info-banner" id="setupBanner">
-        Gallery backend isn't connected yet. See <strong>README.md</strong> for a 5-minute Supabase setup (free tier) — once configured with your project URL and key in <code>js/supabase-config.js</code>, uploads and search will work here.
+        Gallery backend isn't connected yet. See <strong>README.md</strong> for a 5-minute Supabase setup (free tier) — once configured with your project URL and key in <code>js/supabase-config.js</code>, accounts, uploads, and search will work here.
+      </div>
+
+      <div class="info-banner" id="authRequiredBanner">
+        <a href="auth.html">Log in or sign up</a> to add photos or videos to the gallery. Browsing and searching public entries is open to everyone.
       </div>
 
       <div class="upload-card" id="uploadCard">
         <h3 style="margin-top:0;">Add to your gallery</h3>
         <form id="uploadForm">
           <div class="field">
-            <label for="uploadFile">Photo</label>
-            <input type="file" id="uploadFile" accept="image/*" required />
-            <img id="uploadPreview" class="upload-preview" alt="Preview" />
+            <label for="uploadFile">Photo or video</label>
+            <input type="file" id="uploadFile" accept="image/*,video/*" required />
+            <img id="uploadPreviewImg" class="upload-preview" alt="Preview" />
+            <video id="uploadPreviewVideo" class="upload-preview" controls muted></video>
           </div>
           <div class="field">
             <label for="uploadPrompt">Prompt used</label>
-            <textarea id="uploadPrompt" placeholder="Paste the exact prompt you used to generate this image" required></textarea>
+            <textarea id="uploadPrompt" placeholder="Paste the exact prompt you used to generate this" required></textarea>
           </div>
           <div class="field">
             <label for="uploadTags">Hashtags (space or comma separated)</label>
@@ -62,6 +68,19 @@
           <div class="field">
             <label for="uploadModel">Model used (optional)</label>
             <input type="text" id="uploadModel" placeholder="e.g. Midjourney v7" />
+          </div>
+          <div class="field">
+            <label>Visibility</label>
+            <div class="visibility-toggle">
+              <label class="visibility-option">
+                <input type="radio" name="uploadVisibility" value="public" checked />
+                Public — visible to everyone in the gallery
+              </label>
+              <label class="visibility-option">
+                <input type="radio" name="uploadVisibility" value="private" />
+                Private — visible only to you
+              </label>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary btn-block">Save to Gallery</button>
           <div class="form-status" id="uploadStatus"></div>
@@ -86,6 +105,7 @@
   <div class="lightbox-content">
     <button class="lightbox-close" id="lightboxClose">✕</button>
     <img id="lightboxImg" alt="Gallery image" />
+    <video id="lightboxVideo" controls></video>
     <div class="lightbox-body">
       <p id="lightboxPrompt" style="white-space:pre-wrap;"></p>
       <div class="gallery-tags" id="lightboxTags" style="margin-bottom:14px;"></div>
@@ -117,8 +137,9 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/main.js"></script>
 <script src="js/supabase-config.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
 <script src="js/gallery.js"></script>
 </body>
 </html>
