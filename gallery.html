@@ -93,6 +93,21 @@
             <img id="uploadPreviewImg" class="upload-preview" alt="Preview" />
             <video id="uploadPreviewVideo" class="upload-preview" controls muted></video>
           </div>
+          <div class="field cover-picker" id="uploadCoverPicker" style="display:none;">
+            <label>Cover thumbnail</label>
+            <div class="cover-mode-tabs">
+              <button type="button" class="cover-mode-btn active" data-cover-mode="frame">Pick a frame</button>
+              <button type="button" class="cover-mode-btn" data-cover-mode="photo">Upload a photo</button>
+            </div>
+            <div class="cover-frame-mode" id="uploadCoverFrameMode">
+              <input type="range" id="uploadCoverSlider" min="0" max="0" step="0.1" value="0" />
+              <p class="cover-frame-hint">Play the preview above, then drag to pick the moment used as your thumbnail.</p>
+            </div>
+            <div class="cover-photo-mode" id="uploadCoverPhotoMode" style="display:none;">
+              <input type="file" id="uploadCoverPhoto" accept="image/*" />
+              <img id="uploadCoverPhotoPreview" class="upload-preview" alt="Cover preview" />
+            </div>
+          </div>
           <div class="field">
             <label for="uploadTitle">Title (optional)</label>
             <input type="text" id="uploadTitle" placeholder="Give this upload a title" />
@@ -175,6 +190,22 @@
       </div>
 
       <div id="lightboxEditForm" style="display:none;">
+        <div class="field cover-picker" id="editCoverField" style="display:none;">
+          <label>Cover thumbnail</label>
+          <div class="cover-mode-tabs">
+            <button type="button" class="cover-mode-btn active" data-cover-mode="frame">Pick a frame</button>
+            <button type="button" class="cover-mode-btn" data-cover-mode="photo">Upload a photo</button>
+          </div>
+          <div class="cover-frame-mode" id="editCoverFrameMode">
+            <input type="range" id="editCoverSlider" min="0" max="0" step="0.1" value="0" />
+            <p class="cover-frame-hint">Scrub the video above, then drag here to lock in that frame as the thumbnail.</p>
+          </div>
+          <div class="cover-photo-mode" id="editCoverPhotoMode" style="display:none;">
+            <input type="file" id="editCoverPhoto" accept="image/*" />
+            <img id="editCoverPhotoPreview" class="upload-preview" alt="Cover preview" />
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="editCoverResetBtn">Reset to auto thumbnail</button>
+        </div>
         <div class="field">
           <label for="editTitle">Title</label>
           <input type="text" id="editTitle" />
@@ -254,6 +285,21 @@
               <input type="file" id="remixFile" accept="image/*,video/*" />
               <img id="remixPreviewImg" class="upload-preview" alt="Preview" />
               <video id="remixPreviewVideo" class="upload-preview" controls muted></video>
+            </div>
+            <div class="field cover-picker" id="remixCoverPicker" style="display:none;">
+              <label>Cover thumbnail</label>
+              <div class="cover-mode-tabs">
+                <button type="button" class="cover-mode-btn active" data-cover-mode="frame">Pick a frame</button>
+                <button type="button" class="cover-mode-btn" data-cover-mode="photo">Upload a photo</button>
+              </div>
+              <div class="cover-frame-mode" id="remixCoverFrameMode">
+                <input type="range" id="remixCoverSlider" min="0" max="0" step="0.1" value="0" />
+                <p class="cover-frame-hint">Play the preview above, then drag to pick the moment used as your thumbnail.</p>
+              </div>
+              <div class="cover-photo-mode" id="remixCoverPhotoMode" style="display:none;">
+                <input type="file" id="remixCoverPhoto" accept="image/*" />
+                <img id="remixCoverPhotoPreview" class="upload-preview" alt="Cover preview" />
+              </div>
             </div>
             <div class="field">
               <label for="remixTitle">Title (optional)</label>

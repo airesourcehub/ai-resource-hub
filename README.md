@@ -81,10 +81,11 @@ Accounts and the Gallery are wired up to a live Supabase project:
 - **Project:** ai-resource-hub (`flzhhgfkpdmszucoljpu`, region `us-east-1`, free tier — $0/month)
 - **Auth:** Supabase Auth, email/password. Sign up and log in on `auth.html`.
 - **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`,
-  `cloudinary_public_id`, `title`, `prompt`, `hashtags text[]`, `model`,
-  `user_id` (owner), `is_public` (boolean, default true), `media_type`
-  (`'image'` or `'video'`), `likes_count` (integer, kept in sync by a
-  trigger — see "Gallery browsing" below)
+  `cloudinary_public_id`, `cover_url` (nullable — custom thumbnail override,
+  see "Custom cover thumbnails" below), `title`, `prompt`, `hashtags text[]`,
+  `model`, `user_id` (owner), `is_public` (boolean, default true),
+  `media_type` (`'image'` or `'video'`), `likes_count` (integer, kept in
+  sync by a trigger — see "Gallery browsing" below)
 - **Table:** `gallery_likes` — one row per (user, gallery entry) like;
   a unique constraint stops double-liking, and insert/delete triggers keep
   `gallery_prompts.likes_count` up to date automatically.
@@ -151,11 +152,39 @@ The Gallery page shows the grid first — uploading lives behind a separate
   inflated from the browser console.
 
 **Mobile video thumbnails:** grid/hover video thumbnails use a Cloudinary
-still-frame (`so_0` transform on the video's `cloudinary_public_id`) as the
-`<video poster>`. This fixes a real bug where iOS Safari showed a blank box
-instead of a frame — mobile Safari doesn't decode a preview frame for
+still-frame (`so_0` transform on the video's `cloudinary_public_id`, or a
+custom `cover_url` if one was picked — see below) as the `<video poster>`.
+This fixes a real bug where iOS Safari showed a blank box instead of a
+frame — mobile Safari doesn't decode a preview frame for
 `preload="metadata"` the way desktop browsers do, so an explicit poster
 image is needed.
+
+## Custom cover thumbnails
+
+By default a video's thumbnail is just its very first frame, which made the
+grid look repetitive whenever two videos happened to open on a similar
+shot. Every place you attach a video (the main upload form, a remix in a
+comment, and the Edit form on an existing post) now has a **Cover
+thumbnail** picker with two modes:
+
+- **Pick a frame** (default) — a slider scrubs the video preview; whatever
+  moment it's parked on when you submit/save becomes the thumbnail. Under
+  the hood this just reuses Cloudinary's `so_<seconds>` still-frame
+  transform (the same mechanism as the default frame-0 poster) with your
+  chosen offset instead of `0`, so no extra file is uploaded.
+- **Upload a photo** — attach a completely separate image (a custom
+  thumbnail, thumbnail text overlay, whatever) instead of a frame from the
+  video at all. This photo is uploaded to Cloudinary like any other image
+  and its URL is stored directly.
+
+The chosen cover is stored in `gallery_prompts.cover_url` and takes
+priority everywhere a poster/thumbnail is shown: the grid card, the
+hover-preview popup, the lightbox, and remix thumbnails inside comment
+threads. Leaving the slider at its default position (or never touching the
+picker) leaves `cover_url` null and falls back to the automatic frame-0
+thumbnail — nothing changes unless you actively pick something. On the Edit
+form there's also a **Reset to auto thumbnail** button to clear a
+previously-set custom cover.
 
 ## Comments and remixes
 
@@ -307,6 +336,7 @@ create table gallery_prompts (
   created_at timestamptz default now(),
   image_url text not null,
   cloudinary_public_id text,
+  cover_url text,
   title text,
   prompt text not null,
   hashtags text[] default '{}',
