@@ -94,6 +94,11 @@ will work against this project. How access works:
   upload form. This is enforced by Postgres row-level security, not just
   hidden in the UI: logged-out visitors and other users are only ever sent
   public rows by the database.
+- You can edit your own entries later: open one in the gallery lightbox and
+  click **Edit** to change its title, prompt, hashtags, model, or visibility
+  (the media file itself isn't replaceable — re-upload as a new entry for
+  that). This is also RLS-enforced (`Update own` policy), so only the
+  owner's edits are accepted by the database.
 
 **One manual step worth doing:** open your Supabase project →
 **Authentication → URL Configuration**, and set the **Site URL** to your

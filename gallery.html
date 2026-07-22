@@ -145,10 +145,76 @@
     <img id="lightboxImg" alt="Gallery image" />
     <video id="lightboxVideo" controls></video>
     <div class="lightbox-body">
-      <h3 id="lightboxTitle" style="margin:0 0 8px;"></h3>
-      <p id="lightboxPrompt" style="white-space:pre-wrap;"></p>
-      <div class="gallery-tags" id="lightboxTags" style="margin-bottom:14px;"></div>
-      <button class="btn btn-secondary" id="lightboxCopy">Copy Prompt</button>
+      <div id="lightboxView">
+        <h3 id="lightboxTitle" style="margin:0 0 8px;"></h3>
+        <p id="lightboxPrompt" style="white-space:pre-wrap;"></p>
+        <div class="gallery-tags" id="lightboxTags" style="margin-bottom:14px;"></div>
+        <div class="output-actions">
+          <button class="btn btn-secondary" id="lightboxCopy">Copy Prompt</button>
+          <button class="btn btn-secondary" id="lightboxEditBtn" style="display:none;">Edit</button>
+        </div>
+      </div>
+
+      <div id="lightboxEditForm" style="display:none;">
+        <div class="field">
+          <label for="editTitle">Title</label>
+          <input type="text" id="editTitle" />
+        </div>
+        <div class="field">
+          <label for="editPrompt">Prompt used</label>
+          <textarea id="editPrompt"></textarea>
+        </div>
+        <div class="field">
+          <label for="editTags">Hashtags (space or comma separated)</label>
+          <input type="text" id="editTags" />
+        </div>
+        <div class="field">
+          <label for="editModel">Model used</label>
+          <select id="editModel">
+            <option value="">Select a model…</option>
+            <optgroup label="Text">
+              <option value="ChatGPT">ChatGPT (GPT)</option>
+              <option value="Claude">Claude</option>
+              <option value="Gemini">Gemini</option>
+            </optgroup>
+            <optgroup label="Image">
+              <option value="Midjourney">Midjourney</option>
+              <option value="DALL-E">DALL-E / ChatGPT Images</option>
+              <option value="Stable Diffusion">Stable Diffusion</option>
+              <option value="Adobe Firefly">Adobe Firefly</option>
+            </optgroup>
+            <optgroup label="Video">
+              <option value="LTX Video">LTX Video</option>
+              <option value="Google Veo">Google Veo</option>
+              <option value="Runway">Runway</option>
+              <option value="Sora">Sora</option>
+              <option value="Kling">Kling</option>
+              <option value="Pika">Pika</option>
+              <option value="Wan 2.1 / 2.2">Wan 2.1 / 2.2</option>
+            </optgroup>
+            <option value="other">Other (type your own)</option>
+          </select>
+          <input type="text" id="editModelOther" class="model-other-input" placeholder="Enter the model name" style="display:none; margin-top:8px;" />
+        </div>
+        <div class="field">
+          <label>Visibility</label>
+          <div class="visibility-toggle">
+            <label class="visibility-option">
+              <input type="radio" name="editVisibility" value="public" />
+              Public — visible to everyone in the gallery
+            </label>
+            <label class="visibility-option">
+              <input type="radio" name="editVisibility" value="private" />
+              Private — visible only to you
+            </label>
+          </div>
+        </div>
+        <div class="form-status" id="editStatus"></div>
+        <div class="output-actions">
+          <button class="btn btn-primary" id="editSaveBtn">Save changes</button>
+          <button class="btn btn-secondary" id="editCancelBtn">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
