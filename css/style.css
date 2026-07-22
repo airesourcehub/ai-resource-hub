@@ -1481,3 +1481,167 @@ video.upload-preview {
     flex-direction: column;
   }
 }
+
+/* ---------- Comments & remixes ---------- */
+
+.lightbox-comments {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.comments-heading {
+  margin: 0 0 14px;
+  font-size: 1rem;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.comments-empty {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  margin: 0 0 18px;
+}
+
+.comment-row {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px 40px 12px 14px;
+  background: var(--color-bg-alt);
+  position: relative;
+}
+
+.comment-meta {
+  margin-bottom: 4px;
+}
+
+.comment-author {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.comment-body {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+.comment-remix {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.comment-remix img,
+.comment-remix video {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 999px;
+  background: var(--color-bg-alt);
+}
+
+.comment-remix:hover {
+  border-color: var(--color-accent);
+}
+
+.comment-remix-hidden {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-weight: 400;
+  cursor: default;
+}
+
+.comment-delete {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.comment-delete:hover {
+  color: var(--color-red);
+}
+
+.comment-composer textarea#commentBody {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  background: var(--color-bg);
+  resize: vertical;
+  min-height: 60px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.comment-composer textarea#commentBody:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+#toggleRemixBtn {
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.remix-subform {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  background: var(--color-bg-alt);
+}
+
+#postCommentBtn {
+  margin-right: 8px;
+}
+
+/* Remix badge shown on grid cards for posts that riff on another post */
+.remix-of {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.remix-of:hover {
+  text-decoration: underline;
+}
+
+.remix-of-hidden {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.remix-of-hidden:hover {
+  text-decoration: none;
+}
