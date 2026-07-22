@@ -54,11 +54,37 @@
         Gallery backend isn't connected yet. See <strong>README.md</strong> for a 5-minute Supabase setup (free tier) — once configured with your project URL and key in <code>js/supabase-config.js</code>, accounts, uploads, and search will work here.
       </div>
 
+      <div class="gallery-toolbar" id="galleryToolbar">
+        <div class="gallery-search">
+          <input type="text" id="gallerySearch" placeholder="Search by prompt text or hashtag..." />
+        </div>
+        <div class="gallery-sort">
+          <select id="gallerySort" aria-label="Sort gallery">
+            <option value="popular">Most Popular</option>
+            <option value="recent">Most Recent</option>
+            <option value="relevant">Most Relevant</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary" id="openUploadBtn">Upload</button>
+      </div>
+
+      <div class="gallery-empty-state" id="emptyState" style="display:none;"></div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+
+    </div>
+  </section>
+
+</main>
+
+<div class="lightbox-overlay" id="uploadModalOverlay">
+  <div class="lightbox-content">
+    <button class="lightbox-close" id="uploadModalClose">✕</button>
+    <div class="lightbox-body">
       <div class="info-banner" id="authRequiredBanner">
         <a href="auth.html">Log in or sign up</a> to add photos or videos to the gallery. Browsing and searching public entries is open to everyone.
       </div>
 
-      <div class="upload-card" id="uploadCard">
+      <div id="uploadCard">
         <h3 style="margin-top:0;">Add to your gallery</h3>
         <form id="uploadForm">
           <div class="field">
@@ -124,20 +150,9 @@
           <div class="form-status" id="uploadStatus"></div>
         </form>
       </div>
-
-      <div class="gallery-toolbar">
-        <div class="gallery-search">
-          <input type="text" id="gallerySearch" placeholder="Search by prompt text or hashtag..." />
-        </div>
-      </div>
-
-      <div class="gallery-empty-state" id="emptyState" style="display:none;"></div>
-      <div class="gallery-grid" id="galleryGrid"></div>
-
     </div>
-  </section>
-
-</main>
+  </div>
+</div>
 
 <div class="lightbox-overlay" id="lightboxOverlay">
   <div class="lightbox-content">
@@ -151,6 +166,9 @@
         <p id="lightboxModel" class="model-note" style="margin:0 0 10px;"></p>
         <div class="gallery-tags" id="lightboxTags" style="margin-bottom:14px;"></div>
         <div class="output-actions">
+          <button class="btn btn-secondary like-btn" id="lightboxLikeBtn">
+            <span class="like-heart">♡</span> <span class="like-count" id="lightboxLikeCount">0</span>
+          </button>
           <button class="btn btn-secondary" id="lightboxCopy">Copy Prompt</button>
           <button class="btn btn-secondary" id="lightboxEditBtn" style="display:none;">Edit</button>
         </div>

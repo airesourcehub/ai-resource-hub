@@ -83,7 +83,11 @@ Accounts and the Gallery are wired up to a live Supabase project:
 - **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`,
   `cloudinary_public_id`, `title`, `prompt`, `hashtags text[]`, `model`,
   `user_id` (owner), `is_public` (boolean, default true), `media_type`
-  (`'image'` or `'video'`)
+  (`'image'` or `'video'`), `likes_count` (integer, kept in sync by a
+  trigger — see "Gallery browsing" below)
+- **Table:** `gallery_likes` — one row per (user, gallery entry) like;
+  a unique constraint stops double-liking, and insert/delete triggers keep
+  `gallery_prompts.likes_count` up to date automatically.
 - **Keys:** already filled in at `js/supabase-config.js`
 
 Nothing further to do — deploy the site as-is and accounts + the Gallery
@@ -118,6 +122,35 @@ is hidden by RLS) but the raw file URL itself isn't cryptographically locked
 down. That's a reasonable trade-off for an MVP; if you need true
 private-file security later, ask and I can wire up signed/authenticated
 delivery instead.
+
+## Gallery browsing: sort, search, and likes
+
+The Gallery page shows the grid first — uploading lives behind a separate
+**Upload** button instead of a form sitting above the grid.
+
+- **Upload button** (top-right of the toolbar) opens a modal with the same
+  upload form as before. If you're logged out, the modal shows a
+  "log in or sign up" message instead of the form.
+- **Sort dropdown** next to the search box:
+  - **Most Popular** (default) — highest `likes_count` first, ties broken
+    by newest.
+  - **Most Recent** — newest first.
+  - **Most Relevant** — only meaningful while a search query is active
+    (ranks hashtag matches highest, then title, then prompt text); with no
+    query it falls back to Most Popular.
+- **Likes** — every entry has a heart button (on the grid card and in the
+  lightbox). Liking requires login (clicking it while logged out sends you
+  to `auth.html`); each user can like an entry once, and un-clicking removes
+  the like. The count shown is `gallery_prompts.likes_count`, kept in sync
+  server-side by a trigger on the `gallery_likes` table — so it can't be
+  inflated from the browser console.
+
+**Mobile video thumbnails:** grid/hover video thumbnails use a Cloudinary
+still-frame (`so_0` transform on the video's `cloudinary_public_id`) as the
+`<video poster>`. This fixes a real bug where iOS Safari showed a blank box
+instead of a frame — mobile Safari doesn't decode a preview frame for
+`preload="metadata"` the way desktop browsers do, so an explicit poster
+image is needed.
 
 ## Gallery file storage (Cloudinary)
 
@@ -235,7 +268,8 @@ create table gallery_prompts (
   model text,
   user_id uuid references auth.users(id) on delete cascade,
   is_public boolean not null default true,
-  media_type text not null default 'image'
+  media_type text not null default 'image',
+  likes_count integer not null default 0
 );
 
 alter table gallery_prompts enable row level security;
@@ -259,6 +293,44 @@ create policy "Delete own" on gallery_prompts
 -- No Supabase Storage bucket needed — gallery files go straight to
 -- Cloudinary from the browser. See "Gallery file storage (Cloudinary)"
 -- above for the one-time unsigned upload preset setup.
+
+-- Likes (see "Gallery browsing: sort, search, and likes" above)
+create table gallery_likes (
+  id uuid primary key default gen_random_uuid(),
+  gallery_id uuid not null references gallery_prompts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (gallery_id, user_id)
+);
+alter table gallery_likes enable row level security;
+create policy "Likes: read own" on gallery_likes
+  for select using (auth.uid() = user_id);
+create policy "Likes: insert own" on gallery_likes
+  for insert to authenticated with check (auth.uid() = user_id);
+create policy "Likes: delete own" on gallery_likes
+  for delete to authenticated using (auth.uid() = user_id);
+
+-- Keeps gallery_prompts.likes_count in sync (security definer bypasses the
+-- owner-only update policy on gallery_prompts, since likers aren't owners)
+create or replace function adjust_gallery_likes_count() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (tg_op = 'INSERT') then
+    update gallery_prompts set likes_count = likes_count + 1 where id = new.gallery_id;
+    return new;
+  elsif (tg_op = 'DELETE') then
+    update gallery_prompts set likes_count = greatest(likes_count - 1, 0) where id = old.gallery_id;
+    return old;
+  end if;
+  return null;
+end;
+$$;
+create trigger gallery_likes_after_insert
+  after insert on gallery_likes
+  for each row execute function adjust_gallery_likes_count();
+create trigger gallery_likes_after_delete
+  after delete on gallery_likes
+  for each row execute function adjust_gallery_likes_count();
 
 -- Admin / allowlist / analytics (see "Invite-only sign-up + admin panel"
 -- and "Analytics" sections above for what this enables)
