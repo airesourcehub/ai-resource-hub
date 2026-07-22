@@ -62,6 +62,16 @@ document.addEventListener("DOMContentLoaded", function () {
   var previewImg = document.getElementById("uploadPreviewImg");
   var previewVideo = document.getElementById("uploadPreviewVideo");
   var status = document.getElementById("uploadStatus");
+  var modelSelect = document.getElementById("uploadModel");
+  var modelOtherInput = document.getElementById("uploadModelOther");
+
+  if (modelSelect && modelOtherInput) {
+    modelSelect.addEventListener("change", function () {
+      var isOther = modelSelect.value === "other";
+      modelOtherInput.style.display = isOther ? "block" : "none";
+      if (!isOther) modelOtherInput.value = "";
+    });
+  }
 
   if (fileInput) {
     fileInput.addEventListener("change", function () {
@@ -94,9 +104,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       var file = fileInput.files[0];
+      var titleText = document.getElementById("uploadTitle").value.trim();
       var promptText = document.getElementById("uploadPrompt").value.trim();
       var tagsRaw = document.getElementById("uploadTags").value.trim();
-      var modelUsed = document.getElementById("uploadModel").value.trim();
+      var modelSelectValue = document.getElementById("uploadModel").value.trim();
+      var modelUsed = modelSelectValue === "other"
+        ? document.getElementById("uploadModelOther").value.trim()
+        : modelSelectValue;
       var visibility = form.querySelector('input[name="uploadVisibility"]:checked');
       var isPublic = !visibility || visibility.value === "public";
 
@@ -126,6 +140,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var insertResult = await client.from(SUPABASE_TABLE).insert([{
           image_url: imageUrl,
+          title: titleText || null,
           prompt: promptText,
           hashtags: tags,
           model: modelUsed || null,
@@ -139,6 +154,7 @@ document.addEventListener("DOMContentLoaded", function () {
         form.reset();
         previewImg.classList.remove("show");
         previewVideo.classList.remove("show");
+        if (modelOtherInput) modelOtherInput.style.display = "none";
         loadGallery();
       } catch (err) {
         console.error(err);
@@ -190,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function () {
       card.className = "gallery-item";
 
       var mediaHtml = item.media_type === "video"
-        ? '<video src="' + escapeHtml(item.image_url) + '" muted loop preload="metadata"></video>'
+        ? '<video src="' + escapeHtml(item.image_url) + '" muted loop preload="metadata" playsinline></video>'
         : '<img src="' + escapeHtml(item.image_url) + '" alt="Gallery image" loading="lazy" />';
 
       var badges = (item.hashtags || []).map(function (t) {
@@ -205,10 +221,26 @@ document.addEventListener("DOMContentLoaded", function () {
         mediaHtml +
         (item.media_type === "video" ? '<span class="gallery-media-badge">Video</span>' : "") +
         '<div class="gallery-item-body">' +
+          (item.title ? "<h4>" + escapeHtml(item.title) + "</h4>" : "") +
           "<p>" + escapeHtml(item.prompt) + "</p>" +
           '<div class="gallery-tags">' + badges + "</div>" +
         "</div>";
       card.addEventListener("click", function () { openLightbox(item); });
+
+      if (item.media_type === "video") {
+        var thumbVideo = card.querySelector("video");
+        if (thumbVideo) {
+          card.addEventListener("mouseenter", function () {
+            var playPromise = thumbVideo.play();
+            if (playPromise && playPromise.catch) playPromise.catch(function () {});
+          });
+          card.addEventListener("mouseleave", function () {
+            thumbVideo.pause();
+            thumbVideo.currentTime = 0;
+          });
+        }
+      }
+
       galleryGrid.appendChild(card);
     });
   }
@@ -234,6 +266,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var overlay = document.getElementById("lightboxOverlay");
   var lightboxImg = document.getElementById("lightboxImg");
   var lightboxVideo = document.getElementById("lightboxVideo");
+  var lightboxTitle = document.getElementById("lightboxTitle");
   var lightboxPrompt = document.getElementById("lightboxPrompt");
   var lightboxTags = document.getElementById("lightboxTags");
   var lightboxCopy = document.getElementById("lightboxCopy");
@@ -254,6 +287,10 @@ document.addEventListener("DOMContentLoaded", function () {
       lightboxVideo.removeAttribute("src");
     }
 
+    if (lightboxTitle) {
+      lightboxTitle.textContent = item.title || "";
+      lightboxTitle.style.display = item.title ? "block" : "none";
+    }
     lightboxPrompt.textContent = item.prompt;
     var badges = (item.hashtags || []).map(function (t) {
       return '<span class="tag">#' + escapeHtml(t) + "</span>";
