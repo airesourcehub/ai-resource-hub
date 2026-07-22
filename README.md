@@ -13,16 +13,19 @@ index.html               Home page
 resources.html            AI tools directory (filterable by category)
 prompt-generator.html      Prompt Generator (per-model formatting)
 gallery.html               Photo/video + prompt + hashtag gallery (Supabase-backed)
-auth.html                  Log in / sign up (email + password)
+auth.html                  Log in / sign up (email + password), invite-only
+admin.html                 Hidden admin panel — not linked anywhere in the nav
 about.html                 Mission + contact
 privacy-policy.html        Required before applying for Google AdSense
 css/style.css              Shared styles
 js/main.js                 Nav toggle, active link, resource filtering
 js/prompt-generator.js     Prompt Generator logic (all models)
 js/supabase-config.js      Live Supabase project keys (already filled in)
-js/auth.js                 Sign up / log in / log out logic
+js/auth.js                 Sign up / log in / log out + request-access logic
 js/auth-nav.js             Shows Log In / account state in the nav on every page
 js/gallery.js              Gallery upload / search / lightbox logic
+js/admin.js                Admin panel logic (requests, allowlist, users, moderation, analytics)
+js/analytics.js            Lightweight first-party visit tracker, loaded on every page
 ```
 
 ## Deploying to GitHub Pages
@@ -117,6 +120,66 @@ itself isn't cryptographically locked down. That's a reasonable trade-off
 for an MVP; if you need true private-file security later, that means moving
 to a private bucket with signed URLs — ask and I can wire that up.
 
+## Invite-only sign-up + admin panel
+
+Sign-up is gated: only emails you've explicitly approved can create an
+account. This is enforced by the database itself (a Postgres trigger on
+`auth.users`), not just hidden in the UI — so it can't be bypassed from the
+browser console.
+
+- If someone tries to sign up with an email that isn't on the allowlist,
+  they get a friendly "not approved yet" message pointing them to your
+  admin email and a **Request Access** form (also always visible under the
+  Sign Up tab) that logs their email + a short note to `access_requests`.
+- You manage everything from **`admin.html`** — a page that exists but
+  isn't linked anywhere in the site nav (a "door," as requested). Reach it
+  by typing the URL directly, e.g.
+  `https://airesourcehub.github.io/ai-resource-hub/admin.html`, after
+  logging in at `auth.html` with your admin account
+  (`mrcrissp@gmail.com` — the password is the one you gave me; it's stored
+  only in Supabase, never in this repo).
+- The admin panel has five tabs:
+  - **Access Requests** — approve (adds the email to the allowlist so they
+    can now sign up) or deny each pending request.
+  - **Allowlist** — add emails directly (approved or blocked), or
+    block/remove existing ones. Blocking an email here stops *future*
+    sign-ups with that address, even if it was approved before.
+  - **Users** — every registered account, with a Block/Unblock toggle.
+    Blocking an existing user's account (`profiles.status = 'blocked'`)
+    stops them from posting to the Gallery going forward — this is also
+    enforced by RLS, not just the UI.
+  - **Gallery Moderation** — every gallery entry, including other people's
+    *private* ones (admins can see those for moderation purposes), with a
+    Delete button.
+  - **Analytics** — see below.
+- This client-side admin check is just for a clean UX; the actual security
+  boundary is the database's row-level security, keyed off a `profiles`
+  table with an `is_admin` flag. Even someone who loads `admin.html`
+  without being an admin can't read or change anything — every query
+  they'd make is denied by Postgres itself.
+- To promote a different email to admin later, or add more admins, run in
+  the Supabase SQL editor:
+  ```sql
+  update profiles set is_admin = true where email = 'someone@example.com';
+  ```
+
+## Analytics
+
+Every page (via `js/analytics.js`) logs a lightweight, first-party visit
+record to a Supabase table (`analytics_events`): path, referrer, browser
+user agent, a session id, and an approximate IP + city/region/country
+(looked up client-side via the free [ipwho.is](https://ipwho.is) API — no
+key required). A small heartbeat updates how long the tab stayed open.
+Only the admin can read this data back, in the Analytics tab of
+`admin.html` — pageview counts, unique sessions, average time on page, top
+referrers, top countries, and a recent-visits list with IP/location.
+
+**Privacy note:** this logs visitors' IP addresses and approximate
+location without a cookie-consent prompt. That's a reasonable trade-off
+for a small personal site, but if you grow this or serve visitors in the
+EU/UK, update `privacy-policy.html` to disclose it, and consider whether
+you need a consent banner depending on your audience and legal advice.
+
 **Recreating this elsewhere** (e.g. a different Supabase project): run this
 in the SQL Editor of the new project, then update `js/supabase-config.js`
 with its Project URL and anon/publishable key (**Project Settings → API**):
@@ -168,6 +231,119 @@ create policy "Authenticated upload access to gallery images"
   on storage.objects for insert
   to authenticated
   with check (bucket_id = 'gallery-images');
+
+-- Admin / allowlist / analytics (see "Invite-only sign-up + admin panel"
+-- and "Analytics" sections above for what this enables)
+
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  is_admin boolean not null default false,
+  status text not null default 'active' check (status in ('active','blocked')),
+  created_at timestamptz not null default now()
+);
+alter table profiles enable row level security;
+
+create function is_admin(uid uuid) returns boolean
+language sql security definer set search_path = public stable as $$
+  select coalesce((select p.is_admin from profiles p where p.id = uid), false);
+$$;
+
+create policy "Profiles: self or admin read" on profiles
+  for select using (auth.uid() = id or is_admin(auth.uid()));
+create policy "Profiles: admin update" on profiles
+  for update using (is_admin(auth.uid())) with check (is_admin(auth.uid()));
+
+create table allowed_emails (
+  email text primary key,
+  status text not null default 'approved' check (status in ('approved','blocked')),
+  note text,
+  created_at timestamptz not null default now()
+);
+alter table allowed_emails enable row level security;
+create policy "Allowed emails: admin only" on allowed_emails
+  for all using (is_admin(auth.uid())) with check (is_admin(auth.uid()));
+
+create table access_requests (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  message text,
+  status text not null default 'pending' check (status in ('pending','approved','denied')),
+  created_at timestamptz not null default now()
+);
+alter table access_requests enable row level security;
+create policy "Access requests: anyone can submit" on access_requests
+  for insert to anon, authenticated with check (true);
+create policy "Access requests: admin manage" on access_requests
+  for select using (is_admin(auth.uid()));
+create policy "Access requests: admin update" on access_requests
+  for update using (is_admin(auth.uid())) with check (is_admin(auth.uid()));
+create policy "Access requests: admin delete" on access_requests
+  for delete using (is_admin(auth.uid()));
+
+create table analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  path text, referrer text, user_agent text, ip text,
+  city text, region text, country text,
+  session_id text, duration_seconds numeric
+);
+alter table analytics_events enable row level security;
+create policy "Analytics: anyone can insert" on analytics_events
+  for insert to anon, authenticated with check (true);
+create policy "Analytics: anyone can update duration" on analytics_events
+  for update to anon, authenticated using (true) with check (true);
+create policy "Analytics: admin read" on analytics_events
+  for select using (is_admin(auth.uid()));
+create policy "Analytics: admin delete" on analytics_events
+  for delete using (is_admin(auth.uid()));
+
+-- Blocks sign-up for any email not on the allowlist
+create function check_email_allowed() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (
+    select 1 from allowed_emails
+    where lower(email) = lower(new.email) and status = 'approved'
+  ) then
+    raise exception 'EMAIL_NOT_APPROVED' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+create trigger enforce_email_allowlist
+before insert on auth.users
+for each row execute function check_email_allowed();
+
+-- Auto-creates a profiles row for every new user
+create function handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into profiles (id, email) values (new.id, new.email)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+create trigger create_profile_on_signup
+after insert on auth.users
+for each row execute function handle_new_user();
+
+-- Extra policies on gallery_prompts for the admin panel + blocked-user gate
+drop policy "Insert own" on gallery_prompts;
+create policy "Insert own" on gallery_prompts
+  for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from profiles p where p.id = auth.uid() and p.status = 'active')
+  );
+create policy "Gallery: admin read all" on gallery_prompts
+  for select using (is_admin(auth.uid()));
+create policy "Gallery: admin delete" on gallery_prompts
+  for delete using (is_admin(auth.uid()));
+
+-- Whitelist yourself and make yourself admin (run after you've signed up once)
+insert into allowed_emails (email, status, note) values ('you@example.com', 'approved', 'Site owner / admin');
+update profiles set is_admin = true, status = 'active' where email = 'you@example.com';
 ```
 
 ## Before applying for Google AdSense

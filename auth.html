@@ -97,6 +97,28 @@
               <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
               <div class="form-status" id="signupStatus"></div>
             </form>
+
+            <div class="auth-divider">Sign-ups are invite-only</div>
+
+            <div class="access-request-card">
+              <h4 style="margin:0 0 6px;">Not approved yet?</h4>
+              <p style="margin:0 0 14px; font-size:0.85rem; color:var(--color-text-muted);">
+                Email <a href="mailto:mrcrissp@gmail.com">mrcrissp@gmail.com</a> to ask for access,
+                or send a quick request below and you'll hear back once it's reviewed.
+              </p>
+              <form id="requestAccessForm">
+                <div class="field">
+                  <label for="requestEmail">Your email</label>
+                  <input type="email" id="requestEmail" required />
+                </div>
+                <div class="field">
+                  <label for="requestMessage">A bit about you (optional)</label>
+                  <textarea id="requestMessage" placeholder="How'd you find the site? Anything worth knowing?"></textarea>
+                </div>
+                <button type="submit" class="btn btn-secondary btn-block">Request Access</button>
+                <div class="form-status" id="requestStatus"></div>
+              </form>
+            </div>
           </div>
         </div>
 
@@ -131,6 +153,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
