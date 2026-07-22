@@ -768,6 +768,27 @@ section {
   box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
+.gallery-sort select {
+  padding: 11px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+.gallery-sort select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.gallery-toolbar #openUploadBtn {
+  flex-shrink: 0;
+}
+
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -825,10 +846,19 @@ section {
   overflow: hidden;
 }
 
+.gallery-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .gallery-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .gallery-tags .tag {
@@ -838,6 +868,49 @@ section {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
+}
+
+/* ---------- Likes ---------- */
+
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.like-btn .like-heart {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.like-btn.liked,
+.like-btn.liked .like-heart {
+  color: var(--color-red);
+}
+
+.card-like-btn {
+  border: 1px solid transparent;
+  background: var(--color-bg-alt);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+
+.card-like-btn:hover {
+  color: var(--color-red);
+}
+
+.card-like-btn.liked {
+  background: var(--color-red-soft);
+}
+
+#lightboxLikeBtn.liked {
+  border-color: var(--color-red);
 }
 
 .gallery-empty-state {
