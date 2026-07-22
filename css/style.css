@@ -1044,3 +1044,11 @@ video.upload-preview {
   max-height: 380px;
   background: #000;
 }
+
+/* Auth page setup banner is hidden until JS determines Supabase isn't configured */
+#authSetupBanner {
+  display: none;
+}
+#authSetupBanner.show {
+  display: block;
+}
