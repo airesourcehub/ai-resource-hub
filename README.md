@@ -88,6 +88,11 @@ Accounts and the Gallery are wired up to a live Supabase project:
 - **Table:** `gallery_likes` — one row per (user, gallery entry) like;
   a unique constraint stops double-liking, and insert/delete triggers keep
   `gallery_prompts.likes_count` up to date automatically.
+- **Column:** `gallery_prompts.parent_id` — set when a post is a **remix** of
+  another post (see "Comments and remixes" below).
+- **Table:** `gallery_comments` — `id`, `gallery_id` (post being commented
+  on), `user_id`, `body` (text, nullable), `remix_id` (nullable, points at a
+  full remix post if one was attached), `created_at`.
 - **Keys:** already filled in at `js/supabase-config.js`
 
 Nothing further to do — deploy the site as-is and accounts + the Gallery
@@ -151,6 +156,46 @@ still-frame (`so_0` transform on the video's `cloudinary_public_id`) as the
 instead of a frame — mobile Safari doesn't decode a preview frame for
 `preload="metadata"` the way desktop browsers do, so an explicit poster
 image is needed.
+
+## Comments and remixes
+
+Every post has a comment thread at the bottom of its lightbox, and comments
+can optionally carry the commenter's own remade version of the same idea —
+letting people riff on each other's prompts instead of just talking about
+them.
+
+- **Plain comments** are just text. Anyone who can see a post (public, or
+  their own private one, or an admin) can read its comments; posting one
+  requires login and an active (non-blocked) account — the same gate as
+  everything else on the site.
+- **Remix comments**: clicking "+ Add your own remix" on the comment box
+  opens a compact version of the upload form — pick a photo/video, and the
+  prompt/hashtags/model are pre-filled from the original post so it's easy
+  to tweak rather than retype from scratch. Submitting creates a **full,
+  independent gallery post** (with `parent_id` pointing at the original) —
+  it shows up in the main grid with a "↻ Remix of ⋯" badge linking back to
+  the original, gets its own likes/comments/further-remixes, and also
+  appears inline inside the original post's comment thread so the
+  conversation stays visible in context.
+- **Visibility follows the normal rules**: a remix can be posted public or
+  private, exactly like a regular upload. If someone links a private remix
+  in a public thread, other viewers see "Shared a remix (private)" instead
+  of the actual content — RLS still hides the private post itself.
+- **Commenter identity**: since there's no separate username/profile system
+  yet, comments are labeled with a short, stable pseudo-name derived from
+  the user's account id (e.g. "Member A1B2C3") rather than their email —
+  keeps things human-readable without exposing anyone's address publicly.
+- **Deleting**: commenters can delete their own comments (this removes the
+  comment text/link only — an attached remix keeps existing as its own
+  post, since it may already have its own likes/comments by then).
+
+**Known limitations:**
+- No dedicated admin UI yet for moderating individual comments — ask me to
+  remove one via SQL if needed, or say the word and I can add a Comments
+  tab to the admin panel.
+- Comments aren't editable after posting (delete and repost instead).
+- Comments are flat, not threaded — you can reply to a post with a comment
+  or a remix, but not to another comment directly.
 
 ## Gallery file storage (Cloudinary)
 
@@ -269,7 +314,8 @@ create table gallery_prompts (
   user_id uuid references auth.users(id) on delete cascade,
   is_public boolean not null default true,
   media_type text not null default 'image',
-  likes_count integer not null default 0
+  likes_count integer not null default 0,
+  parent_id uuid references gallery_prompts(id) on delete set null
 );
 
 alter table gallery_prompts enable row level security;
@@ -331,6 +377,43 @@ create trigger gallery_likes_after_insert
 create trigger gallery_likes_after_delete
   after delete on gallery_likes
   for each row execute function adjust_gallery_likes_count();
+
+-- Comments + remixes (see "Comments and remixes" above)
+create table gallery_comments (
+  id uuid primary key default gen_random_uuid(),
+  gallery_id uuid not null references gallery_prompts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text,
+  remix_id uuid references gallery_prompts(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint gallery_comments_body_or_remix check (body is not null or remix_id is not null)
+);
+create index gallery_comments_gallery_id_idx on gallery_comments(gallery_id);
+alter table gallery_comments enable row level security;
+
+create policy "Comments: read if parent visible" on gallery_comments
+  for select using (
+    exists (
+      select 1 from gallery_prompts gp
+      where gp.id = gallery_id
+      and (gp.is_public = true or gp.user_id = auth.uid() or is_admin(auth.uid()))
+    )
+  );
+create policy "Comments: insert own on visible + active" on gallery_comments
+  for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from profiles p where p.id = auth.uid() and p.status = 'active')
+    and exists (
+      select 1 from gallery_prompts gp
+      where gp.id = gallery_id
+      and (gp.is_public = true or gp.user_id = auth.uid() or is_admin(auth.uid()))
+    )
+  );
+create policy "Comments: delete own" on gallery_comments
+  for delete to authenticated using (auth.uid() = user_id);
+create policy "Comments: admin delete" on gallery_comments
+  for delete using (is_admin(auth.uid()));
 
 -- Admin / allowlist / analytics (see "Invite-only sign-up + admin panel"
 -- and "Analytics" sections above for what this enables)

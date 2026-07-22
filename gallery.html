@@ -234,6 +234,86 @@
           <button class="btn btn-secondary" id="editCancelBtn">Cancel</button>
         </div>
       </div>
+
+      <div class="lightbox-comments">
+        <h4 class="comments-heading">Comments &amp; Remixes</h4>
+        <div class="comments-list" id="commentsList"></div>
+
+        <div class="info-banner" id="commentAuthBanner" style="display:none;">
+          <a href="auth.html">Log in or sign up</a> to comment or share your own remix.
+        </div>
+
+        <div class="comment-composer" id="commentComposer">
+          <textarea id="commentBody" placeholder="Say something, or share your own take..." rows="2"></textarea>
+
+          <button type="button" class="btn btn-secondary btn-sm" id="toggleRemixBtn">+ Add your own remix (photo/video)</button>
+
+          <div class="remix-subform" id="remixSubform" style="display:none;">
+            <div class="field">
+              <label for="remixFile">Your photo or video</label>
+              <input type="file" id="remixFile" accept="image/*,video/*" />
+              <img id="remixPreviewImg" class="upload-preview" alt="Preview" />
+              <video id="remixPreviewVideo" class="upload-preview" controls muted></video>
+            </div>
+            <div class="field">
+              <label for="remixTitle">Title (optional)</label>
+              <input type="text" id="remixTitle" placeholder="Give your remix a title" />
+            </div>
+            <div class="field">
+              <label for="remixPrompt">Prompt used (edit as you like)</label>
+              <textarea id="remixPrompt"></textarea>
+            </div>
+            <div class="field">
+              <label for="remixTags">Hashtags (space or comma separated)</label>
+              <input type="text" id="remixTags" />
+            </div>
+            <div class="field">
+              <label for="remixModel">Model used (optional)</label>
+              <select id="remixModel">
+                <option value="">Select a model…</option>
+                <optgroup label="Text">
+                  <option value="ChatGPT">ChatGPT (GPT)</option>
+                  <option value="Claude">Claude</option>
+                  <option value="Gemini">Gemini</option>
+                </optgroup>
+                <optgroup label="Image">
+                  <option value="Midjourney">Midjourney</option>
+                  <option value="DALL-E">DALL-E / ChatGPT Images</option>
+                  <option value="Stable Diffusion">Stable Diffusion</option>
+                  <option value="Adobe Firefly">Adobe Firefly</option>
+                </optgroup>
+                <optgroup label="Video">
+                  <option value="LTX Video">LTX Video</option>
+                  <option value="Google Veo">Google Veo</option>
+                  <option value="Runway">Runway</option>
+                  <option value="Sora">Sora</option>
+                  <option value="Kling">Kling</option>
+                  <option value="Pika">Pika</option>
+                  <option value="Wan 2.1 / 2.2">Wan 2.1 / 2.2</option>
+                </optgroup>
+                <option value="other">Other (type your own)</option>
+              </select>
+              <input type="text" id="remixModelOther" class="model-other-input" placeholder="Enter the model name" style="display:none; margin-top:8px;" />
+            </div>
+            <div class="field">
+              <label>Visibility</label>
+              <div class="visibility-toggle">
+                <label class="visibility-option">
+                  <input type="radio" name="remixVisibility" value="public" checked />
+                  Public — visible to everyone in the gallery
+                </label>
+                <label class="visibility-option">
+                  <input type="radio" name="remixVisibility" value="private" />
+                  Private — visible only to you
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-sm" id="postCommentBtn">Post</button>
+          <div class="form-status" id="commentStatus"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
