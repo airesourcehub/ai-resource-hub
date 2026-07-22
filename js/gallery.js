@@ -74,6 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var allItems = [];
   var currentUser = null;
   var likedIds = {}; // gallery_id -> true, for the current user
+  var activeHoverPopup = null; // the single floating video-hover preview, if any
 
   init();
 
@@ -287,6 +288,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderGallery(items) {
     if (!galleryGrid) return;
+    closeHoverPreview();
     galleryGrid.innerHTML = "";
 
     if (!items.length) {
@@ -363,15 +365,12 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (item.media_type === "video") {
-        var hoverPopup = null;
         card.addEventListener("mouseenter", function () {
-          hoverPopup = showHoverPreview(card, item);
+          closeHoverPreview();
+          activeHoverPopup = showHoverPreview(card, item);
         });
         card.addEventListener("mouseleave", function () {
-          if (hoverPopup) {
-            hoverPopup.remove();
-            hoverPopup = null;
-          }
+          closeHoverPreview();
         });
       }
 
@@ -440,6 +439,18 @@ document.addEventListener("DOMContentLoaded", function () {
       if (heart) heart.textContent = alreadyLiked ? "♥" : "♡";
       likeBtn.classList.toggle("liked", alreadyLiked);
       if (countEl) countEl.textContent = item.likes_count;
+    }
+  }
+
+  // Removes the currently-showing hover preview, if any. Only one popup is
+  // ever allowed to exist at a time — this is also called at the top of
+  // every full re-render (search/sort/like/upload/comment) so a popup left
+  // over from a card that just got wiped out of the DOM can never get
+  // orphaned and stuck on screen forever.
+  function closeHoverPreview() {
+    if (activeHoverPopup) {
+      activeHoverPopup.remove();
+      activeHoverPopup = null;
     }
   }
 
@@ -854,6 +865,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function openLightbox(item) {
     if (!overlay) return;
+    closeHoverPreview();
     currentLightboxItem = item;
 
     if (item.media_type === "video") {
