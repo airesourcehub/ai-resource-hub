@@ -25,6 +25,125 @@ function parseTags(raw) {
     .filter(Boolean);
 }
 
+// Builds a still-frame JPG URL for a given second offset into a Cloudinary
+// video, used when someone picks a custom cover frame from the timeline
+// instead of relying on the frame-0 default.
+function buildFramePosterUrl(publicId, offsetSeconds) {
+  var offset = Math.max(0, Math.round((offsetSeconds || 0) * 10) / 10);
+  return "https://res.cloudinary.com/" + CLOUDINARY_CLOUD_NAME + "/video/upload/so_" + offset + "/" + publicId + ".jpg";
+}
+
+// Powers the "cover thumbnail" picker attached to any video upload (main
+// upload form, in-comment remix form, and the edit form for existing
+// posts): either scrub a slider to pick a frame off the video's timeline,
+// or upload a completely separate photo to use as the thumbnail instead.
+//
+// opts: {
+//   modeBtns: [button elements with data-cover-mode="frame"|"photo"],
+//   frameMode: element wrapping the slider,
+//   photoMode: element wrapping the photo file input,
+//   slider: the range input,
+//   photoInput: the cover photo file input,
+//   photoPreviewImg: img element showing the chosen cover photo,
+//   resetBtn: optional — only present in the edit form
+// }
+function setupCoverPicker(opts) {
+  var mode = "frame";
+  var changed = false;
+  var resetRequested = false;
+  var boundVideoEl = null;
+
+  function setMode(newMode) {
+    mode = newMode;
+    opts.modeBtns.forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-cover-mode") === newMode);
+    });
+    opts.frameMode.style.display = newMode === "frame" ? "" : "none";
+    opts.photoMode.style.display = newMode === "photo" ? "" : "none";
+  }
+
+  opts.modeBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      setMode(btn.getAttribute("data-cover-mode"));
+    });
+  });
+
+  opts.slider.addEventListener("input", function () {
+    changed = true;
+    resetRequested = false;
+    if (boundVideoEl) boundVideoEl.currentTime = parseFloat(opts.slider.value) || 0;
+  });
+
+  if (opts.photoInput && opts.photoPreviewImg) {
+    opts.photoInput.addEventListener("change", function () {
+      var file = opts.photoInput.files[0];
+      if (!file) return;
+      changed = true;
+      resetRequested = false;
+      opts.photoPreviewImg.src = URL.createObjectURL(file);
+      opts.photoPreviewImg.classList.add("show");
+    });
+  }
+
+  if (opts.resetBtn) {
+    opts.resetBtn.addEventListener("click", function () {
+      changed = true;
+      resetRequested = true;
+      setMode("frame");
+      opts.slider.value = 0;
+      if (boundVideoEl) boundVideoEl.currentTime = 0;
+      if (opts.photoInput) opts.photoInput.value = "";
+      if (opts.photoPreviewImg) { opts.photoPreviewImg.classList.remove("show"); opts.photoPreviewImg.removeAttribute("src"); }
+    });
+  }
+
+  return {
+    // Ties the slider to a <video> element for live scrubbing preview.
+    // Used both for a freshly-selected local file (upload/remix forms) and
+    // for the already-hosted lightbox video (edit form).
+    bindVideo: function (videoEl) {
+      boundVideoEl = videoEl;
+      if (!videoEl) return;
+      function trySetMax() {
+        if (isFinite(videoEl.duration) && videoEl.duration > 0) {
+          opts.slider.max = videoEl.duration;
+        }
+      }
+      trySetMax();
+      videoEl.addEventListener("loadedmetadata", trySetMax);
+    },
+    // Full reset for one-shot forms (upload, remix) after submit/cancel.
+    reset: function () {
+      changed = false;
+      resetRequested = false;
+      setMode("frame");
+      opts.slider.value = 0;
+      opts.slider.max = 0;
+      if (opts.photoInput) opts.photoInput.value = "";
+      if (opts.photoPreviewImg) { opts.photoPreviewImg.classList.remove("show"); opts.photoPreviewImg.removeAttribute("src"); }
+    },
+    // Lighter reset for the edit form: clears the picker's state without
+    // zeroing the slider's max, since the bound lightbox video may not
+    // re-fire loadedmetadata if the same item is being edited again.
+    beginEditing: function () {
+      changed = false;
+      resetRequested = false;
+      setMode("frame");
+      opts.slider.value = 0;
+      if (opts.photoInput) opts.photoInput.value = "";
+      if (opts.photoPreviewImg) { opts.photoPreviewImg.classList.remove("show"); opts.photoPreviewImg.removeAttribute("src"); }
+      if (boundVideoEl && isFinite(boundVideoEl.duration) && boundVideoEl.duration > 0) {
+        opts.slider.max = boundVideoEl.duration;
+      }
+    },
+    getMode: function () { return mode; },
+    getFrameOffset: function () { return parseFloat(opts.slider.value) || 0; },
+    getPhotoFile: function () { return opts.photoInput && opts.photoInput.files[0] ? opts.photoInput.files[0] : null; },
+    hasChanged: function () { return changed; },
+    isResetRequested: function () { return resetRequested; }
+  };
+}
+
 function uploadToCloudinary(file) {
   var formData = new FormData();
   formData.append("file", file);
@@ -164,6 +283,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
   wireFilePreview(fileInput, previewImg, previewVideo);
 
+  var uploadCoverPicker = setupCoverPicker({
+    modeBtns: Array.prototype.slice.call(document.querySelectorAll("#uploadCoverPicker .cover-mode-btn")),
+    frameMode: document.getElementById("uploadCoverFrameMode"),
+    photoMode: document.getElementById("uploadCoverPhotoMode"),
+    slider: document.getElementById("uploadCoverSlider"),
+    photoInput: document.getElementById("uploadCoverPhoto"),
+    photoPreviewImg: document.getElementById("uploadCoverPhotoPreview")
+  });
+  uploadCoverPicker.bindVideo(previewVideo);
+
+  var uploadCoverField = document.getElementById("uploadCoverPicker");
+  if (fileInput && uploadCoverField) {
+    fileInput.addEventListener("change", function () {
+      var file = fileInput.files[0];
+      var isVideo = file && file.type.indexOf("video") === 0;
+      uploadCoverField.style.display = isVideo ? "" : "none";
+      if (isVideo) uploadCoverPicker.reset();
+    });
+  }
+
   if (form) {
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -205,9 +344,21 @@ document.addEventListener("DOMContentLoaded", function () {
         var cloudinaryResult = await uploadToCloudinary(file);
         var imageUrl = cloudinaryResult.secure_url;
 
+        var coverUrl = null;
+        if (mediaType === "video") {
+          if (uploadCoverPicker.getMode() === "photo" && uploadCoverPicker.getPhotoFile()) {
+            var coverUpload = await uploadToCloudinary(uploadCoverPicker.getPhotoFile());
+            coverUrl = coverUpload.secure_url;
+          } else {
+            var offset = uploadCoverPicker.getFrameOffset();
+            if (offset > 0.05) coverUrl = buildFramePosterUrl(cloudinaryResult.public_id, offset);
+          }
+        }
+
         var insertResult = await client.from(SUPABASE_TABLE).insert([{
           image_url: imageUrl,
           cloudinary_public_id: cloudinaryResult.public_id || null,
+          cover_url: coverUrl,
           title: titleText || null,
           prompt: promptText,
           hashtags: tags,
@@ -223,6 +374,8 @@ document.addEventListener("DOMContentLoaded", function () {
         previewImg.classList.remove("show");
         previewVideo.classList.remove("show");
         if (modelOtherInput) modelOtherInput.style.display = "none";
+        if (uploadCoverField) uploadCoverField.style.display = "none";
+        uploadCoverPicker.reset();
         await loadGallery();
         renderCurrentView();
         setTimeout(closeUploadModal, 900);
@@ -383,6 +536,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Safari shows a real thumbnail instead of a blank box (iOS doesn't decode
   // a frame for preload="metadata" the way desktop browsers do).
   function posterUrl(item) {
+    if (item.cover_url) return item.cover_url;
     if (!item.cloudinary_public_id) return null;
     return "https://res.cloudinary.com/" + CLOUDINARY_CLOUD_NAME + "/video/upload/so_0/" + item.cloudinary_public_id + ".jpg";
   }
@@ -594,6 +748,18 @@ document.addEventListener("DOMContentLoaded", function () {
   var editStatus = document.getElementById("editStatus");
   var editSaveBtn = document.getElementById("editSaveBtn");
   var editCancelBtn = document.getElementById("editCancelBtn");
+  var editCoverField = document.getElementById("editCoverField");
+
+  var editCoverPicker = setupCoverPicker({
+    modeBtns: Array.prototype.slice.call(document.querySelectorAll("#editCoverField .cover-mode-btn")),
+    frameMode: document.getElementById("editCoverFrameMode"),
+    photoMode: document.getElementById("editCoverPhotoMode"),
+    slider: document.getElementById("editCoverSlider"),
+    photoInput: document.getElementById("editCoverPhoto"),
+    photoPreviewImg: document.getElementById("editCoverPhotoPreview"),
+    resetBtn: document.getElementById("editCoverResetBtn")
+  });
+  editCoverPicker.bindVideo(lightboxVideo);
 
   // ---------- Comments + remixes ----------
   var commentsList = document.getElementById("commentsList");
@@ -614,6 +780,26 @@ document.addEventListener("DOMContentLoaded", function () {
   var commentStatus = document.getElementById("commentStatus");
 
   wireFilePreview(remixFile, remixPreviewImg, remixPreviewVideo);
+
+  var remixCoverPicker = setupCoverPicker({
+    modeBtns: Array.prototype.slice.call(document.querySelectorAll("#remixCoverPicker .cover-mode-btn")),
+    frameMode: document.getElementById("remixCoverFrameMode"),
+    photoMode: document.getElementById("remixCoverPhotoMode"),
+    slider: document.getElementById("remixCoverSlider"),
+    photoInput: document.getElementById("remixCoverPhoto"),
+    photoPreviewImg: document.getElementById("remixCoverPhotoPreview")
+  });
+  remixCoverPicker.bindVideo(remixPreviewVideo);
+
+  var remixCoverField = document.getElementById("remixCoverPicker");
+  if (remixFile && remixCoverField) {
+    remixFile.addEventListener("change", function () {
+      var file = remixFile.files[0];
+      var isVideo = file && file.type.indexOf("video") === 0;
+      remixCoverField.style.display = isVideo ? "" : "none";
+      if (isVideo) remixCoverPicker.reset();
+    });
+  }
 
   if (remixModel && remixModelOther) {
     remixModel.addEventListener("change", function () {
@@ -658,6 +844,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (remixModelOther) { remixModelOther.value = ""; remixModelOther.style.display = "none"; }
     if (remixPreviewImg) remixPreviewImg.classList.remove("show");
     if (remixPreviewVideo) remixPreviewVideo.classList.remove("show");
+    if (remixCoverField) remixCoverField.style.display = "none";
+    remixCoverPicker.reset();
   }
 
   function pseudoName(userId) {
@@ -798,9 +986,21 @@ document.addEventListener("DOMContentLoaded", function () {
           var remixVisibility = remixSubform.querySelector('input[name="remixVisibility"]:checked');
           var remixIsPublic = !remixVisibility || remixVisibility.value === "public";
 
+          var remixCoverUrl = null;
+          if (classified.mediaType === "video") {
+            if (remixCoverPicker.getMode() === "photo" && remixCoverPicker.getPhotoFile()) {
+              var remixCoverUpload = await uploadToCloudinary(remixCoverPicker.getPhotoFile());
+              remixCoverUrl = remixCoverUpload.secure_url;
+            } else {
+              var remixOffset = remixCoverPicker.getFrameOffset();
+              if (remixOffset > 0.05) remixCoverUrl = buildFramePosterUrl(cloudinaryResult.public_id, remixOffset);
+            }
+          }
+
           var remixInsert = await client.from(SUPABASE_TABLE).insert([{
             image_url: cloudinaryResult.secure_url,
             cloudinary_public_id: cloudinaryResult.public_id || null,
+            cover_url: remixCoverUrl,
             title: remixTitle.value.trim() || null,
             prompt: remixPromptText,
             hashtags: parseTags(remixTags.value.trim()),
@@ -981,6 +1181,9 @@ document.addEventListener("DOMContentLoaded", function () {
       var visRadio = lightboxEditForm.querySelector('input[name="editVisibility"][value="' + (item.is_public ? "public" : "private") + '"]');
       if (visRadio) visRadio.checked = true;
 
+      if (editCoverField) editCoverField.style.display = item.media_type === "video" ? "" : "none";
+      if (item.media_type === "video") editCoverPicker.beginEditing();
+
       if (lightboxView) lightboxView.style.display = "none";
       if (lightboxEditForm) lightboxEditForm.style.display = "block";
     });
@@ -1018,15 +1221,32 @@ document.addEventListener("DOMContentLoaded", function () {
       editStatus.className = "form-status show";
 
       try {
+        var updatePayload = {
+          title: newTitle || null,
+          prompt: newPrompt,
+          hashtags: newTags,
+          model: newModel || null,
+          is_public: newIsPublic
+        };
+
+        var coverChanged = currentLightboxItem.media_type === "video" && editCoverPicker.hasChanged();
+        if (coverChanged) {
+          if (editCoverPicker.isResetRequested()) {
+            updatePayload.cover_url = null;
+          } else if (editCoverPicker.getMode() === "photo" && editCoverPicker.getPhotoFile()) {
+            var editCoverUpload = await uploadToCloudinary(editCoverPicker.getPhotoFile());
+            updatePayload.cover_url = editCoverUpload.secure_url;
+          } else {
+            var editOffset = editCoverPicker.getFrameOffset();
+            updatePayload.cover_url = editOffset > 0.05
+              ? buildFramePosterUrl(currentLightboxItem.cloudinary_public_id, editOffset)
+              : null;
+          }
+        }
+
         var updateResult = await client
           .from(SUPABASE_TABLE)
-          .update({
-            title: newTitle || null,
-            prompt: newPrompt,
-            hashtags: newTags,
-            model: newModel || null,
-            is_public: newIsPublic
-          })
+          .update(updatePayload)
           .eq("id", currentLightboxItem.id);
 
         if (updateResult.error) throw updateResult.error;
@@ -1036,6 +1256,7 @@ document.addEventListener("DOMContentLoaded", function () {
         currentLightboxItem.hashtags = newTags;
         currentLightboxItem.model = newModel || null;
         currentLightboxItem.is_public = newIsPublic;
+        if (coverChanged) currentLightboxItem.cover_url = updatePayload.cover_url;
 
         var stored = allItems.find(function (i) { return i.id === currentLightboxItem.id; });
         if (stored) {
@@ -1044,6 +1265,12 @@ document.addEventListener("DOMContentLoaded", function () {
           stored.hashtags = currentLightboxItem.hashtags;
           stored.model = currentLightboxItem.model;
           stored.is_public = currentLightboxItem.is_public;
+          if (coverChanged) stored.cover_url = updatePayload.cover_url;
+        }
+
+        if (coverChanged) {
+          var newPoster = posterUrl(currentLightboxItem);
+          if (newPoster) lightboxVideo.poster = newPoster;
         }
 
         renderLightboxView(currentLightboxItem);
