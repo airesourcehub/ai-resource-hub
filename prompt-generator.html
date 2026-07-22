@@ -2,6 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Prompt Generator — AI Resource Hub</title>
 <meta name="description" content="Free prompt generator for ChatGPT, Claude, Gemini, Midjourney, DALL-E, Stable Diffusion, Firefly, LTX Video, Veo, Runway, Sora, Kling, Pika, and Wan 2.1/2.2. Build clear, model-specific prompts with a guided form." />
@@ -22,6 +31,7 @@
       <li><a href="prompt-generator.html">Prompt Generator</a></li>
       <li><a href="gallery.html">Gallery</a></li>
       <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
       <li id="navAuthSlot" class="nav-auth-slot"></li>
       <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
     </ul>
@@ -38,12 +48,17 @@
   </div>
 
   <section>
-    <div class="container">
+    <div class="container" id="promptGeneratorRoot">
 
       <div class="tool-tabs">
         <button class="tool-tab active" data-tool="text">Text / Writing</button>
         <button class="tool-tab" data-tool="image">Image</button>
         <button class="tool-tab" data-tool="video">Video</button>
+      </div>
+
+      <div class="mode-toggle">
+        <button type="button" class="mode-btn active" id="modeBasicBtn" data-mode="basic">Basic</button>
+        <button type="button" class="mode-btn" id="modeAdvancedBtn" data-mode="advanced">Advanced</button>
       </div>
 
       <!-- TEXT PANEL -->
@@ -58,11 +73,11 @@
                 <option value="gemini">Gemini</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="textRole">Who should the AI act as? (optional)</label>
               <input type="text" id="textRole" placeholder="e.g. an experienced marketing copywriter" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="textFormat">Format</label>
               <input type="text" id="textFormat" placeholder="e.g. blog post, email, product description" />
             </div>
@@ -70,15 +85,15 @@
               <label for="textTopic">Topic / goal</label>
               <input type="text" id="textTopic" placeholder="e.g. why small businesses should use AI tools" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="textAudience">Audience (optional)</label>
               <input type="text" id="textAudience" placeholder="e.g. small business owners with no tech background" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="textTone">Tone (optional)</label>
               <input type="text" id="textTone" placeholder="e.g. friendly and conversational" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="textDetails">Extra details (optional)</label>
               <textarea id="textDetails" placeholder="Anything specific to include: examples, length, key points..."></textarea>
             </div>
@@ -113,31 +128,31 @@
               <label for="imgSubject">Main subject</label>
               <input type="text" id="imgSubject" placeholder="e.g. a robot tending a rooftop garden" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgStyle">Art style (optional)</label>
               <input type="text" id="imgStyle" placeholder="e.g. watercolor, cyberpunk, photorealistic" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgSetting">Setting / background (optional)</label>
               <input type="text" id="imgSetting" placeholder="e.g. a sunlit city rooftop at golden hour" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgLighting">Lighting (optional)</label>
               <input type="text" id="imgLighting" placeholder="e.g. soft, warm, dramatic" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgMood">Mood (optional)</label>
               <input type="text" id="imgMood" placeholder="e.g. calm, whimsical, futuristic" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgAspect">Aspect ratio (optional, Midjourney only)</label>
               <input type="text" id="imgAspect" placeholder="e.g. 16:9, 1:1, 9:16" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgNegative">Negative prompt (optional, Stable Diffusion / Midjourney only)</label>
               <input type="text" id="imgNegative" placeholder="e.g. blurry, extra limbs, text, watermark" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="imgDetails">Extra details (optional)</label>
               <textarea id="imgDetails" placeholder="Any other specifics: colors, camera angle, textures..."></textarea>
             </div>
@@ -175,27 +190,27 @@
               <label for="vidScene">Scene description (main action first)</label>
               <textarea id="vidScene" placeholder="e.g. a drone flying over a misty forest at sunrise"></textarea>
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="vidCamera">Camera movement (optional)</label>
               <input type="text" id="vidCamera" placeholder="e.g. slow pan left, aerial drone shot, handheld" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="vidStyle">Visual style (optional)</label>
               <input type="text" id="vidStyle" placeholder="e.g. cinematic, documentary, animated" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="vidPacing">Pacing / motion (optional)</label>
               <input type="text" id="vidPacing" placeholder="e.g. slow and calm, fast-paced" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="vidMood">Mood (optional)</label>
               <input type="text" id="vidMood" placeholder="e.g. peaceful, energetic, mysterious" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="vidNegative">Negative prompt (optional, Kling only)</label>
               <input type="text" id="vidNegative" placeholder="e.g. shaky footage, warped faces" />
             </div>
-            <div class="field">
+            <div class="field advanced-field">
               <label for="vidDetails">Extra details (optional)</label>
               <textarea id="vidDetails" placeholder="Lighting, color palette, sound, anything else specific..."></textarea>
             </div>
@@ -246,6 +261,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/prompt-generator.js"></script>

@@ -2,6 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Privacy Policy — AI Resource Hub</title>
 <meta name="description" content="Privacy policy for AI Resource Hub, covering cookies, advertising, and data use." />
@@ -22,6 +31,7 @@
       <li><a href="prompt-generator.html">Prompt Generator</a></li>
       <li><a href="gallery.html">Gallery</a></li>
       <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
       <li id="navAuthSlot" class="nav-auth-slot"></li>
       <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
     </ul>
@@ -100,6 +110,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script>
