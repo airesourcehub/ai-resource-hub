@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompt Generator — AI Resource Hub</title>
+<meta name="description" content="Free prompt generator for ChatGPT, Claude, Gemini, Midjourney, DALL-E, Stable Diffusion, Firefly, LTX Video, Veo, Runway, Sora, Kling, and Pika. Build clear, model-specific prompts with a guided form." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+
+  <div class="page-header">
+    <div class="container">
+      <h1>Prompt Generator</h1>
+      <p>Fill in a few fields, pick your model, and get a prompt formatted the way that specific AI actually wants to be talked to. Everything runs in your browser — nothing is saved or sent anywhere.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+
+      <div class="tool-tabs">
+        <button class="tool-tab active" data-tool="text">Text / Writing</button>
+        <button class="tool-tab" data-tool="image">Image</button>
+        <button class="tool-tab" data-tool="video">Video</button>
+      </div>
+
+      <!-- TEXT PANEL -->
+      <div class="generator-panel active" id="panel-text">
+        <div class="generator-layout">
+          <div class="form-card">
+            <div class="field">
+              <label for="textModel">Model</label>
+              <select id="textModel">
+                <option value="chatgpt">ChatGPT (GPT)</option>
+                <option value="claude">Claude</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="textRole">Who should the AI act as? (optional)</label>
+              <input type="text" id="textRole" placeholder="e.g. an experienced marketing copywriter" />
+            </div>
+            <div class="field">
+              <label for="textFormat">Format</label>
+              <input type="text" id="textFormat" placeholder="e.g. blog post, email, product description" />
+            </div>
+            <div class="field">
+              <label for="textTopic">Topic / goal</label>
+              <input type="text" id="textTopic" placeholder="e.g. why small businesses should use AI tools" />
+            </div>
+            <div class="field">
+              <label for="textAudience">Audience (optional)</label>
+              <input type="text" id="textAudience" placeholder="e.g. small business owners with no tech background" />
+            </div>
+            <div class="field">
+              <label for="textTone">Tone (optional)</label>
+              <input type="text" id="textTone" placeholder="e.g. friendly and conversational" />
+            </div>
+            <div class="field">
+              <label for="textDetails">Extra details (optional)</label>
+              <textarea id="textDetails" placeholder="Anything specific to include: examples, length, key points..."></textarea>
+            </div>
+          </div>
+          <div class="output-card">
+            <h3>Your prompt</h3>
+            <p class="model-note" id="textModelNote"></p>
+            <textarea id="textPromptOutput" readonly></textarea>
+            <div class="output-actions">
+              <button class="btn btn-primary copy-btn">Copy Prompt</button>
+              <button class="btn btn-secondary clear-btn">Clear</button>
+            </div>
+            <div class="copy-feedback">Copied to clipboard ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IMAGE PANEL -->
+      <div class="generator-panel" id="panel-image">
+        <div class="generator-layout">
+          <div class="form-card">
+            <div class="field">
+              <label for="imgModel">Model</label>
+              <select id="imgModel">
+                <option value="midjourney">Midjourney</option>
+                <option value="dalle">DALL-E / ChatGPT Images</option>
+                <option value="stablediffusion">Stable Diffusion</option>
+                <option value="firefly">Adobe Firefly</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="imgSubject">Main subject</label>
+              <input type="text" id="imgSubject" placeholder="e.g. a robot tending a rooftop garden" />
+            </div>
+            <div class="field">
+              <label for="imgStyle">Art style (optional)</label>
+              <input type="text" id="imgStyle" placeholder="e.g. watercolor, cyberpunk, photorealistic" />
+            </div>
+            <div class="field">
+              <label for="imgSetting">Setting / background (optional)</label>
+              <input type="text" id="imgSetting" placeholder="e.g. a sunlit city rooftop at golden hour" />
+            </div>
+            <div class="field">
+              <label for="imgLighting">Lighting (optional)</label>
+              <input type="text" id="imgLighting" placeholder="e.g. soft, warm, dramatic" />
+            </div>
+            <div class="field">
+              <label for="imgMood">Mood (optional)</label>
+              <input type="text" id="imgMood" placeholder="e.g. calm, whimsical, futuristic" />
+            </div>
+            <div class="field">
+              <label for="imgAspect">Aspect ratio (optional, Midjourney only)</label>
+              <input type="text" id="imgAspect" placeholder="e.g. 16:9, 1:1, 9:16" />
+            </div>
+            <div class="field">
+              <label for="imgNegative">Negative prompt (optional, Stable Diffusion / Midjourney only)</label>
+              <input type="text" id="imgNegative" placeholder="e.g. blurry, extra limbs, text, watermark" />
+            </div>
+            <div class="field">
+              <label for="imgDetails">Extra details (optional)</label>
+              <textarea id="imgDetails" placeholder="Any other specifics: colors, camera angle, textures..."></textarea>
+            </div>
+          </div>
+          <div class="output-card">
+            <h3>Your prompt</h3>
+            <p class="model-note" id="imgModelNote"></p>
+            <textarea id="imagePromptOutput" readonly></textarea>
+            <div class="output-actions">
+              <button class="btn btn-primary copy-btn">Copy Prompt</button>
+              <button class="btn btn-secondary clear-btn">Clear</button>
+            </div>
+            <div class="copy-feedback">Copied to clipboard ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIDEO PANEL -->
+      <div class="generator-panel" id="panel-video">
+        <div class="generator-layout">
+          <div class="form-card">
+            <div class="field">
+              <label for="vidModel">Model</label>
+              <select id="vidModel">
+                <option value="ltx">LTX Video</option>
+                <option value="veo">Google Veo</option>
+                <option value="runway">Runway</option>
+                <option value="sora">Sora</option>
+                <option value="kling">Kling</option>
+                <option value="pika">Pika</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="vidScene">Scene description (main action first)</label>
+              <textarea id="vidScene" placeholder="e.g. a drone flying over a misty forest at sunrise"></textarea>
+            </div>
+            <div class="field">
+              <label for="vidCamera">Camera movement (optional)</label>
+              <input type="text" id="vidCamera" placeholder="e.g. slow pan left, aerial drone shot, handheld" />
+            </div>
+            <div class="field">
+              <label for="vidStyle">Visual style (optional)</label>
+              <input type="text" id="vidStyle" placeholder="e.g. cinematic, documentary, animated" />
+            </div>
+            <div class="field">
+              <label for="vidPacing">Pacing / motion (optional)</label>
+              <input type="text" id="vidPacing" placeholder="e.g. slow and calm, fast-paced" />
+            </div>
+            <div class="field">
+              <label for="vidMood">Mood (optional)</label>
+              <input type="text" id="vidMood" placeholder="e.g. peaceful, energetic, mysterious" />
+            </div>
+            <div class="field">
+              <label for="vidNegative">Negative prompt (optional, Kling only)</label>
+              <input type="text" id="vidNegative" placeholder="e.g. shaky footage, warped faces" />
+            </div>
+            <div class="field">
+              <label for="vidDetails">Extra details (optional)</label>
+              <textarea id="vidDetails" placeholder="Lighting, color palette, sound, anything else specific..."></textarea>
+            </div>
+          </div>
+          <div class="output-card">
+            <h3>Your prompt</h3>
+            <p class="model-note" id="vidModelNote"></p>
+            <textarea id="videoPromptOutput" readonly></textarea>
+            <div class="output-actions">
+              <button class="btn btn-primary copy-btn">Copy Prompt</button>
+              <button class="btn btn-secondary clear-btn">Clear</button>
+            </div>
+            <div class="copy-feedback">Copied to clipboard ✓</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space — displays once Google AdSense is approved and connected</div>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+<script src="js/prompt-generator.js"></script>
+</body>
+</html>

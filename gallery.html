@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gallery — AI Resource Hub</title>
+<meta name="description" content="Upload your AI-generated photos with the prompt and hashtags used to create them, and build your own searchable prompt library." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+
+  <div class="page-header">
+    <div class="container">
+      <h1>Prompt Gallery</h1>
+      <p>Upload a photo alongside the prompt and hashtags you used to create it — build your own searchable library of what's worked.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+
+      <div class="info-banner" id="setupBanner">
+        Gallery backend isn't connected yet. See <strong>README.md</strong> for a 5-minute Supabase setup (free tier) — once configured with your project URL and key in <code>js/supabase-config.js</code>, uploads and search will work here.
+      </div>
+
+      <div class="upload-card" id="uploadCard">
+        <h3 style="margin-top:0;">Add to your gallery</h3>
+        <form id="uploadForm">
+          <div class="field">
+            <label for="uploadFile">Photo</label>
+            <input type="file" id="uploadFile" accept="image/*" required />
+            <img id="uploadPreview" class="upload-preview" alt="Preview" />
+          </div>
+          <div class="field">
+            <label for="uploadPrompt">Prompt used</label>
+            <textarea id="uploadPrompt" placeholder="Paste the exact prompt you used to generate this image" required></textarea>
+          </div>
+          <div class="field">
+            <label for="uploadTags">Hashtags (space or comma separated)</label>
+            <input type="text" id="uploadTags" placeholder="e.g. portrait, cyberpunk, midjourney" />
+          </div>
+          <div class="field">
+            <label for="uploadModel">Model used (optional)</label>
+            <input type="text" id="uploadModel" placeholder="e.g. Midjourney v7" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Save to Gallery</button>
+          <div class="form-status" id="uploadStatus"></div>
+        </form>
+      </div>
+
+      <div class="gallery-toolbar">
+        <div class="gallery-search">
+          <input type="text" id="gallerySearch" placeholder="Search by prompt text or hashtag..." />
+        </div>
+      </div>
+
+      <div class="gallery-empty-state" id="emptyState" style="display:none;"></div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+
+    </div>
+  </section>
+
+</main>
+
+<div class="lightbox-overlay" id="lightboxOverlay">
+  <div class="lightbox-content">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <img id="lightboxImg" alt="Gallery image" />
+    <div class="lightbox-body">
+      <p id="lightboxPrompt" style="white-space:pre-wrap;"></p>
+      <div class="gallery-tags" id="lightboxTags" style="margin-bottom:14px;"></div>
+      <button class="btn btn-secondary" id="lightboxCopy">Copy Prompt</button>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/main.js"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/gallery.js"></script>
+</body>
+</html>
