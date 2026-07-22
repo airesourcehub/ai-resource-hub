@@ -848,9 +848,18 @@ section {
 
 .gallery-item-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.gallery-item-footer .gallery-tags {
+  max-height: 3.4em;
+  overflow: hidden;
+}
+
+.gallery-item-footer .card-like-btn {
+  margin-top: 1px;
 }
 
 .gallery-tags {
