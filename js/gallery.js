@@ -1,7 +1,32 @@
-// AI Resource Hub — Gallery logic (Supabase-backed)
+// AI Resource Hub — Gallery logic (Supabase for accounts/data, Cloudinary for
+// the actual photo/video files)
 // Upload a photo or video + prompt + hashtags, choose public/private, and
 // search/browse past prompts by keyword or hashtag. Posting requires login;
-// browsing/searching public entries does not.
+// browsing/searching public entries does not. Files are uploaded directly
+// from the browser to Cloudinary's unsigned upload API (no backend needed);
+// the resulting URL + public_id are then saved to Supabase alongside the
+// prompt/tags/etc. If Cloudinary is down, only the Gallery is affected —
+// the rest of the site (which doesn't depend on it) keeps working.
+
+var CLOUDINARY_IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10MB, Cloudinary free plan
+var CLOUDINARY_VIDEO_MAX_BYTES = 100 * 1024 * 1024; // 100MB, Cloudinary free plan
+
+function uploadToCloudinary(file) {
+  var formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  var url = "https://api.cloudinary.com/v1_1/" + CLOUDINARY_CLOUD_NAME + "/auto/upload";
+
+  return fetch(url, { method: "POST", body: formData }).then(function (res) {
+    return res.json().then(function (data) {
+      if (!res.ok) {
+        throw new Error((data.error && data.error.message) || "Upload to Cloudinary failed.");
+      }
+      return data;
+    });
+  });
+}
 
 document.addEventListener("DOMContentLoaded", function () {
   var isConfigured = typeof SUPABASE_URL !== "undefined" &&
@@ -120,6 +145,12 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       var mediaType = file.type.indexOf("video") === 0 ? "video" : "image";
+      var maxBytes = mediaType === "video" ? CLOUDINARY_VIDEO_MAX_BYTES : CLOUDINARY_IMAGE_MAX_BYTES;
+      if (file.size > maxBytes) {
+        var maxMb = Math.round(maxBytes / (1024 * 1024));
+        showStatus("That file is too large — the limit is " + maxMb + "MB for " + mediaType + "s.", "error");
+        return;
+      }
 
       var tags = tagsRaw
         .split(/[\s,]+/)
@@ -129,17 +160,12 @@ document.addEventListener("DOMContentLoaded", function () {
       showStatus("Uploading...", "");
 
       try {
-        var fileExt = file.name.split(".").pop();
-        var filePath = currentUser.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2) + "." + fileExt;
-
-        var uploadResult = await client.storage.from(SUPABASE_BUCKET).upload(filePath, file);
-        if (uploadResult.error) throw uploadResult.error;
-
-        var publicUrlResult = client.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
-        var imageUrl = publicUrlResult.data.publicUrl;
+        var cloudinaryResult = await uploadToCloudinary(file);
+        var imageUrl = cloudinaryResult.secure_url;
 
         var insertResult = await client.from(SUPABASE_TABLE).insert([{
           image_url: imageUrl,
+          cloudinary_public_id: cloudinaryResult.public_id || null,
           title: titleText || null,
           prompt: promptText,
           hashtags: tags,
