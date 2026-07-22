@@ -21,6 +21,7 @@ css/style.css              Shared styles
 js/main.js                 Nav toggle, active link, resource filtering
 js/prompt-generator.js     Prompt Generator logic (all models)
 js/supabase-config.js      Live Supabase project keys (already filled in)
+js/cloudinary-config.js    Cloudinary cloud name + unsigned upload preset (already filled in)
 js/auth.js                 Sign up / log in / log out + request-access logic
 js/auth-nav.js             Shows Log In / account state in the nav on every page
 js/gallery.js              Gallery upload / search / lightbox logic
@@ -79,12 +80,10 @@ Accounts and the Gallery are wired up to a live Supabase project:
 - **Organization:** airesourcehub
 - **Project:** ai-resource-hub (`flzhhgfkpdmszucoljpu`, region `us-east-1`, free tier — $0/month)
 - **Auth:** Supabase Auth, email/password. Sign up and log in on `auth.html`.
-- **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`, `title`,
-  `prompt`, `hashtags text[]`, `model`, `user_id` (owner), `is_public`
-  (boolean, default true), `media_type` (`'image'` or `'video'`)
-- **Storage bucket:** `gallery-images` (public; holds both images and
-  videos), allowed types `image/*` and `video/*` (mp4, webm, mov), 100MB
-  file size limit
+- **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`,
+  `cloudinary_public_id`, `title`, `prompt`, `hashtags text[]`, `model`,
+  `user_id` (owner), `is_public` (boolean, default true), `media_type`
+  (`'image'` or `'video'`)
 - **Keys:** already filled in at `js/supabase-config.js`
 
 Nothing further to do — deploy the site as-is and accounts + the Gallery
@@ -113,12 +112,52 @@ on by default (new users must click a confirmation link before logging in).
 Turn it off there if you'd rather signups be instant, at the cost of easier
 fake sign-ups.
 
-**Security note on "private":** the storage bucket is public, and file
-paths are random/unguessable, so a private entry's file isn't discoverable
-through the app (the database row is hidden by RLS) but the raw file URL
-itself isn't cryptographically locked down. That's a reasonable trade-off
-for an MVP; if you need true private-file security later, that means moving
-to a private bucket with signed URLs — ask and I can wire that up.
+**Security note on "private":** Cloudinary URLs use a random public ID, so a
+private entry's file isn't discoverable through the app (the database row
+is hidden by RLS) but the raw file URL itself isn't cryptographically locked
+down. That's a reasonable trade-off for an MVP; if you need true
+private-file security later, ask and I can wire up signed/authenticated
+delivery instead.
+
+## Gallery file storage (Cloudinary)
+
+Photos and videos in the Gallery are hosted on Cloudinary instead of
+Supabase Storage — deliberately, so the Gallery is the *only* thing that
+depends on it. If Cloudinary is ever down or misconfigured, the rest of
+the site (Home, Resources, Prompt Generator, accounts) is unaffected;
+only Gallery uploads/thumbnails would break.
+
+- **Cloud name:** `xif5o0uw` (already set in `js/cloudinary-config.js`,
+  not a secret — it's part of every delivery URL).
+- **Plan:** Free (25 credits/month, which is Cloudinary's blended unit
+  across storage + bandwidth + transformations). Per-file size limits on
+  the free plan: **10MB for images, 100MB for videos** — enforced both
+  client-side (a friendly error before upload) and by Cloudinary itself.
+- **How uploads work:** the browser uploads the file directly to
+  Cloudinary's unsigned upload API — no backend involved. This is why the
+  one-time setup below is required: unsigned uploads only work through a
+  named "upload preset" you create yourself (Cloudinary's own anti-abuse
+  design; an unsigned preset can't be created via API, only the Console).
+
+**One-time setup required** (skip if already done): in the
+[Cloudinary Console](https://console.cloudinary.com) → **Settings → Upload
+→ Upload presets → Add upload preset**:
+1. Set **Preset name** to exactly `ai_resource_hub_gallery`.
+2. Set **Signing Mode** to **Unsigned**.
+3. (Optional) Set **Folder** to `gallery` to keep uploads organized.
+4. Save.
+
+If you'd rather use a different preset name, update
+`CLOUDINARY_UPLOAD_PRESET` in `js/cloudinary-config.js` to match.
+
+**Known limitation:** deleting an entry from the admin panel's Gallery
+Moderation tab removes the database row (so it disappears from the site
+immediately) but doesn't delete the underlying file from Cloudinary —
+doing that securely requires the API secret, which can't live in
+browser-side code. Orphaned files just sit in Cloudinary using up your
+free quota slowly. Ask me to clean them up periodically (I have Cloudinary
+access and can delete by `cloudinary_public_id`), or do it yourself from
+the Cloudinary Console's Media Library.
 
 ## Invite-only sign-up + admin panel
 
@@ -189,6 +228,7 @@ create table gallery_prompts (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
   image_url text not null,
+  cloudinary_public_id text,
   title text,
   prompt text not null,
   hashtags text[] default '{}',
@@ -216,21 +256,9 @@ create policy "Delete own" on gallery_prompts
   for delete to authenticated
   using (auth.uid() = user_id);
 
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'gallery-images', 'gallery-images', true, 104857600,
-  array['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm','video/quicktime']
-)
-on conflict (id) do nothing;
-
-create policy "Public read access to gallery images"
-  on storage.objects for select
-  using (bucket_id = 'gallery-images');
-
-create policy "Authenticated upload access to gallery images"
-  on storage.objects for insert
-  to authenticated
-  with check (bucket_id = 'gallery-images');
+-- No Supabase Storage bucket needed — gallery files go straight to
+-- Cloudinary from the browser. See "Gallery file storage (Cloudinary)"
+-- above for the one-time unsigned upload preset setup.
 
 -- Admin / allowlist / analytics (see "Invite-only sign-up + admin panel"
 -- and "Analytics" sections above for what this enables)
