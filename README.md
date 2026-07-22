@@ -76,9 +76,9 @@ Accounts and the Gallery are wired up to a live Supabase project:
 - **Organization:** airesourcehub
 - **Project:** ai-resource-hub (`flzhhgfkpdmszucoljpu`, region `us-east-1`, free tier — $0/month)
 - **Auth:** Supabase Auth, email/password. Sign up and log in on `auth.html`.
-- **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`, `prompt`,
-  `hashtags text[]`, `model`, `user_id` (owner), `is_public` (boolean,
-  default true), `media_type` (`'image'` or `'video'`)
+- **Table:** `gallery_prompts` — `id`, `created_at`, `image_url`, `title`,
+  `prompt`, `hashtags text[]`, `model`, `user_id` (owner), `is_public`
+  (boolean, default true), `media_type` (`'image'` or `'video'`)
 - **Storage bucket:** `gallery-images` (public; holds both images and
   videos), allowed types `image/*` and `video/*` (mp4, webm, mov), 100MB
   file size limit
@@ -121,6 +121,7 @@ create table gallery_prompts (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
   image_url text not null,
+  title text,
   prompt text not null,
   hashtags text[] default '{}',
   model text,

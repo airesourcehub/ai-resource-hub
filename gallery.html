@@ -68,6 +68,10 @@
             <video id="uploadPreviewVideo" class="upload-preview" controls muted></video>
           </div>
           <div class="field">
+            <label for="uploadTitle">Title (optional)</label>
+            <input type="text" id="uploadTitle" placeholder="Give this upload a title" />
+          </div>
+          <div class="field">
             <label for="uploadPrompt">Prompt used</label>
             <textarea id="uploadPrompt" placeholder="Paste the exact prompt you used to generate this" required></textarea>
           </div>
@@ -77,7 +81,31 @@
           </div>
           <div class="field">
             <label for="uploadModel">Model used (optional)</label>
-            <input type="text" id="uploadModel" placeholder="e.g. Midjourney v7" />
+            <select id="uploadModel">
+              <option value="">Select a model…</option>
+              <optgroup label="Text">
+                <option value="ChatGPT">ChatGPT (GPT)</option>
+                <option value="Claude">Claude</option>
+                <option value="Gemini">Gemini</option>
+              </optgroup>
+              <optgroup label="Image">
+                <option value="Midjourney">Midjourney</option>
+                <option value="DALL-E">DALL-E / ChatGPT Images</option>
+                <option value="Stable Diffusion">Stable Diffusion</option>
+                <option value="Adobe Firefly">Adobe Firefly</option>
+              </optgroup>
+              <optgroup label="Video">
+                <option value="LTX Video">LTX Video</option>
+                <option value="Google Veo">Google Veo</option>
+                <option value="Runway">Runway</option>
+                <option value="Sora">Sora</option>
+                <option value="Kling">Kling</option>
+                <option value="Pika">Pika</option>
+                <option value="Wan 2.1 / 2.2">Wan 2.1 / 2.2</option>
+              </optgroup>
+              <option value="other">Other (type your own)</option>
+            </select>
+            <input type="text" id="uploadModelOther" class="model-other-input" placeholder="Enter the model name" style="display:none; margin-top:8px;" />
           </div>
           <div class="field">
             <label>Visibility</label>
@@ -117,6 +145,7 @@
     <img id="lightboxImg" alt="Gallery image" />
     <video id="lightboxVideo" controls></video>
     <div class="lightbox-body">
+      <h3 id="lightboxTitle" style="margin:0 0 8px;"></h3>
       <p id="lightboxPrompt" style="white-space:pre-wrap;"></p>
       <div class="gallery-tags" id="lightboxTags" style="margin-bottom:14px;"></div>
       <button class="btn btn-secondary" id="lightboxCopy">Copy Prompt</button>
