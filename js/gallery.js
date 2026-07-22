@@ -815,12 +815,15 @@ document.addEventListener("DOMContentLoaded", function () {
         commentStatus.textContent = "Posted!";
         commentStatus.className = "form-status show success";
         resetCommentComposer();
-        loadComments(currentLightboxItem.id);
 
+        // If a remix was created, refresh allItems first so the comment
+        // thread's remix thumbnail lookup (which reads from allItems) finds
+        // it — otherwise it briefly shows as "not visible" due to the race.
         if (remixId) {
           await loadGallery();
           renderCurrentView();
         }
+        await loadComments(currentLightboxItem.id);
       } catch (err) {
         console.error(err);
         commentStatus.textContent = "Something went wrong: " + (err.message || err);
