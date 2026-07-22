@@ -246,19 +246,19 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ---------- Search ----------
+  function filterItems(query) {
+    var q = query.toLowerCase();
+    return allItems.filter(function (item) {
+      var inPrompt = item.prompt && item.prompt.toLowerCase().indexOf(q) !== -1;
+      var inTags = (item.hashtags || []).some(function (t) { return t.toLowerCase().indexOf(q) !== -1; });
+      return inPrompt || inTags;
+    });
+  }
+
   if (searchInput) {
     searchInput.addEventListener("input", function () {
-      var q = searchInput.value.trim().toLowerCase();
-      if (!q) {
-        renderGallery(allItems);
-        return;
-      }
-      var filtered = allItems.filter(function (item) {
-        var inPrompt = item.prompt && item.prompt.toLowerCase().indexOf(q) !== -1;
-        var inTags = (item.hashtags || []).some(function (t) { return t.toLowerCase().indexOf(q) !== -1; });
-        return inPrompt || inTags;
-      });
-      renderGallery(filtered);
+      var q = searchInput.value.trim();
+      renderGallery(q ? filterItems(q) : allItems);
     });
   }
 
@@ -272,8 +272,31 @@ document.addEventListener("DOMContentLoaded", function () {
   var lightboxCopy = document.getElementById("lightboxCopy");
   var lightboxClose = document.getElementById("lightboxClose");
 
+  var lightboxView = document.getElementById("lightboxView");
+  var lightboxEditBtn = document.getElementById("lightboxEditBtn");
+  var lightboxEditForm = document.getElementById("lightboxEditForm");
+  var editTitle = document.getElementById("editTitle");
+  var editPrompt = document.getElementById("editPrompt");
+  var editTags = document.getElementById("editTags");
+  var editModel = document.getElementById("editModel");
+  var editModelOther = document.getElementById("editModelOther");
+  var editStatus = document.getElementById("editStatus");
+  var editSaveBtn = document.getElementById("editSaveBtn");
+  var editCancelBtn = document.getElementById("editCancelBtn");
+
+  var currentLightboxItem = null;
+
+  if (editModel && editModelOther) {
+    editModel.addEventListener("change", function () {
+      var isOther = editModel.value === "other";
+      editModelOther.style.display = isOther ? "block" : "none";
+      if (!isOther) editModelOther.value = "";
+    });
+  }
+
   function openLightbox(item) {
     if (!overlay) return;
+    currentLightboxItem = item;
 
     if (item.media_type === "video") {
       lightboxVideo.src = item.image_url;
@@ -287,6 +310,24 @@ document.addEventListener("DOMContentLoaded", function () {
       lightboxVideo.removeAttribute("src");
     }
 
+    renderLightboxView(item);
+    exitEditMode();
+
+    if (lightboxEditBtn) {
+      var isOwner = currentUser && item.user_id === currentUser.id;
+      lightboxEditBtn.style.display = isOwner ? "" : "none";
+    }
+
+    overlay.classList.add("open");
+
+    lightboxCopy.onclick = function () {
+      navigator.clipboard.writeText(item.prompt);
+      lightboxCopy.textContent = "Copied ✓";
+      setTimeout(function () { lightboxCopy.textContent = "Copy Prompt"; }, 1500);
+    };
+  }
+
+  function renderLightboxView(item) {
     if (lightboxTitle) {
       lightboxTitle.textContent = item.title || "";
       lightboxTitle.style.display = item.title ? "block" : "none";
@@ -297,13 +338,120 @@ document.addEventListener("DOMContentLoaded", function () {
     }).join("");
     if (!item.is_public) badges = '<span class="tag private">Private</span>' + badges;
     lightboxTags.innerHTML = badges;
-    overlay.classList.add("open");
+  }
 
-    lightboxCopy.onclick = function () {
-      navigator.clipboard.writeText(item.prompt);
-      lightboxCopy.textContent = "Copied ✓";
-      setTimeout(function () { lightboxCopy.textContent = "Copy Prompt"; }, 1500);
-    };
+  function exitEditMode() {
+    if (lightboxView) lightboxView.style.display = "";
+    if (lightboxEditForm) lightboxEditForm.style.display = "none";
+    if (editStatus) { editStatus.textContent = ""; editStatus.className = "form-status"; }
+  }
+
+  if (lightboxEditBtn) {
+    lightboxEditBtn.addEventListener("click", function () {
+      if (!currentLightboxItem) return;
+      var item = currentLightboxItem;
+
+      editTitle.value = item.title || "";
+      editPrompt.value = item.prompt || "";
+      editTags.value = (item.hashtags || []).join(", ");
+
+      var knownOption = item.model
+        ? editModel.querySelector('option[value="' + item.model.replace(/"/g, '\\"') + '"]')
+        : null;
+      if (item.model && knownOption) {
+        editModel.value = item.model;
+        editModelOther.style.display = "none";
+        editModelOther.value = "";
+      } else if (item.model) {
+        editModel.value = "other";
+        editModelOther.style.display = "block";
+        editModelOther.value = item.model;
+      } else {
+        editModel.value = "";
+        editModelOther.style.display = "none";
+        editModelOther.value = "";
+      }
+
+      var visRadio = lightboxEditForm.querySelector('input[name="editVisibility"][value="' + (item.is_public ? "public" : "private") + '"]');
+      if (visRadio) visRadio.checked = true;
+
+      if (lightboxView) lightboxView.style.display = "none";
+      if (lightboxEditForm) lightboxEditForm.style.display = "block";
+    });
+  }
+
+  if (editCancelBtn) {
+    editCancelBtn.addEventListener("click", function () {
+      exitEditMode();
+    });
+  }
+
+  if (editSaveBtn) {
+    editSaveBtn.addEventListener("click", async function () {
+      if (!currentLightboxItem) return;
+
+      var newTitle = editTitle.value.trim();
+      var newPrompt = editPrompt.value.trim();
+      var newTagsRaw = editTags.value.trim();
+      var newModelSelectValue = editModel.value.trim();
+      var newModel = newModelSelectValue === "other"
+        ? editModelOther.value.trim()
+        : newModelSelectValue;
+      var visRadio = lightboxEditForm.querySelector('input[name="editVisibility"]:checked');
+      var newIsPublic = !visRadio || visRadio.value === "public";
+
+      if (!newPrompt) {
+        editStatus.textContent = "Prompt can't be empty.";
+        editStatus.className = "form-status show error";
+        return;
+      }
+
+      var newTags = newTagsRaw
+        .split(/[\s,]+/)
+        .map(function (t) { return t.replace(/^#/, "").toLowerCase().trim(); })
+        .filter(Boolean);
+
+      editStatus.textContent = "Saving...";
+      editStatus.className = "form-status show";
+
+      try {
+        var updateResult = await client
+          .from(SUPABASE_TABLE)
+          .update({
+            title: newTitle || null,
+            prompt: newPrompt,
+            hashtags: newTags,
+            model: newModel || null,
+            is_public: newIsPublic
+          })
+          .eq("id", currentLightboxItem.id);
+
+        if (updateResult.error) throw updateResult.error;
+
+        currentLightboxItem.title = newTitle || null;
+        currentLightboxItem.prompt = newPrompt;
+        currentLightboxItem.hashtags = newTags;
+        currentLightboxItem.model = newModel || null;
+        currentLightboxItem.is_public = newIsPublic;
+
+        var stored = allItems.find(function (i) { return i.id === currentLightboxItem.id; });
+        if (stored) {
+          stored.title = currentLightboxItem.title;
+          stored.prompt = currentLightboxItem.prompt;
+          stored.hashtags = currentLightboxItem.hashtags;
+          stored.model = currentLightboxItem.model;
+          stored.is_public = currentLightboxItem.is_public;
+        }
+
+        renderLightboxView(currentLightboxItem);
+        renderGallery(searchInput && searchInput.value.trim() ? filterItems(searchInput.value.trim()) : allItems);
+        exitEditMode();
+      } catch (err) {
+        console.error(err);
+        editStatus.textContent = "Something went wrong: " + (err.message || err);
+        editStatus.className = "form-status show error";
+      }
+    });
   }
 
   if (lightboxClose) {
