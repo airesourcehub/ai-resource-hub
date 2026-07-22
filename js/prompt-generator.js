@@ -2,9 +2,46 @@
 // Builds prompts for Text/Writing, Image, and Video AI tools, formatted to
 // match the specific prompting conventions of the selected model.
 
+var ENHANCE_FUNCTION_URL = "https://flzhhgfkpdmszucoljpu.supabase.co/functions/v1/enhance-prompt";
+
 document.addEventListener("DOMContentLoaded", function () {
   var tabs = document.querySelectorAll(".tool-tab");
   var panels = document.querySelectorAll(".generator-panel");
+
+  // ---------- AI enhance: auth session tracking ----------
+  // Basic template-building below needs no login (runs fully client-side).
+  // The "Enhance with AI" button calls a Supabase Edge Function that
+  // actually sends the fields to Claude, so it's gated to logged-in
+  // accounts to keep API costs bounded to this site's invite-only users.
+  var currentUser = null;
+  var enhanceGates = []; // functions to call whenever auth state changes
+  var isSupabaseConfigured = typeof SUPABASE_URL !== "undefined" &&
+    SUPABASE_URL.indexOf("YOUR_SUPABASE") === -1 &&
+    SUPABASE_ANON_KEY.indexOf("YOUR_SUPABASE") === -1 &&
+    typeof window.supabase !== "undefined";
+
+  if (isSupabaseConfigured) {
+    var authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    authClient.auth.getSession().then(function (result) {
+      currentUser = result.data.session ? result.data.session.user : null;
+      applyEnhanceGates();
+    });
+    authClient.auth.onAuthStateChange(function (_event, session) {
+      currentUser = session ? session.user : null;
+      applyEnhanceGates();
+    });
+  }
+
+  function applyEnhanceGates() {
+    enhanceGates.forEach(function (fn) { fn(); });
+  }
+
+  function getAccessToken() {
+    if (!isSupabaseConfigured) return Promise.resolve(null);
+    return authClient.auth.getSession().then(function (result) {
+      return result.data.session ? result.data.session.access_token : null;
+    });
+  }
 
   tabs.forEach(function (tab) {
     tab.addEventListener("click", function () {
@@ -69,7 +106,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ---------- TEXT / WRITING ----------
   var textFields = ["textModel", "textRole", "textFormat", "textTopic", "textAudience", "textTone", "textDetails"];
-  bindPanel(textFields, buildTextPrompt, "textPromptOutput", "textModel", "textModelNote");
+  var textFieldLabels = {
+    textRole: "Role/persona for the AI to act as",
+    textFormat: "Format",
+    textTopic: "Topic or goal",
+    textAudience: "Audience",
+    textTone: "Tone",
+    textDetails: "Extra details"
+  };
+  bindPanel(textFields, buildTextPrompt, "textPromptOutput", "textModel", "textModelNote", {
+    category: "text",
+    panelPrefix: "text",
+    fieldLabels: textFieldLabels
+  });
 
   function buildTextPrompt() {
     var model = val("textModel") || "chatgpt";
@@ -101,7 +150,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ---------- IMAGE ----------
   var imageFields = ["imgModel", "imgSubject", "imgStyle", "imgSetting", "imgLighting", "imgMood", "imgAspect", "imgNegative", "imgDetails"];
-  bindPanel(imageFields, buildImagePrompt, "imagePromptOutput", "imgModel", "imgModelNote");
+  var imageFieldLabels = {
+    imgSubject: "Main subject",
+    imgStyle: "Art style",
+    imgSetting: "Setting/background",
+    imgLighting: "Lighting",
+    imgMood: "Mood",
+    imgAspect: "Aspect ratio",
+    imgNegative: "Negative prompt (things to avoid)",
+    imgDetails: "Extra details"
+  };
+  bindPanel(imageFields, buildImagePrompt, "imagePromptOutput", "imgModel", "imgModelNote", {
+    category: "image",
+    panelPrefix: "img",
+    fieldLabels: imageFieldLabels
+  });
 
   function buildImagePrompt() {
     var model = val("imgModel") || "midjourney";
@@ -152,7 +215,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ---------- VIDEO ----------
   var videoFields = ["vidModel", "vidScene", "vidCamera", "vidStyle", "vidPacing", "vidMood", "vidNegative", "vidDetails"];
-  bindPanel(videoFields, buildVideoPrompt, "videoPromptOutput", "vidModel", "vidModelNote");
+  var videoFieldLabels = {
+    vidScene: "Scene description",
+    vidCamera: "Camera movement",
+    vidStyle: "Visual style",
+    vidPacing: "Pacing/motion",
+    vidMood: "Mood",
+    vidNegative: "Negative prompt (things to avoid)",
+    vidDetails: "Extra details"
+  };
+  bindPanel(videoFields, buildVideoPrompt, "videoPromptOutput", "vidModel", "vidModelNote", {
+    category: "video",
+    panelPrefix: "vid",
+    fieldLabels: videoFieldLabels
+  });
 
   function buildVideoPrompt() {
     var model = val("vidModel") || "ltx";
@@ -225,12 +301,13 @@ document.addEventListener("DOMContentLoaded", function () {
     return el ? el.value.trim() : "";
   }
 
-  function bindPanel(fieldIds, buildFn, outputId, modelSelectId, noteId) {
+  function bindPanel(fieldIds, buildFn, outputId, modelSelectId, noteId, enhanceOpts) {
     var output = document.getElementById(outputId);
     if (!output) return;
 
     function update() {
       output.value = buildFn();
+      output.classList.remove("ai-enhanced");
       var noteEl = document.getElementById(noteId);
       if (noteEl && modelSelectId) {
         var model = val(modelSelectId);
@@ -274,5 +351,77 @@ document.addEventListener("DOMContentLoaded", function () {
         update();
       });
     }
+
+    if (enhanceOpts) wireEnhance(enhanceOpts, fieldIds, modelSelectId, output);
+  }
+
+  // Wires the "✨ Enhance with AI" button for one panel: shows a login
+  // prompt instead of the button when logged out, and otherwise sends the
+  // current field values to the enhance-prompt Edge Function and swaps the
+  // output textarea's content for Claude's rewrite on success.
+  function wireEnhance(opts, fieldIds, modelSelectId, output) {
+    var prefix = opts.panelPrefix;
+    var btn = document.getElementById(prefix + "EnhanceBtn");
+    var status = document.getElementById(prefix + "EnhanceStatus");
+    var authNote = document.getElementById(prefix + "EnhanceAuthNote");
+    if (!btn) return;
+
+    function gate() {
+      var loggedIn = !!currentUser;
+      btn.style.display = loggedIn ? "" : "none";
+      if (authNote) authNote.style.display = loggedIn ? "none" : "block";
+    }
+    gate();
+    enhanceGates.push(gate);
+
+    btn.addEventListener("click", function () {
+      if (!currentUser) return;
+
+      var fields = {};
+      fieldIds.forEach(function (id) {
+        if (id === modelSelectId) return;
+        var label = (opts.fieldLabels && opts.fieldLabels[id]) || id;
+        var v = val(id);
+        if (v) fields[label] = v;
+      });
+
+      if (!Object.keys(fields).length) {
+        status.textContent = "Fill in at least one field first.";
+        status.className = "ai-enhance-status show error";
+        return;
+      }
+
+      btn.disabled = true;
+      status.textContent = "Enhancing with AI...";
+      status.className = "ai-enhance-status show";
+
+      getAccessToken().then(function (token) {
+        if (!token) {
+          status.textContent = "Please log in again.";
+          status.className = "ai-enhance-status show error";
+          btn.disabled = false;
+          return;
+        }
+
+        return fetch(ENHANCE_FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ category: opts.category, model: val(modelSelectId), fields: fields })
+        }).then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) throw new Error(data.error || "AI enhancement failed.");
+            output.value = data.prompt;
+            output.classList.add("ai-enhanced");
+            status.textContent = "✨ Enhanced";
+            status.className = "ai-enhance-status show success";
+          });
+        });
+      }).catch(function (err) {
+        status.textContent = err.message || "Something went wrong.";
+        status.className = "ai-enhance-status show error";
+      }).then(function () {
+        btn.disabled = false;
+      });
+    });
   }
 });
