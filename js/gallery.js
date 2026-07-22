@@ -11,6 +11,20 @@
 var CLOUDINARY_IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10MB, Cloudinary free plan
 var CLOUDINARY_VIDEO_MAX_BYTES = 100 * 1024 * 1024; // 100MB, Cloudinary free plan
 
+// Shared by the main upload form and the in-comment remix uploader.
+function classifyMedia(file) {
+  var mediaType = file.type.indexOf("video") === 0 ? "video" : "image";
+  var maxBytes = mediaType === "video" ? CLOUDINARY_VIDEO_MAX_BYTES : CLOUDINARY_IMAGE_MAX_BYTES;
+  return { mediaType: mediaType, maxBytes: maxBytes, tooLarge: file.size > maxBytes };
+}
+
+function parseTags(raw) {
+  return raw
+    .split(/[\s,]+/)
+    .map(function (t) { return t.replace(/^#/, "").toLowerCase().trim(); })
+    .filter(Boolean);
+}
+
 function uploadToCloudinary(file) {
   var formData = new FormData();
   formData.append("file", file);
@@ -104,6 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (authRequiredBanner) authRequiredBanner.classList.add("show");
       if (uploadCard) uploadCard.style.display = "none";
     }
+    updateCommentAuthGate();
   }
 
   // ---------- Upload form ----------
@@ -123,26 +138,30 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  if (fileInput) {
-    fileInput.addEventListener("change", function () {
-      var file = fileInput.files[0];
+  // Shared by the main upload form and the in-comment remix uploader.
+  function wireFilePreview(input, imgEl, videoEl) {
+    if (!input) return;
+    input.addEventListener("change", function () {
+      var file = input.files[0];
       if (!file) return;
       var isVideo = file.type.indexOf("video") === 0;
       var url = URL.createObjectURL(file);
 
       if (isVideo) {
-        previewVideo.src = url;
-        previewVideo.classList.add("show");
-        previewImg.classList.remove("show");
-        previewImg.removeAttribute("src");
+        videoEl.src = url;
+        videoEl.classList.add("show");
+        imgEl.classList.remove("show");
+        imgEl.removeAttribute("src");
       } else {
-        previewImg.src = url;
-        previewImg.classList.add("show");
-        previewVideo.classList.remove("show");
-        previewVideo.removeAttribute("src");
+        imgEl.src = url;
+        imgEl.classList.add("show");
+        videoEl.classList.remove("show");
+        videoEl.removeAttribute("src");
       }
     });
   }
+
+  wireFilePreview(fileInput, previewImg, previewVideo);
 
   if (form) {
     form.addEventListener("submit", async function (e) {
@@ -169,18 +188,15 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      var mediaType = file.type.indexOf("video") === 0 ? "video" : "image";
-      var maxBytes = mediaType === "video" ? CLOUDINARY_VIDEO_MAX_BYTES : CLOUDINARY_IMAGE_MAX_BYTES;
-      if (file.size > maxBytes) {
-        var maxMb = Math.round(maxBytes / (1024 * 1024));
+      var classified = classifyMedia(file);
+      var mediaType = classified.mediaType;
+      if (classified.tooLarge) {
+        var maxMb = Math.round(classified.maxBytes / (1024 * 1024));
         showStatus("That file is too large — the limit is " + maxMb + "MB for " + mediaType + "s.", "error");
         return;
       }
 
-      var tags = tagsRaw
-        .split(/[\s,]+/)
-        .map(function (t) { return t.replace(/^#/, "").toLowerCase().trim(); })
-        .filter(Boolean);
+      var tags = parseTags(tagsRaw);
 
       showStatus("Uploading...", "");
 
@@ -301,10 +317,20 @@ document.addEventListener("DOMContentLoaded", function () {
       var liked = !!likedIds[item.id];
       var likesCount = item.likes_count || 0;
 
+      var remixOfHtml = "";
+      if (item.parent_id) {
+        var parentItem = allItems.find(function (i) { return i.id === item.parent_id; });
+        var parentLabel = parentItem ? (parentItem.title || parentItem.prompt) : null;
+        remixOfHtml = parentLabel
+          ? '<div class="remix-of" data-parent-id="' + escapeHtml(item.parent_id) + '">↻ Remix of ' + escapeHtml(parentLabel) + "</div>"
+          : '<div class="remix-of remix-of-hidden">↻ A remix</div>';
+      }
+
       card.innerHTML =
         mediaHtml +
         (item.media_type === "video" ? '<span class="gallery-media-badge">Video</span>' : "") +
         '<div class="gallery-item-body">' +
+          remixOfHtml +
           (item.title ? "<h4>" + escapeHtml(item.title) + "</h4>" : "") +
           "<p>" + escapeHtml(item.prompt) + "</p>" +
           '<div class="gallery-item-footer">' +
@@ -315,7 +341,7 @@ document.addEventListener("DOMContentLoaded", function () {
           "</div>" +
         "</div>";
       card.addEventListener("click", function (e) {
-        if (e.target.closest(".card-like-btn")) return;
+        if (e.target.closest(".card-like-btn") || e.target.closest(".remix-of")) return;
         openLightbox(item);
       });
 
@@ -324,6 +350,15 @@ document.addEventListener("DOMContentLoaded", function () {
         likeBtn.addEventListener("click", function (e) {
           e.stopPropagation();
           toggleLike(item, likeBtn);
+        });
+      }
+
+      var remixOfEl = card.querySelector(".remix-of[data-parent-id]");
+      if (remixOfEl) {
+        remixOfEl.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var parentItem = allItems.find(function (i) { return i.id === item.parent_id; });
+          if (parentItem) openLightbox(parentItem);
         });
       }
 
@@ -549,6 +584,261 @@ document.addEventListener("DOMContentLoaded", function () {
   var editSaveBtn = document.getElementById("editSaveBtn");
   var editCancelBtn = document.getElementById("editCancelBtn");
 
+  // ---------- Comments + remixes ----------
+  var commentsList = document.getElementById("commentsList");
+  var commentAuthBanner = document.getElementById("commentAuthBanner");
+  var commentComposer = document.getElementById("commentComposer");
+  var commentBody = document.getElementById("commentBody");
+  var toggleRemixBtn = document.getElementById("toggleRemixBtn");
+  var remixSubform = document.getElementById("remixSubform");
+  var remixFile = document.getElementById("remixFile");
+  var remixPreviewImg = document.getElementById("remixPreviewImg");
+  var remixPreviewVideo = document.getElementById("remixPreviewVideo");
+  var remixTitle = document.getElementById("remixTitle");
+  var remixPrompt = document.getElementById("remixPrompt");
+  var remixTags = document.getElementById("remixTags");
+  var remixModel = document.getElementById("remixModel");
+  var remixModelOther = document.getElementById("remixModelOther");
+  var postCommentBtn = document.getElementById("postCommentBtn");
+  var commentStatus = document.getElementById("commentStatus");
+
+  wireFilePreview(remixFile, remixPreviewImg, remixPreviewVideo);
+
+  if (remixModel && remixModelOther) {
+    remixModel.addEventListener("change", function () {
+      var isOther = remixModel.value === "other";
+      remixModelOther.style.display = isOther ? "block" : "none";
+      if (!isOther) remixModelOther.value = "";
+    });
+  }
+
+  if (toggleRemixBtn) {
+    toggleRemixBtn.addEventListener("click", function () {
+      var opening = remixSubform.style.display === "none";
+      remixSubform.style.display = opening ? "block" : "none";
+      toggleRemixBtn.textContent = opening ? "− Hide remix form" : "+ Add your own remix (photo/video)";
+      if (opening && currentLightboxItem && !remixPrompt.value) {
+        // Pre-fill with the original so it's easy to tweak rather than retype
+        remixPrompt.value = currentLightboxItem.prompt || "";
+        remixTags.value = (currentLightboxItem.hashtags || []).join(", ");
+        if (currentLightboxItem.model) {
+          var opt = remixModel.querySelector('option[value="' + currentLightboxItem.model.replace(/"/g, '\\"') + '"]');
+          if (opt) {
+            remixModel.value = currentLightboxItem.model;
+          } else {
+            remixModel.value = "other";
+            remixModelOther.style.display = "block";
+            remixModelOther.value = currentLightboxItem.model;
+          }
+        }
+      }
+    });
+  }
+
+  function resetCommentComposer() {
+    if (commentBody) commentBody.value = "";
+    if (remixSubform) remixSubform.style.display = "none";
+    if (toggleRemixBtn) toggleRemixBtn.textContent = "+ Add your own remix (photo/video)";
+    if (remixFile) remixFile.value = "";
+    if (remixTitle) remixTitle.value = "";
+    if (remixPrompt) remixPrompt.value = "";
+    if (remixTags) remixTags.value = "";
+    if (remixModel) remixModel.value = "";
+    if (remixModelOther) { remixModelOther.value = ""; remixModelOther.style.display = "none"; }
+    if (remixPreviewImg) remixPreviewImg.classList.remove("show");
+    if (remixPreviewVideo) remixPreviewVideo.classList.remove("show");
+  }
+
+  function pseudoName(userId) {
+    return "Member " + String(userId || "").replace(/-/g, "").slice(0, 6).toUpperCase();
+  }
+
+  async function loadComments(galleryId) {
+    var result = await client
+      .from("gallery_comments")
+      .select("*")
+      .eq("gallery_id", galleryId)
+      .order("created_at", { ascending: true });
+
+    if (result.error) {
+      console.error(result.error);
+      return;
+    }
+    renderComments(result.data || []);
+  }
+
+  function renderComments(comments) {
+    if (!commentsList) return;
+    commentsList.innerHTML = "";
+
+    if (!comments.length) {
+      commentsList.innerHTML = '<p class="comments-empty">No comments yet — say something or share your own remix.</p>';
+      return;
+    }
+
+    comments.forEach(function (c) {
+      var row = document.createElement("div");
+      row.className = "comment-row";
+
+      var remixHtml = "";
+      if (c.remix_id) {
+        var remix = allItems.find(function (i) { return i.id === c.remix_id; });
+        if (remix) {
+          var thumb = remix.media_type === "video"
+            ? '<video src="' + escapeHtml(remix.image_url) + '"' + posterAttr(remix) + ' muted preload="metadata" playsinline></video>'
+            : '<img src="' + escapeHtml(remix.image_url) + '" alt="Remix" />';
+          remixHtml =
+            '<div class="comment-remix" data-remix-id="' + escapeHtml(remix.id) + '">' +
+              thumb +
+              '<span class="comment-remix-link">View remix →</span>' +
+            "</div>";
+        } else {
+          remixHtml = '<div class="comment-remix comment-remix-hidden">Shared a remix (private — only visible to its owner)</div>';
+        }
+      }
+
+      var canDelete = currentUser && c.user_id === currentUser.id;
+
+      row.innerHTML =
+        '<div class="comment-meta"><span class="comment-author">' + escapeHtml(pseudoName(c.user_id)) + "</span></div>" +
+        (c.body ? '<p class="comment-body">' + escapeHtml(c.body) + "</p>" : "") +
+        remixHtml +
+        (canDelete ? '<button type="button" class="comment-delete" data-comment-id="' + escapeHtml(c.id) + '">Delete</button>' : "");
+
+      var remixLink = row.querySelector(".comment-remix");
+      if (remixLink && !remixLink.classList.contains("comment-remix-hidden")) {
+        remixLink.addEventListener("click", function () {
+          var remix = allItems.find(function (i) { return i.id === c.remix_id; });
+          if (remix) openLightbox(remix);
+        });
+      }
+
+      var delBtn = row.querySelector(".comment-delete");
+      if (delBtn) {
+        delBtn.addEventListener("click", function () {
+          deleteComment(c.id);
+        });
+      }
+
+      commentsList.appendChild(row);
+    });
+  }
+
+  async function deleteComment(commentId) {
+    var result = await client.from("gallery_comments").delete().eq("id", commentId);
+    if (result.error) {
+      console.error(result.error);
+      return;
+    }
+    if (currentLightboxItem) loadComments(currentLightboxItem.id);
+  }
+
+  if (postCommentBtn) {
+    postCommentBtn.addEventListener("click", async function () {
+      if (!currentLightboxItem) return;
+      if (!currentUser) {
+        window.location.href = "auth.html";
+        return;
+      }
+
+      var bodyText = commentBody.value.trim();
+      var wantsRemix = remixSubform.style.display !== "none";
+      var file = wantsRemix && remixFile.files[0] ? remixFile.files[0] : null;
+
+      if (!bodyText && !file) {
+        commentStatus.textContent = "Add a comment or attach a remix.";
+        commentStatus.className = "form-status show error";
+        return;
+      }
+
+      if (wantsRemix && !file) {
+        commentStatus.textContent = "Choose a photo or video for your remix, or close the remix form.";
+        commentStatus.className = "form-status show error";
+        return;
+      }
+
+      var remixPromptText = wantsRemix ? remixPrompt.value.trim() : "";
+      if (file && !remixPromptText) {
+        commentStatus.textContent = "Add the prompt you used for your remix.";
+        commentStatus.className = "form-status show error";
+        return;
+      }
+
+      var classified = file ? classifyMedia(file) : null;
+      if (classified && classified.tooLarge) {
+        var maxMb = Math.round(classified.maxBytes / (1024 * 1024));
+        commentStatus.textContent = "That file is too large — the limit is " + maxMb + "MB for " + classified.mediaType + "s.";
+        commentStatus.className = "form-status show error";
+        return;
+      }
+
+      commentStatus.textContent = "Posting...";
+      commentStatus.className = "form-status show";
+
+      try {
+        var remixId = null;
+
+        if (file) {
+          var cloudinaryResult = await uploadToCloudinary(file);
+          var remixModelSelectValue = remixModel.value.trim();
+          var remixModelUsed = remixModelSelectValue === "other"
+            ? remixModelOther.value.trim()
+            : remixModelSelectValue;
+          var remixVisibility = remixSubform.querySelector('input[name="remixVisibility"]:checked');
+          var remixIsPublic = !remixVisibility || remixVisibility.value === "public";
+
+          var remixInsert = await client.from(SUPABASE_TABLE).insert([{
+            image_url: cloudinaryResult.secure_url,
+            cloudinary_public_id: cloudinaryResult.public_id || null,
+            title: remixTitle.value.trim() || null,
+            prompt: remixPromptText,
+            hashtags: parseTags(remixTags.value.trim()),
+            model: remixModelUsed || null,
+            user_id: currentUser.id,
+            is_public: remixIsPublic,
+            media_type: classified.mediaType,
+            parent_id: currentLightboxItem.id
+          }]).select().single();
+
+          if (remixInsert.error) throw remixInsert.error;
+          remixId = remixInsert.data.id;
+        }
+
+        var commentInsert = await client.from("gallery_comments").insert([{
+          gallery_id: currentLightboxItem.id,
+          user_id: currentUser.id,
+          body: bodyText || null,
+          remix_id: remixId
+        }]);
+        if (commentInsert.error) throw commentInsert.error;
+
+        commentStatus.textContent = "Posted!";
+        commentStatus.className = "form-status show success";
+        resetCommentComposer();
+        loadComments(currentLightboxItem.id);
+
+        if (remixId) {
+          await loadGallery();
+          renderCurrentView();
+        }
+      } catch (err) {
+        console.error(err);
+        commentStatus.textContent = "Something went wrong: " + (err.message || err);
+        commentStatus.className = "form-status show error";
+      }
+    });
+  }
+
+  function updateCommentAuthGate() {
+    if (currentUser) {
+      if (commentAuthBanner) commentAuthBanner.style.display = "none";
+      if (commentComposer) commentComposer.style.display = "";
+    } else {
+      if (commentAuthBanner) commentAuthBanner.style.display = "block";
+      if (commentComposer) commentComposer.style.display = "none";
+    }
+  }
+
   var currentLightboxItem = null;
 
   if (editModel && editModelOther) {
@@ -580,6 +870,9 @@ document.addEventListener("DOMContentLoaded", function () {
     renderLightboxView(item);
     renderLightboxLike(item);
     exitEditMode();
+    resetCommentComposer();
+    updateCommentAuthGate();
+    loadComments(item.id);
 
     if (lightboxEditBtn) {
       var isOwner = currentUser && item.user_id === currentUser.id;
@@ -704,10 +997,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      var newTags = newTagsRaw
-        .split(/[\s,]+/)
-        .map(function (t) { return t.replace(/^#/, "").toLowerCase().trim(); })
-        .filter(Boolean);
+      var newTags = parseTags(newTagsRaw);
 
       editStatus.textContent = "Saving...";
       editStatus.className = "form-status show";
