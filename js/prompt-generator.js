@@ -17,6 +17,36 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // ---------- Basic / Advanced mode ----------
+  // Basic mode shows only the essential field per panel (model + the core
+  // description field); Advanced reveals every optional field. Persisted
+  // across visits via localStorage.
+  (function () {
+    var MODE_KEY = "ai-resource-hub-prompt-mode";
+    var root = document.getElementById("promptGeneratorRoot");
+    var basicBtn = document.getElementById("modeBasicBtn");
+    var advancedBtn = document.getElementById("modeAdvancedBtn");
+    if (!root || !basicBtn || !advancedBtn) return;
+
+    function applyMode(mode) {
+      root.classList.toggle("mode-advanced", mode === "advanced");
+      basicBtn.classList.toggle("active", mode === "basic");
+      advancedBtn.classList.toggle("active", mode === "advanced");
+    }
+
+    function setMode(mode) {
+      try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+      applyMode(mode);
+    }
+
+    var stored;
+    try { stored = localStorage.getItem(MODE_KEY); } catch (e) { stored = null; }
+    applyMode(stored === "advanced" ? "advanced" : "basic");
+
+    basicBtn.addEventListener("click", function () { setMode("basic"); });
+    advancedBtn.addEventListener("click", function () { setMode("advanced"); });
+  })();
+
   var MODEL_NOTES = {
     // Text
     chatgpt: "Conversational, natural language. Works well with role + task + tone instructions.",
