@@ -788,6 +788,17 @@ section {
   padding: 12px 14px;
 }
 
+.gallery-item-body h4 {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .gallery-item-body p {
   margin: 0 0 8px;
   font-size: 0.85rem;
