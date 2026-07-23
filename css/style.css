@@ -661,15 +661,16 @@ section {
 }
 
 /* The three output boxes auto-grow to fit their content via JS (see
-   autoGrowOutput() in prompt-generator.js), so this is really just a
-   sensible starting height plus a font/line-height that's comfortable to
-   read a full paragraph in, rather than a size cap. overflow stays auto
-   as a fallback in case JS hasn't run yet. resize is left enabled so
-   people can still shrink/expand by hand if they want. */
+   autoGrowOutput() in prompt-generator.js). max-height caps that growth so
+   a long result doesn't turn the box into a tall, skinny column that looks
+   out of proportion with the rest of the card — past the cap it scrolls
+   internally instead (overflow-y: auto), same as it always could by hand
+   via the resize handle. */
 #textPromptOutput,
 #imagePromptOutput,
 #videoPromptOutput {
   min-height: 220px;
+  max-height: 420px;
   line-height: 1.55;
   overflow-y: auto;
 }
@@ -679,6 +680,7 @@ section {
   #imagePromptOutput,
   #videoPromptOutput {
     min-height: 180px;
+    max-height: 340px;
   }
 }
 
