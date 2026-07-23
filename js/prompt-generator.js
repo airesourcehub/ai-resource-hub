@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", function () {
       panels.forEach(function (panel) {
         panel.classList.toggle("active", panel.id === "panel-" + target);
       });
+      // The just-shown panel's output box was sized while display:none (so
+      // scrollHeight read as 0) — recalculate now that it's actually visible.
+      growAllOutputs();
     });
   });
 
@@ -301,13 +304,34 @@ document.addEventListener("DOMContentLoaded", function () {
     return el ? el.value.trim() : "";
   }
 
+  // Output boxes auto-grow to fit whatever prompt was generated instead of
+  // staying a fixed small size and forcing a scrollbar — textareas don't do
+  // this natively, so height is measured off scrollHeight after every value
+  // change. Works the same way on mobile widths (see growAllOutputs below,
+  // called on resize/orientation change since re-wrapped text changes
+  // scrollHeight too).
+  var autoGrowOutputs = [];
+  function autoGrowOutput(el) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+  function growAllOutputs() {
+    autoGrowOutputs.forEach(autoGrowOutput);
+  }
+  window.addEventListener("resize", growAllOutputs);
+  window.addEventListener("orientationchange", growAllOutputs);
+
   function bindPanel(fieldIds, buildFn, outputId, modelSelectId, noteId, enhanceOpts) {
     var output = document.getElementById(outputId);
     if (!output) return;
 
+    autoGrowOutputs.push(output);
+
     function update() {
       output.value = buildFn();
       output.classList.remove("ai-enhanced");
+      autoGrowOutput(output);
       var noteEl = document.getElementById(noteId);
       if (noteEl && modelSelectId) {
         var model = val(modelSelectId);
@@ -412,6 +436,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!res.ok) throw new Error(data.error || "AI enhancement failed.");
             output.value = data.prompt;
             output.classList.add("ai-enhanced");
+            autoGrowOutput(output);
             status.textContent = "✨ Enhanced";
             status.className = "ai-enhance-status show success";
           });
