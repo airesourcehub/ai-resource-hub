@@ -8,6 +8,24 @@ document.addEventListener("DOMContentLoaded", function () {
   var tabs = document.querySelectorAll(".tool-tab");
   var panels = document.querySelectorAll(".generator-panel");
 
+  // Output boxes auto-grow to fit whatever prompt was generated instead of
+  // staying a fixed small size and forcing a scrollbar — textareas don't do
+  // this natively, so height is measured off scrollHeight after every value
+  // change. Declared up here (not down with the other helpers) because
+  // bindPanel() below pushes into this array as each panel is bound, and
+  // that happens before the file reaches the helpers section.
+  var autoGrowOutputs = [];
+  function autoGrowOutput(el) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+  function growAllOutputs() {
+    autoGrowOutputs.forEach(autoGrowOutput);
+  }
+  window.addEventListener("resize", growAllOutputs);
+  window.addEventListener("orientationchange", growAllOutputs);
+
   // ---------- AI enhance: auth session tracking ----------
   // Basic template-building below needs no login (runs fully client-side).
   // The "Enhance with AI" button calls a Supabase Edge Function that
@@ -304,23 +322,8 @@ document.addEventListener("DOMContentLoaded", function () {
     return el ? el.value.trim() : "";
   }
 
-  // Output boxes auto-grow to fit whatever prompt was generated instead of
-  // staying a fixed small size and forcing a scrollbar — textareas don't do
-  // this natively, so height is measured off scrollHeight after every value
-  // change. Works the same way on mobile widths (see growAllOutputs below,
-  // called on resize/orientation change since re-wrapped text changes
-  // scrollHeight too).
-  var autoGrowOutputs = [];
-  function autoGrowOutput(el) {
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
-  }
-  function growAllOutputs() {
-    autoGrowOutputs.forEach(autoGrowOutput);
-  }
-  window.addEventListener("resize", growAllOutputs);
-  window.addEventListener("orientationchange", growAllOutputs);
+  // (autoGrowOutput / growAllOutputs are declared near the top of this
+  // file's DOMContentLoaded handler, before bindPanel() is ever called.)
 
   function bindPanel(fieldIds, buildFn, outputId, modelSelectId, noteId, enhanceOpts) {
     var output = document.getElementById(outputId);
