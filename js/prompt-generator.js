@@ -115,6 +115,7 @@ document.addEventListener("DOMContentLoaded", function () {
     dalle: "Full natural-language sentences work best. Avoid comma-tag lists or -- parameters.",
     stablediffusion: "Comma-separated tags/tokens. Supports (keyword:1.3) weighting and a separate negative prompt.",
     firefly: "Natural-language description, similar to DALL-E. No negative prompt field — describe what you want directly.",
+    seedream: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
     // Video
     ltx: "Chronological structure: main action first, then motion detail, then environment, camera/lighting last. Keep it literal.",
     veo: "Natural-language cinematic paragraph — describe the scene like a shot list, in prose.",
@@ -122,7 +123,8 @@ document.addEventListener("DOMContentLoaded", function () {
     sora: "Narrative, cinematic prose. Supports explicit camera direction (Director's Mode style).",
     kling: "Descriptive prompt plus a distinct camera movement cue. Supports an optional negative prompt.",
     pika: "Descriptive prompt plus dash parameters, e.g. -ar (aspect ratio), -motion, -gs (guidance scale).",
-    wan: "Structured 6-part prompt: camera movement, subject/scene, motion, camera language, style, atmosphere. Supports a negative prompt."
+    wan: "Structured 6-part prompt: camera movement, subject/scene, motion, camera language, style, atmosphere. Supports a negative prompt.",
+    seedance: "Natural-language cinematic paragraph, similar to Veo/Runway/Sora — describe the scene and camera movement in prose."
   };
 
   // ---------- TEXT / WRITING ----------
@@ -198,7 +200,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var negative = val("imgNegative");
     var details = val("imgDetails");
 
-    if (model === "dalle" || model === "firefly") {
+    if (model === "dalle" || model === "firefly" || model === "seedream") {
       var sentence = "A" + (style ? " " + style : "") + " image of " + subject;
       if (setting) sentence += ", set in " + setting;
       if (lighting) sentence += ", with " + lighting + " lighting";
@@ -306,7 +308,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return wan;
     }
 
-    // veo / runway / sora — cinematic natural-language paragraph
+    // veo / runway / sora / seedance — cinematic natural-language paragraph
     var prompt = "A video of " + scene + ".";
     if (camera) prompt += " Camera: " + camera + ".";
     if (style) prompt += " Visual style: " + style + ".";
