@@ -665,10 +665,27 @@ section {
    a long result doesn't turn the box into a tall, skinny column that looks
    out of proportion with the rest of the card — past the cap it scrolls
    internally instead (overflow-y: auto), same as it always could by hand
-   via the resize handle. */
+   via the resize handle.
+   width is set explicitly here because these textareas live directly
+   inside .output-card rather than inside a .field wrapper, so they never
+   picked up the width: 100% every other input/textarea on this page gets —
+   without this they fall back to the browser's default ~20-column
+   intrinsic width, which is why the box was rendering much narrower than
+   the info banner above it. box-sizing: border-box keeps the padding from
+   pushing it past the card's edge now that width is explicit. */
 #textPromptOutput,
 #imagePromptOutput,
 #videoPromptOutput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  font-size: 0.88rem;
   min-height: 220px;
   max-height: 420px;
   line-height: 1.55;
