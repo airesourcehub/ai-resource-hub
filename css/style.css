@@ -660,6 +660,28 @@ section {
   box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
+/* The three output boxes auto-grow to fit their content via JS (see
+   autoGrowOutput() in prompt-generator.js), so this is really just a
+   sensible starting height plus a font/line-height that's comfortable to
+   read a full paragraph in, rather than a size cap. overflow stays auto
+   as a fallback in case JS hasn't run yet. resize is left enabled so
+   people can still shrink/expand by hand if they want. */
+#textPromptOutput,
+#imagePromptOutput,
+#videoPromptOutput {
+  min-height: 220px;
+  line-height: 1.55;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  #textPromptOutput,
+  #imagePromptOutput,
+  #videoPromptOutput {
+    min-height: 180px;
+  }
+}
+
 /* ---------- Ad Slots ---------- */
 
 .ad-slot {
