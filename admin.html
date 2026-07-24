@@ -142,11 +142,12 @@
   <div class="lightbox-content report-modal">
     <button class="lightbox-close" id="emailModalClose">✕</button>
     <div class="lightbox-body">
-      <h3 style="margin-top:0;">Email the uploader</h3>
+      <h3 style="margin-top:0;">Message the uploader</h3>
       <p class="model-note" id="emailModalTarget" style="margin:0 0 14px;"></p>
+      <p class="model-note" style="margin:0 0 14px;">They'll see this inside the site the next time they log in.</p>
       <div class="field">
-        <label for="emailSubject">Subject</label>
-        <input type="text" id="emailSubject" value="About your AI Resource Hub gallery post" />
+        <label for="emailSubject">Subject (optional)</label>
+        <input type="text" id="emailSubject" value="A note about your gallery post" />
       </div>
       <div class="field">
         <label for="emailBody">Message</label>
@@ -154,7 +155,7 @@
       </div>
       <div class="form-status" id="emailStatus"></div>
       <div class="output-actions">
-        <button class="btn btn-primary" id="emailSendBtn">Send email</button>
+        <button class="btn btn-primary" id="emailSendBtn">Send message</button>
         <button class="btn btn-secondary" id="emailCancelBtn">Cancel</button>
       </div>
     </div>
