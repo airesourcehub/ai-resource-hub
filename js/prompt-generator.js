@@ -115,7 +115,32 @@ document.addEventListener("DOMContentLoaded", function () {
     dalle: "Full natural-language sentences work best. Avoid comma-tag lists or -- parameters.",
     stablediffusion: "Comma-separated tags/tokens. Supports (keyword:1.3) weighting and a separate negative prompt.",
     firefly: "Natural-language description, similar to DALL-E. No negative prompt field — describe what you want directly.",
-    seedream: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    nanobanana: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    nanobananapro: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    nanobanana2: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    nanobanana2lite: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    seedream4: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    seedream45: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    seedream5pro: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    seedream5lite: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    gptimage: "Full natural-language sentences work best. Avoid comma-tag lists or -- parameters.",
+    gptimage15: "Full natural-language sentences work best. Avoid comma-tag lists or -- parameters.",
+    gptimage2: "Full natural-language sentences work best. Avoid comma-tag lists or -- parameters.",
+    recraftv41: "Full natural-language description of the scene, style, and composition — no comma-tag lists or -- parameters needed.",
+    recraftv41utility: "Full natural-language description, best for simple scenes with flat, even lighting.",
+    higgsfieldsoul: "Full natural-language description of the subject, styling, and setting — no comma-tag lists or -- parameters needed.",
+    higgsfieldsoul2: "Full natural-language description of the subject, styling, and setting — no comma-tag lists or -- parameters needed.",
+    higgsfieldsoulcinema: "Cinematic natural-language description — describe lighting, framing, and mood like a film still.",
+    higgsfieldfaceswap: "Describe the source face/identity and the target scene in plain language — this is an editing tool, not a from-scratch generator.",
+    higgsfieldcharacterswap: "Describe the source character and the target scene in plain language — this is an editing tool, not a from-scratch generator.",
+    grokimagine: "Full natural-language sentences work best. Avoid comma-tag lists or -- parameters.",
+    zimage: "Full natural-language description, especially for portraits — no comma-tag lists or -- parameters needed.",
+    klingo1: "Full natural-language description, similar to DALL-E — no comma-tag lists or -- parameters needed.",
+    flux2pro: "Full natural-language description of the scene and details — no comma-tag lists or -- parameters needed.",
+    flux2flex: "Full natural-language description of the scene and details — no comma-tag lists or -- parameters needed.",
+    flux2max: "Full natural-language description of the scene and details — no comma-tag lists or -- parameters needed.",
+    fluxkontextmax: "Describe the edit you want in plain language, referencing the existing image — this is an editing tool, not a from-scratch generator.",
+    multireference: "Describe each reference image's role and how they should combine, in plain language.",
     // Video
     ltx: "Chronological structure: main action first, then motion detail, then environment, camera/lighting last. Keep it literal.",
     veo: "Natural-language cinematic paragraph — describe the scene like a shot list, in prose.",
@@ -200,7 +225,17 @@ document.addEventListener("DOMContentLoaded", function () {
     var negative = val("imgNegative");
     var details = val("imgDetails");
 
-    if (model === "dalle" || model === "firefly" || model === "seedream") {
+    // These all follow the same convention as DALL-E: a full natural-language
+    // sentence describing the image, not comma-tags or -- parameters.
+    var NATURAL_LANGUAGE_IMAGE_MODELS = [
+      "dalle", "firefly", "nanobanana", "nanobananapro", "nanobanana2", "nanobanana2lite",
+      "seedream4", "seedream45", "seedream5pro", "seedream5lite",
+      "gptimage", "gptimage15", "gptimage2", "recraftv41", "recraftv41utility",
+      "higgsfieldsoul", "higgsfieldsoul2", "higgsfieldsoulcinema",
+      "higgsfieldfaceswap", "higgsfieldcharacterswap", "grokimagine", "zimage",
+      "klingo1", "flux2pro", "flux2flex", "flux2max", "fluxkontextmax", "multireference"
+    ];
+    if (NATURAL_LANGUAGE_IMAGE_MODELS.indexOf(model) !== -1) {
       var sentence = "A" + (style ? " " + style : "") + " image of " + subject;
       if (setting) sentence += ", set in " + setting;
       if (lighting) sentence += ", with " + lighting + " lighting";
