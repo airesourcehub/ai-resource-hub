@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var adminUserId = null;
 
   init();
 
@@ -36,6 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    adminUserId = user.id;
     panelEl.style.display = "block";
     setupTabs();
     loadAccessRequests();
@@ -405,7 +407,7 @@ document.addEventListener("DOMContentLoaded", function () {
                  (p.is_removed
                    ? '<button class="btn btn-secondary btn-sm flag-restore">Restore</button>'
                    : '<button class="btn btn-secondary btn-sm flag-hide">Hide</button>') +
-                 '<button class="btn btn-secondary btn-sm flag-email">Email</button>' +
+                 '<button class="btn btn-secondary btn-sm flag-email">Message</button>' +
                  '<button class="btn btn-secondary btn-sm flag-delete">Delete</button>')
               : '') +
             '<button class="btn btn-secondary btn-sm flag-note">Note</button>' +
@@ -494,10 +496,12 @@ document.addEventListener("DOMContentLoaded", function () {
   var emailBody = document.getElementById("emailBody");
   var emailStatus = document.getElementById("emailStatus");
   var emailTarget = document.getElementById("emailModalTarget");
+  var emailRecipientId = null;
 
   function openEmailModal(post) {
     if (!emailOverlay || !post) return;
     emailTargetId = post.id;
+    emailRecipientId = post.user_id || null;
     if (emailTarget) emailTarget.textContent = post.title ? 'Re: "' + post.title + '"' : "About their gallery post";
     if (emailBody) emailBody.value = "";
     if (emailStatus) { emailStatus.textContent = ""; emailStatus.className = "form-status"; }
@@ -513,19 +517,23 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!emailTargetId) return;
       var msg = emailBody ? emailBody.value.trim() : "";
       if (!msg) { if (emailStatus) { emailStatus.textContent = "Write a message first."; emailStatus.className = "form-status show error"; } return; }
+      if (!emailRecipientId) {
+        if (emailStatus) { emailStatus.textContent = "This post has no associated account to message."; emailStatus.className = "form-status show error"; }
+        return;
+      }
       emailSend.disabled = true;
       if (emailStatus) { emailStatus.textContent = "Sending…"; emailStatus.className = "form-status show"; }
       try {
-        var token = await getToken();
-        var res = await fetch(EMAIL_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify({ gallery_id: emailTargetId, subject: emailSubject ? emailSubject.value.trim() : "", message: msg })
+        var ins = await client.from("admin_messages").insert({
+          recipient_id: emailRecipientId,
+          gallery_id: emailTargetId,
+          subject: emailSubject && emailSubject.value.trim() ? emailSubject.value.trim() : null,
+          body: msg,
+          sender_id: adminUserId
         });
-        var data = await res.json().catch(function () { return {}; });
-        if (!res.ok) throw new Error(data.error || "Send failed.");
-        if (emailStatus) { emailStatus.textContent = data.message || "Email sent."; emailStatus.className = "form-status show success"; }
-        setTimeout(closeEmailModal, 1400);
+        if (ins.error) throw new Error(ins.error.message || "Send failed.");
+        if (emailStatus) { emailStatus.textContent = "Message sent — the uploader will see it next time they log in."; emailStatus.className = "form-status show success"; }
+        setTimeout(closeEmailModal, 1600);
       } catch (err) {
         if (emailStatus) { emailStatus.textContent = err.message || "Send failed."; emailStatus.className = "form-status show error"; }
         emailSend.disabled = false;

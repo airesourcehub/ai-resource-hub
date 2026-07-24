@@ -329,11 +329,48 @@ document.addEventListener("DOMContentLoaded", function () {
       loadLikes().then(function () {
         renderCurrentView();
       });
+      loadUserNotices();
     });
 
     await loadGallery();
     await loadLikes();
     renderCurrentView();
+    loadUserNotices();
+  }
+
+  // Shows any unread messages a moderator has sent the logged-in user, as a
+  // dismissible banner at the top of the gallery (our internal review flow —
+  // no email involved).
+  async function loadUserNotices() {
+    var banner = document.getElementById("userNoticesBanner");
+    if (!banner) return;
+    banner.innerHTML = "";
+    if (!currentUser) return;
+    var result = await client
+      .from("admin_messages")
+      .select("*")
+      .eq("recipient_id", currentUser.id)
+      .is("read_at", null)
+      .order("created_at", { ascending: false });
+    if (result.error) { console.error(result.error); return; }
+    var notices = result.data || [];
+    notices.forEach(function (n) {
+      var el = document.createElement("div");
+      el.className = "info-banner show user-notice";
+      el.innerHTML =
+        '<div class="user-notice-body">' +
+          '<strong>' + escapeHtml(n.subject || "A message from the moderators") + '</strong>' +
+          '<p>' + escapeHtml(n.body || "").replace(/\n/g, "<br>") + '</p>' +
+        '</div>' +
+        '<button type="button" class="btn btn-secondary btn-sm user-notice-dismiss">Got it</button>';
+      var btn = el.querySelector(".user-notice-dismiss");
+      btn.addEventListener("click", async function () {
+        btn.disabled = true;
+        await client.from("admin_messages").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+        el.remove();
+      });
+      banner.appendChild(el);
+    });
   }
 
   // ---------- Upload modal ----------
