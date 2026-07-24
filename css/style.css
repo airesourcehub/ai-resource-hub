@@ -1778,3 +1778,39 @@ video.upload-preview {
 .remix-of-hidden:hover {
   text-decoration: none;
 }
+
+/* ============================================================
+   Gallery reports + workflow attachment + admin moderation
+   ============================================================ */
+
+.required-mark { color: #e5484d; font-weight: 700; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-muted, #8a8a8a);
+}
+.btn-ghost:hover {
+  color: var(--color-text, #111);
+  border-color: var(--color-border, #ddd);
+}
+
+/* Push the Report button to the right edge of the lightbox action row */
+.lightbox-report-btn { margin-left: auto; }
+
+/* The report + admin-email modals sit above the lightbox (z-index 100) */
+#reportModalOverlay,
+#emailModalOverlay { z-index: 400; }
+.report-modal { max-width: 540px; }
+
+/* Admin: reported-posts list */
+.admin-flag-row { align-items: flex-start; gap: 12px; }
+.admin-flag-thumb {
+  width: 64px; height: 64px; border-radius: 8px; object-fit: cover;
+  flex: 0 0 auto; background: var(--color-bg-alt, #ececec);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.admin-flag-thumb-video { color: var(--color-text-muted, #8a8a8a); font-size: 1.4rem; }
+.admin-flag-actions { flex-wrap: wrap; gap: 6px; }
+.admin-note { color: #b26a00; }
+[data-theme="dark"] .admin-note { color: #e0a54a; }
