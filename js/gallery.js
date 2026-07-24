@@ -370,6 +370,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var status = document.getElementById("uploadStatus");
   var modelSelect = document.getElementById("uploadModel");
   var modelOtherInput = document.getElementById("uploadModelOther");
+  var workflowInput = document.getElementById("uploadWorkflow");
 
   if (modelSelect && modelOtherInput) {
     modelSelect.addEventListener("change", function () {
@@ -444,8 +445,8 @@ document.addEventListener("DOMContentLoaded", function () {
       var visibility = form.querySelector('input[name="uploadVisibility"]:checked');
       var isPublic = !visibility || visibility.value === "public";
 
-      if (!file || !promptText) {
-        showStatus("Please add both a file and a prompt.", "error");
+      if (!file || !titleText || !promptText) {
+        showStatus("Please add a file, a title, and the prompt you used.", "error");
         return;
       }
 
@@ -458,6 +459,26 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       var tags = parseTags(tagsRaw);
+
+      // Optional ComfyUI workflow attachment: read + validate as JSON, stored
+      // as text on the post (small enough that it lives in the database, not
+      // on the NAS).
+      var workflowJson = null;
+      if (workflowInput && workflowInput.files && workflowInput.files[0]) {
+        var wfFile = workflowInput.files[0];
+        if (wfFile.size > 2 * 1024 * 1024) {
+          showStatus("That workflow file is too big (max 2MB).", "error");
+          return;
+        }
+        try {
+          var wfText = await wfFile.text();
+          JSON.parse(wfText);
+          workflowJson = wfText;
+        } catch (e) {
+          showStatus("That workflow file isn't valid JSON — export it from ComfyUI as .json.", "error");
+          return;
+        }
+      }
 
       showStatus("Uploading...", "");
 
@@ -481,6 +502,7 @@ document.addEventListener("DOMContentLoaded", function () {
           prompt: promptText,
           hashtags: tags,
           model: modelUsed || null,
+          workflow_json: workflowJson,
           user_id: currentUser.id,
           is_public: isPublic,
           media_type: mediaType
@@ -525,7 +547,9 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    allItems = result.data || [];
+    // Admins get every row back (including admin-removed ones) via their
+    // read-all policy, so filter out takedowns here for the public gallery.
+    allItems = (result.data || []).filter(function (r) { return !r.is_removed; });
   }
 
   // Loads the current user's own likes so we know which hearts to fill in.
@@ -773,7 +797,8 @@ document.addEventListener("DOMContentLoaded", function () {
       var inPrompt = item.prompt && item.prompt.toLowerCase().indexOf(q) !== -1;
       var inTitle = item.title && item.title.toLowerCase().indexOf(q) !== -1;
       var inTags = (item.hashtags || []).some(function (t) { return t.toLowerCase().indexOf(q) !== -1; });
-      return inPrompt || inTitle || inTags;
+      var inModel = item.model && item.model.toLowerCase().indexOf(q) !== -1;
+      return inPrompt || inTitle || inTags || inModel;
     });
   }
 
@@ -781,6 +806,90 @@ document.addEventListener("DOMContentLoaded", function () {
     searchInput.addEventListener("input", function () {
       renderCurrentView();
     });
+  }
+
+  // ---------- Report / flag a post ----------
+  var FLAG_ENDPOINT = SUPABASE_URL.replace(/\/+$/, "") + "/functions/v1/submit-flag";
+  var reportOverlay = document.getElementById("reportModalOverlay");
+  var reportClose = document.getElementById("reportModalClose");
+  var reportCancel = document.getElementById("reportCancelBtn");
+  var reportSubmit = document.getElementById("reportSubmitBtn");
+  var reportReason = document.getElementById("reportReason");
+  var reportNotice = document.getElementById("reportNotice");
+  var reportStatus = document.getElementById("reportStatus");
+  var reportTargetId = null;
+
+  function openReportModal(item) {
+    if (!reportOverlay || !item) return;
+    reportTargetId = item.id;
+    if (reportReason) reportReason.value = "";
+    if (reportNotice) reportNotice.value = "";
+    if (reportStatus) { reportStatus.textContent = ""; reportStatus.className = "form-status"; }
+    if (reportSubmit) reportSubmit.disabled = false;
+    reportOverlay.classList.add("open");
+  }
+  function closeReportModal() {
+    if (reportOverlay) reportOverlay.classList.remove("open");
+    reportTargetId = null;
+  }
+  if (lightboxReportBtn) {
+    lightboxReportBtn.addEventListener("click", function () {
+      if (currentLightboxItem) openReportModal(currentLightboxItem);
+    });
+  }
+  if (reportClose) reportClose.addEventListener("click", closeReportModal);
+  if (reportCancel) reportCancel.addEventListener("click", closeReportModal);
+  if (reportOverlay) {
+    reportOverlay.addEventListener("click", function (e) {
+      if (e.target === reportOverlay) closeReportModal();
+    });
+  }
+  if (reportSubmit) {
+    reportSubmit.addEventListener("click", async function () {
+      if (!reportTargetId) return;
+      var reason = reportReason ? reportReason.value : "";
+      if (!reason) {
+        if (reportStatus) { reportStatus.textContent = "Please choose a reason."; reportStatus.className = "form-status show error"; }
+        return;
+      }
+      reportSubmit.disabled = true;
+      if (reportStatus) { reportStatus.textContent = "Sending…"; reportStatus.className = "form-status show"; }
+      try {
+        var res = await fetch(FLAG_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY },
+          body: JSON.stringify({
+            gallery_id: reportTargetId,
+            reason: reason,
+            notice: reportNotice ? reportNotice.value.trim() : ""
+          })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || "Couldn't submit your report.");
+        if (reportStatus) { reportStatus.textContent = data.message || "Thanks — your report has been sent."; reportStatus.className = "form-status show success"; }
+        setTimeout(closeReportModal, 1400);
+      } catch (err) {
+        if (reportStatus) { reportStatus.textContent = err.message || "Couldn't submit your report."; reportStatus.className = "form-status show error"; }
+        reportSubmit.disabled = false;
+      }
+    });
+  }
+
+  // Download a post's attached ComfyUI workflow as a .json file.
+  function downloadWorkflow(item) {
+    if (!item || !item.workflow_json) return;
+    try {
+      var blob = new Blob([item.workflow_json], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      var base = (item.title || "workflow").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 40) || "workflow";
+      a.href = url;
+      a.download = base + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    } catch (e) { console.error("workflow download failed", e); }
   }
 
   if (sortSelect) {
@@ -852,6 +961,8 @@ document.addEventListener("DOMContentLoaded", function () {
   var lightboxModel = document.getElementById("lightboxModel");
   var lightboxTags = document.getElementById("lightboxTags");
   var lightboxCopy = document.getElementById("lightboxCopy");
+  var lightboxWorkflowBtn = document.getElementById("lightboxWorkflowBtn");
+  var lightboxReportBtn = document.getElementById("lightboxReportBtn");
   var lightboxLikeBtn = document.getElementById("lightboxLikeBtn");
   var lightboxClose = document.getElementById("lightboxClose");
 
@@ -1206,6 +1317,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (lightboxEditBtn) {
       var isOwner = currentUser && item.user_id === currentUser.id;
       lightboxEditBtn.style.display = isOwner ? "" : "none";
+    }
+
+    if (lightboxWorkflowBtn) {
+      if (item.workflow_json) {
+        lightboxWorkflowBtn.style.display = "";
+        lightboxWorkflowBtn.onclick = function () { downloadWorkflow(item); };
+      } else {
+        lightboxWorkflowBtn.style.display = "none";
+        lightboxWorkflowBtn.onclick = null;
+      }
     }
 
     overlay.classList.add("open");

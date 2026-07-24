@@ -42,6 +42,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadAllowlist();
     loadUsers();
     loadGalleryMod();
+    loadFlags();
     loadAnalytics();
   }
 
@@ -328,6 +329,207 @@ document.addEventListener("DOMContentLoaded", function () {
         await client.from("gallery_prompts").delete().eq("id", id);
         loadGalleryMod();
       });
+    });
+  }
+
+  // ---------- Reports / flags moderation ----------
+  var NAS_GALLERY_BASE = "https://gallery.airesourcehub.vip";
+  var EMAIL_ENDPOINT = SUPABASE_URL.replace(/\/+$/, "") + "/functions/v1/send-uploader-email";
+  var REASON_LABELS = {
+    spam: "Spam or misleading",
+    nsfw: "Adult / explicit",
+    violence: "Violent / graphic",
+    hate: "Hate / harassment",
+    ip: "Copyright / IP",
+    illegal: "Illegal / dangerous",
+    other: "Other"
+  };
+  var emailTargetId = null;
+
+  async function getToken() {
+    var s = await client.auth.getSession();
+    return s.data.session ? s.data.session.access_token : null;
+  }
+
+  var flagsStatusFilter = document.getElementById("flagsStatusFilter");
+  if (flagsStatusFilter) flagsStatusFilter.addEventListener("change", loadFlags);
+
+  async function loadFlags() {
+    var list = document.getElementById("flagsList");
+    if (!list) return;
+    list.innerHTML = "Loading...";
+
+    var filter = flagsStatusFilter ? flagsStatusFilter.value : "open";
+    var q = client.from("gallery_flags").select("*").order("created_at", { ascending: false });
+    if (filter !== "all") q = q.eq("status", filter);
+    var result = await q;
+    if (result.error) { list.innerHTML = "Error: " + escapeHtml(result.error.message); return; }
+
+    var flags = result.data || [];
+    if (!flags.length) { list.innerHTML = '<p class="admin-empty">No reports here.</p>'; return; }
+
+    var ids = flags.map(function (f) { return f.gallery_id; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var postsById = {};
+    if (ids.length) {
+      var postsRes = await client.from("gallery_prompts").select("*").in("id", ids);
+      (postsRes.data || []).forEach(function (p) { postsById[p.id] = p; });
+    }
+
+    list.innerHTML = flags.map(function (f) {
+      var p = postsById[f.gallery_id];
+      var thumb = "";
+      if (p) {
+        var thumbUrl = p.cover_url || (p.media_type === "video" ? "" : p.image_url);
+        thumb = thumbUrl
+          ? '<img class="admin-flag-thumb" src="' + escapeHtml(thumbUrl) + '" alt="" />'
+          : '<div class="admin-flag-thumb admin-flag-thumb-video">▶</div>';
+      }
+      var reason = REASON_LABELS[f.reason] || f.reason;
+      var statusBadge = '<span class="tag' + (f.status === "open" ? "" : " private") + '">' + escapeHtml(f.status) + '</span>';
+      var removedBadge = p && p.is_removed ? '<span class="tag private">Hidden</span> ' : "";
+      return (
+        '<div class="admin-row admin-flag-row" data-flag-id="' + f.id + '" data-post-id="' + f.gallery_id + '">' +
+          thumb +
+          '<div class="admin-row-main">' +
+            '<strong>' + escapeHtml(reason) + '</strong> ' + statusBadge + ' ' + removedBadge +
+            '<span class="admin-row-meta">' + fmtDate(f.created_at) + ' · IP ' + escapeHtml(f.reporter_ip || "?") + '</span>' +
+            (p
+              ? '<p class="admin-row-note">' + (p.title ? '<strong>' + escapeHtml(p.title) + '</strong> — ' : '') + escapeHtml((p.prompt || "").slice(0, 140)) + '</p>'
+              : '<p class="admin-row-note"><em>Post no longer exists.</em></p>') +
+            (f.notice ? '<p class="admin-row-note">Reporter said: ' + escapeHtml(f.notice) + '</p>' : '') +
+            (f.admin_note ? '<p class="admin-row-note admin-note">Your note: ' + escapeHtml(f.admin_note) + '</p>' : '') +
+          '</div>' +
+          '<div class="admin-row-actions admin-flag-actions">' +
+            (p
+              ? ('<a class="btn btn-secondary btn-sm" href="' + escapeHtml(p.image_url) + '" target="_blank" rel="noopener">View</a>' +
+                 (p.is_removed
+                   ? '<button class="btn btn-secondary btn-sm flag-restore">Restore</button>'
+                   : '<button class="btn btn-secondary btn-sm flag-hide">Hide</button>') +
+                 '<button class="btn btn-secondary btn-sm flag-email">Email</button>' +
+                 '<button class="btn btn-secondary btn-sm flag-delete">Delete</button>')
+              : '') +
+            '<button class="btn btn-secondary btn-sm flag-note">Note</button>' +
+            (f.status === "open"
+              ? '<button class="btn btn-secondary btn-sm flag-dismiss">Dismiss</button><button class="btn btn-primary btn-sm flag-resolve">Resolve</button>'
+              : '<button class="btn btn-secondary btn-sm flag-reopen">Reopen</button>') +
+          '</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    list.querySelectorAll(".admin-flag-row").forEach(function (row) {
+      var flagId = row.getAttribute("data-flag-id");
+      var postId = row.getAttribute("data-post-id");
+      var post = postsById[postId];
+      var byClass = function (c) { return row.querySelector("." + c); };
+
+      var hideBtn = byClass("flag-hide");
+      if (hideBtn) hideBtn.addEventListener("click", function () { setRemoved(postId, true); });
+      var restoreBtn = byClass("flag-restore");
+      if (restoreBtn) restoreBtn.addEventListener("click", function () { setRemoved(postId, false); });
+      var delBtn = byClass("flag-delete");
+      if (delBtn) delBtn.addEventListener("click", function () { permanentDelete(post); });
+      var noteBtn = byClass("flag-note");
+      if (noteBtn) noteBtn.addEventListener("click", function () { addFlagNote(flagId); });
+      var dismissBtn = byClass("flag-dismiss");
+      if (dismissBtn) dismissBtn.addEventListener("click", function () { setFlagStatus(flagId, "dismissed"); });
+      var resolveBtn = byClass("flag-resolve");
+      if (resolveBtn) resolveBtn.addEventListener("click", function () { setFlagStatus(flagId, "resolved"); });
+      var reopenBtn = byClass("flag-reopen");
+      if (reopenBtn) reopenBtn.addEventListener("click", function () { setFlagStatus(flagId, "open"); });
+      var emailBtn = byClass("flag-email");
+      if (emailBtn) emailBtn.addEventListener("click", function () { openEmailModal(post); });
+    });
+  }
+
+  async function setRemoved(postId, removed) {
+    var r = await client.from("gallery_prompts").update({ is_removed: removed }).eq("id", postId);
+    if (r.error) { alert("Couldn't update: " + r.error.message); return; }
+    loadFlags();
+  }
+
+  async function setFlagStatus(flagId, status) {
+    var payload = { status: status, resolved_at: status === "open" ? null : new Date().toISOString() };
+    var r = await client.from("gallery_flags").update(payload).eq("id", flagId);
+    if (r.error) { alert("Couldn't update: " + r.error.message); return; }
+    loadFlags();
+  }
+
+  async function addFlagNote(flagId) {
+    var existing = "";
+    var cur = await client.from("gallery_flags").select("admin_note").eq("id", flagId).single();
+    if (cur.data && cur.data.admin_note) existing = cur.data.admin_note;
+    var note = window.prompt("Admin note for this report:", existing);
+    if (note === null) return;
+    var r = await client.from("gallery_flags").update({ admin_note: note.trim() || null }).eq("id", flagId);
+    if (r.error) { alert("Couldn't save note: " + r.error.message); return; }
+    loadFlags();
+  }
+
+  async function permanentDelete(post) {
+    if (!post) return;
+    if (!confirm("Permanently delete this post and its file? This cannot be undone.")) return;
+    var m = (post.image_url || "").match(/\/files\/([a-f0-9]{32})\./);
+    if (m) {
+      try {
+        var token = await getToken();
+        await fetch(NAS_GALLERY_BASE + "/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ id: m[1] })
+        });
+      } catch (e) { console.warn("NAS delete failed (continuing to remove DB row)", e); }
+    }
+    var r = await client.from("gallery_prompts").delete().eq("id", post.id);
+    if (r.error) { alert("Couldn't delete: " + r.error.message); return; }
+    loadFlags();
+  }
+
+  // ---- Email uploader modal ----
+  var emailOverlay = document.getElementById("emailModalOverlay");
+  var emailClose = document.getElementById("emailModalClose");
+  var emailCancel = document.getElementById("emailCancelBtn");
+  var emailSend = document.getElementById("emailSendBtn");
+  var emailSubject = document.getElementById("emailSubject");
+  var emailBody = document.getElementById("emailBody");
+  var emailStatus = document.getElementById("emailStatus");
+  var emailTarget = document.getElementById("emailModalTarget");
+
+  function openEmailModal(post) {
+    if (!emailOverlay || !post) return;
+    emailTargetId = post.id;
+    if (emailTarget) emailTarget.textContent = post.title ? 'Re: "' + post.title + '"' : "About their gallery post";
+    if (emailBody) emailBody.value = "";
+    if (emailStatus) { emailStatus.textContent = ""; emailStatus.className = "form-status"; }
+    if (emailSend) emailSend.disabled = false;
+    emailOverlay.classList.add("open");
+  }
+  function closeEmailModal() { if (emailOverlay) emailOverlay.classList.remove("open"); emailTargetId = null; }
+  if (emailClose) emailClose.addEventListener("click", closeEmailModal);
+  if (emailCancel) emailCancel.addEventListener("click", closeEmailModal);
+  if (emailOverlay) emailOverlay.addEventListener("click", function (e) { if (e.target === emailOverlay) closeEmailModal(); });
+  if (emailSend) {
+    emailSend.addEventListener("click", async function () {
+      if (!emailTargetId) return;
+      var msg = emailBody ? emailBody.value.trim() : "";
+      if (!msg) { if (emailStatus) { emailStatus.textContent = "Write a message first."; emailStatus.className = "form-status show error"; } return; }
+      emailSend.disabled = true;
+      if (emailStatus) { emailStatus.textContent = "Sending…"; emailStatus.className = "form-status show"; }
+      try {
+        var token = await getToken();
+        var res = await fetch(EMAIL_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ gallery_id: emailTargetId, subject: emailSubject ? emailSubject.value.trim() : "", message: msg })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || "Send failed.");
+        if (emailStatus) { emailStatus.textContent = data.message || "Email sent."; emailStatus.className = "form-status show success"; }
+        setTimeout(closeEmailModal, 1400);
+      } catch (err) {
+        if (emailStatus) { emailStatus.textContent = err.message || "Send failed."; emailStatus.className = "form-status show error"; }
+        emailSend.disabled = false;
+      }
     });
   }
 
