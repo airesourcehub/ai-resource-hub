@@ -1814,3 +1814,9 @@ video.upload-preview {
 .admin-flag-actions { flex-wrap: wrap; gap: 6px; }
 .admin-note { color: #b26a00; }
 [data-theme="dark"] .admin-note { color: #e0a54a; }
+
+/* Internal moderator-to-uploader notices (shown on the gallery) */
+.user-notice { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.user-notice-body { flex: 1 1 auto; }
+.user-notice-body p { margin: 6px 0 0; }
+.user-notice-dismiss { flex: 0 0 auto; }
