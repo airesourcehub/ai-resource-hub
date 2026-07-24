@@ -1,20 +1,27 @@
-// AI Resource Hub — Gallery logic (Supabase for accounts/data, Cloudinary for
-// the actual photo/video files)
+// AI Resource Hub — Gallery logic (Supabase for accounts/data; the actual
+// photo/video files live on the site owner's Synology NAS, served through a
+// Cloudflare Tunnel).
 // Upload a photo or video + prompt + hashtags, choose public/private, and
 // search/browse past prompts by keyword or hashtag. Posting requires login;
-// browsing/searching public entries does not. Files are uploaded directly
-// from the browser to Cloudinary's unsigned upload API (no backend needed);
-// the resulting URL + public_id are then saved to Supabase alongside the
-// prompt/tags/etc. If Cloudinary is down, only the Gallery is affected —
-// the rest of the site (which doesn't depend on it) keeps working.
+// browsing/searching public entries does not. Files are uploaded from the
+// browser to the NAS upload service (which verifies the user's login first);
+// the returned URL is then saved to Supabase alongside the prompt/tags/etc.
+// If the NAS is down, only the Gallery is affected — the rest of the site
+// (which doesn't depend on it) keeps working.
+//
+// Older entries created before this migration still point at Cloudinary URLs;
+// those keep working untouched. Only new uploads go to the NAS.
 
-var CLOUDINARY_IMAGE_MAX_BYTES = 10 * 1024 * 1024; // 10MB, Cloudinary free plan
-var CLOUDINARY_VIDEO_MAX_BYTES = 100 * 1024 * 1024; // 100MB, Cloudinary free plan
+// Where the NAS upload service answers (Cloudflare Tunnel hostname).
+var NAS_GALLERY_BASE = "https://gallery.airesourcehub.vip";
+
+var NAS_IMAGE_MAX_BYTES = 50 * 1024 * 1024;  // 50MB — matches the NAS service
+var NAS_VIDEO_MAX_BYTES = 200 * 1024 * 1024; // 200MB — matches the NAS service
 
 // Shared by the main upload form and the in-comment remix uploader.
 function classifyMedia(file) {
   var mediaType = file.type.indexOf("video") === 0 ? "video" : "image";
-  var maxBytes = mediaType === "video" ? CLOUDINARY_VIDEO_MAX_BYTES : CLOUDINARY_IMAGE_MAX_BYTES;
+  var maxBytes = mediaType === "video" ? NAS_VIDEO_MAX_BYTES : NAS_IMAGE_MAX_BYTES;
   return { mediaType: mediaType, maxBytes: maxBytes, tooLarge: file.size > maxBytes };
 }
 
@@ -144,21 +151,127 @@ function setupCoverPicker(opts) {
   };
 }
 
-function uploadToCloudinary(file) {
+// Uploads one file to the NAS service. Requires the visitor's Supabase access
+// token (the service rejects anyone who isn't a logged-in user). Returns a
+// Cloudinary-shaped object so the rest of the code didn't need rewiring:
+//   { secure_url, public_id, kind }
+function uploadToNas(file, token) {
   var formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
-  var url = "https://api.cloudinary.com/v1_1/" + CLOUDINARY_CLOUD_NAME + "/auto/upload";
-
-  return fetch(url, { method: "POST", body: formData }).then(function (res) {
-    return res.json().then(function (data) {
+  return fetch(NAS_GALLERY_BASE + "/upload", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + (token || "") },
+    body: formData
+  }).then(function (res) {
+    return res.json().catch(function () { return {}; }).then(function (data) {
       if (!res.ok) {
-        throw new Error((data.error && data.error.message) || "Upload to Cloudinary failed.");
+        throw new Error(data.error || "Upload to the gallery server failed.");
       }
-      return data;
+      return { secure_url: data.url, public_id: data.id || null, kind: data.kind };
     });
   });
+}
+
+// Grab a still JPEG (as a Blob) from an already-loaded, same-origin <video>
+// element — used for the local preview videos in the upload/remix forms. Since
+// the NAS service doesn't render its own video thumbnails, the browser makes
+// one and uploads it as a normal image to serve as the cover.
+function captureFrameBlobFromVideoEl(videoEl, offsetSeconds) {
+  return new Promise(function (resolve, reject) {
+    if (!videoEl || !videoEl.src) return reject(new Error("no video"));
+    var wanted = Math.max(0, offsetSeconds || 0);
+    var done = false;
+    function grab() {
+      if (done) return; done = true;
+      try {
+        var w = videoEl.videoWidth, h = videoEl.videoHeight;
+        if (!w || !h) return reject(new Error("video not ready"));
+        var c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(videoEl, 0, 0, w, h);
+        c.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error("no blob")); }, "image/jpeg", 0.85);
+      } catch (e) { reject(e); }
+    }
+    function onSeeked() { videoEl.removeEventListener("seeked", onSeeked); grab(); }
+    if (videoEl.readyState >= 2 && Math.abs((videoEl.currentTime || 0) - wanted) < 0.05) {
+      grab();
+    } else {
+      videoEl.addEventListener("seeked", onSeeked);
+      try { videoEl.currentTime = wanted; } catch (e) { videoEl.removeEventListener("seeked", onSeeked); grab(); }
+      setTimeout(function () { if (!done) { videoEl.removeEventListener("seeked", onSeeked); grab(); } }, 3000);
+    }
+  });
+}
+
+// Same idea, but loads a remote video URL fresh (with CORS) to capture a frame
+// — used by the edit form, where the video is already hosted on the NAS. The
+// NAS serves files with Access-Control-Allow-Origin: * so the canvas stays
+// untainted; if a source doesn't allow it, this rejects and the caller leaves
+// the existing cover alone.
+function captureFrameBlobFromSrc(src, offsetSeconds) {
+  return new Promise(function (resolve, reject) {
+    var v = document.createElement("video");
+    v.crossOrigin = "anonymous";
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    var done = false;
+    function fail(e) { if (done) return; done = true; reject(e || new Error("capture failed")); }
+    function grab() {
+      if (done) return;
+      try {
+        var w = v.videoWidth, h = v.videoHeight;
+        if (!w || !h) return fail(new Error("video not ready"));
+        var c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(v, 0, 0, w, h);
+        c.toBlob(function (blob) {
+          done = true;
+          if (blob) resolve(blob); else reject(new Error("no blob"));
+        }, "image/jpeg", 0.85);
+      } catch (e) { fail(e); }
+    }
+    v.addEventListener("error", function () { fail(new Error("video load error")); });
+    v.addEventListener("seeked", grab);
+    v.addEventListener("loadeddata", function () {
+      try { v.currentTime = Math.max(0, offsetSeconds || 0); } catch (e) { grab(); }
+    });
+    setTimeout(function () { fail(new Error("capture timeout")); }, 15000);
+    v.src = src;
+  });
+}
+
+// Works out the cover_url for a NEW video (upload/remix forms). "photo" mode
+// uploads the chosen still; otherwise it grabs the scrubbed frame (default 0)
+// from the local preview video. Returns null if capture fails (rare) — the
+// video just won't have a poster thumbnail.
+function coverForLocalVideo(picker, previewVideoEl, token) {
+  if (picker.getMode() === "photo" && picker.getPhotoFile()) {
+    return uploadToNas(picker.getPhotoFile(), token).then(function (r) { return r.secure_url; });
+  }
+  return captureFrameBlobFromVideoEl(previewVideoEl, picker.getFrameOffset())
+    .then(function (blob) {
+      var f = new File([blob], "cover.jpg", { type: "image/jpeg" });
+      return uploadToNas(f, token).then(function (r) { return r.secure_url; });
+    })
+    .catch(function (e) { console.warn("cover frame capture failed", e); return null; });
+}
+
+// Works out the cover_url when EDITING an existing video's cover. Returns
+// { set: true, url } to apply a change, or { set: false } to leave the current
+// cover untouched (e.g. if grabbing a frame off the remote video failed).
+function coverForEditVideo(picker, remoteSrc, token) {
+  if (picker.isResetRequested()) return Promise.resolve({ set: true, url: null });
+  if (picker.getMode() === "photo" && picker.getPhotoFile()) {
+    return uploadToNas(picker.getPhotoFile(), token).then(function (r) { return { set: true, url: r.secure_url }; });
+  }
+  return captureFrameBlobFromSrc(remoteSrc, picker.getFrameOffset())
+    .then(function (blob) {
+      var f = new File([blob], "cover.jpg", { type: "image/jpeg" });
+      return uploadToNas(f, token).then(function (r) { return { set: true, url: r.secure_url }; });
+    })
+    .catch(function (e) { console.warn("edit cover capture failed", e); return { set: false }; });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -190,6 +303,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // The NAS upload service needs the logged-in user's access token to accept a
+  // file. This pulls the current one from the active Supabase session.
+  async function getAccessToken() {
+    var r = await client.auth.getSession();
+    return r.data.session ? r.data.session.access_token : null;
+  }
+
   var allItems = [];
   var currentUser = null;
   var likedIds = {}; // gallery_id -> true, for the current user
@@ -341,23 +462,20 @@ document.addEventListener("DOMContentLoaded", function () {
       showStatus("Uploading...", "");
 
       try {
-        var cloudinaryResult = await uploadToCloudinary(file);
-        var imageUrl = cloudinaryResult.secure_url;
+        var token = await getAccessToken();
+        if (!token) { showStatus("Your session expired — please log in again.", "error"); return; }
+
+        var nasResult = await uploadToNas(file, token);
+        var imageUrl = nasResult.secure_url;
 
         var coverUrl = null;
         if (mediaType === "video") {
-          if (uploadCoverPicker.getMode() === "photo" && uploadCoverPicker.getPhotoFile()) {
-            var coverUpload = await uploadToCloudinary(uploadCoverPicker.getPhotoFile());
-            coverUrl = coverUpload.secure_url;
-          } else {
-            var offset = uploadCoverPicker.getFrameOffset();
-            if (offset > 0.05) coverUrl = buildFramePosterUrl(cloudinaryResult.public_id, offset);
-          }
+          coverUrl = await coverForLocalVideo(uploadCoverPicker, previewVideo, token);
         }
 
         var insertResult = await client.from(SUPABASE_TABLE).insert([{
           image_url: imageUrl,
-          cloudinary_public_id: cloudinaryResult.public_id || null,
+          cloudinary_public_id: null,
           cover_url: coverUrl,
           title: titleText || null,
           prompt: promptText,
@@ -978,7 +1096,9 @@ document.addEventListener("DOMContentLoaded", function () {
         var remixId = null;
 
         if (file) {
-          var cloudinaryResult = await uploadToCloudinary(file);
+          var remixToken = await getAccessToken();
+          if (!remixToken) { commentStatus.textContent = "Your session expired — please log in again."; commentStatus.className = "form-status show error"; return; }
+          var nasResult = await uploadToNas(file, remixToken);
           var remixModelSelectValue = remixModel.value.trim();
           var remixModelUsed = remixModelSelectValue === "other"
             ? remixModelOther.value.trim()
@@ -988,18 +1108,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
           var remixCoverUrl = null;
           if (classified.mediaType === "video") {
-            if (remixCoverPicker.getMode() === "photo" && remixCoverPicker.getPhotoFile()) {
-              var remixCoverUpload = await uploadToCloudinary(remixCoverPicker.getPhotoFile());
-              remixCoverUrl = remixCoverUpload.secure_url;
-            } else {
-              var remixOffset = remixCoverPicker.getFrameOffset();
-              if (remixOffset > 0.05) remixCoverUrl = buildFramePosterUrl(cloudinaryResult.public_id, remixOffset);
-            }
+            remixCoverUrl = await coverForLocalVideo(remixCoverPicker, remixPreviewVideo, remixToken);
           }
 
           var remixInsert = await client.from(SUPABASE_TABLE).insert([{
-            image_url: cloudinaryResult.secure_url,
-            cloudinary_public_id: cloudinaryResult.public_id || null,
+            image_url: nasResult.secure_url,
+            cloudinary_public_id: null,
             cover_url: remixCoverUrl,
             title: remixTitle.value.trim() || null,
             prompt: remixPromptText,
@@ -1231,17 +1345,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var coverChanged = currentLightboxItem.media_type === "video" && editCoverPicker.hasChanged();
         if (coverChanged) {
-          if (editCoverPicker.isResetRequested()) {
-            updatePayload.cover_url = null;
-          } else if (editCoverPicker.getMode() === "photo" && editCoverPicker.getPhotoFile()) {
-            var editCoverUpload = await uploadToCloudinary(editCoverPicker.getPhotoFile());
-            updatePayload.cover_url = editCoverUpload.secure_url;
-          } else {
-            var editOffset = editCoverPicker.getFrameOffset();
-            updatePayload.cover_url = editOffset > 0.05
-              ? buildFramePosterUrl(currentLightboxItem.cloudinary_public_id, editOffset)
-              : null;
-          }
+          var editToken = await getAccessToken();
+          if (!editToken) { editStatus.textContent = "Your session expired — please log in again."; editStatus.className = "form-status show error"; return; }
+          var editCover = await coverForEditVideo(editCoverPicker, currentLightboxItem.image_url, editToken);
+          if (editCover.set) updatePayload.cover_url = editCover.url;
+          else coverChanged = false; // frame capture failed — leave the existing cover as-is
         }
 
         var updateResult = await client
