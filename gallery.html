@@ -109,16 +109,21 @@
             </div>
           </div>
           <div class="field">
-            <label for="uploadTitle">Title (optional)</label>
-            <input type="text" id="uploadTitle" placeholder="Give this upload a title" />
+            <label for="uploadTitle">Title <span class="required-mark">*</span></label>
+            <input type="text" id="uploadTitle" placeholder="Give this upload a title" required />
           </div>
           <div class="field">
-            <label for="uploadPrompt">Prompt used</label>
+            <label for="uploadPrompt">Prompt used <span class="required-mark">*</span></label>
             <textarea id="uploadPrompt" placeholder="Paste the exact prompt you used to generate this" required></textarea>
           </div>
           <div class="field">
-            <label for="uploadTags">Hashtags (space or comma separated)</label>
+            <label for="uploadTags">Hashtags (optional, space or comma separated)</label>
             <input type="text" id="uploadTags" placeholder="e.g. portrait, cyberpunk, midjourney" />
+          </div>
+          <div class="field">
+            <label for="uploadWorkflow">Workflow file (optional)</label>
+            <input type="file" id="uploadWorkflow" accept=".json,application/json" />
+            <p class="cover-frame-hint" id="uploadWorkflowHint">Attach your exported ComfyUI workflow (.json) so others can load it. Max 2&nbsp;MB.</p>
           </div>
           <div class="field">
             <label for="uploadModel">Model used (optional)</label>
@@ -196,6 +201,38 @@
   </div>
 </div>
 
+<div class="lightbox-overlay" id="reportModalOverlay">
+  <div class="lightbox-content report-modal">
+    <button class="lightbox-close" id="reportModalClose">✕</button>
+    <div class="lightbox-body">
+      <h3 style="margin-top:0;">Report this post</h3>
+      <p class="model-note" style="margin:0 0 14px;">Tell the moderators what's wrong. Reports are anonymous.</p>
+      <div class="field">
+        <label for="reportReason">Reason</label>
+        <select id="reportReason">
+          <option value="">Choose a reason…</option>
+          <option value="spam">Spam or misleading</option>
+          <option value="nsfw">Adult or explicit content</option>
+          <option value="violence">Violent or graphic content</option>
+          <option value="hate">Hateful or harassing</option>
+          <option value="ip">Copyright or IP violation</option>
+          <option value="illegal">Illegal or dangerous</option>
+          <option value="other">Something else</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="reportNotice">Details (optional)</label>
+        <textarea id="reportNotice" placeholder="Add anything that helps us review this…" maxlength="1000"></textarea>
+      </div>
+      <div class="form-status" id="reportStatus"></div>
+      <div class="output-actions">
+        <button class="btn btn-primary" id="reportSubmitBtn">Submit report</button>
+        <button class="btn btn-secondary" id="reportCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox-overlay" id="lightboxOverlay">
   <div class="lightbox-content">
     <button class="lightbox-close" id="lightboxClose">✕</button>
@@ -212,7 +249,9 @@
             <span class="like-heart">♡</span> <span class="like-count" id="lightboxLikeCount">0</span>
           </button>
           <button class="btn btn-secondary" id="lightboxCopy">Copy Prompt</button>
+          <button class="btn btn-secondary" id="lightboxWorkflowBtn" style="display:none;">⬇ Workflow</button>
           <button class="btn btn-secondary" id="lightboxEditBtn" style="display:none;">Edit</button>
+          <button class="btn btn-ghost lightbox-report-btn" id="lightboxReportBtn">⚑ Report</button>
         </div>
       </div>
 

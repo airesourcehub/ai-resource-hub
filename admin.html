@@ -69,6 +69,7 @@
           <button class="admin-tab" data-admin-tab="allowlist">Allowlist</button>
           <button class="admin-tab" data-admin-tab="users">Users</button>
           <button class="admin-tab" data-admin-tab="gallery">Gallery Moderation</button>
+          <button class="admin-tab" data-admin-tab="flags">Reports</button>
           <button class="admin-tab" data-admin-tab="analytics">Analytics</button>
         </div>
 
@@ -107,6 +108,21 @@
           <div id="galleryModList" class="admin-list"></div>
         </div>
 
+        <!-- REPORTS / FLAGS -->
+        <div class="admin-panel" id="admin-flags">
+          <h3>Reported posts</h3>
+          <div class="admin-inline-form" id="flagsToolbar" style="margin-bottom:16px;">
+            <label for="flagsStatusFilter">Show:</label>
+            <select id="flagsStatusFilter">
+              <option value="open">Open</option>
+              <option value="all">All</option>
+              <option value="resolved">Resolved</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
+          </div>
+          <div id="flagsList" class="admin-list"></div>
+        </div>
+
         <!-- ANALYTICS -->
         <div class="admin-panel" id="admin-analytics">
           <h3>Site analytics</h3>
@@ -121,6 +137,29 @@
   </section>
 
 </main>
+
+<div class="lightbox-overlay" id="emailModalOverlay">
+  <div class="lightbox-content report-modal">
+    <button class="lightbox-close" id="emailModalClose">✕</button>
+    <div class="lightbox-body">
+      <h3 style="margin-top:0;">Email the uploader</h3>
+      <p class="model-note" id="emailModalTarget" style="margin:0 0 14px;"></p>
+      <div class="field">
+        <label for="emailSubject">Subject</label>
+        <input type="text" id="emailSubject" value="About your AI Resource Hub gallery post" />
+      </div>
+      <div class="field">
+        <label for="emailBody">Message</label>
+        <textarea id="emailBody" rows="6" placeholder="Write your message to the uploader…"></textarea>
+      </div>
+      <div class="form-status" id="emailStatus"></div>
+      <div class="output-actions">
+        <button class="btn btn-primary" id="emailSendBtn">Send email</button>
+        <button class="btn btn-secondary" id="emailCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <footer class="site-footer">
   <div class="container">
