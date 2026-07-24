@@ -284,45 +284,52 @@ them.
 - Comments are flat, not threaded — you can reply to a post with a comment
   or a remix, but not to another comment directly.
 
-## Gallery file storage (Cloudinary)
+## Gallery file storage (self-hosted on a Synology NAS)
 
-Photos and videos in the Gallery are hosted on Cloudinary instead of
-Supabase Storage — deliberately, so the Gallery is the *only* thing that
-depends on it. If Cloudinary is ever down or misconfigured, the rest of
-the site (Home, Resources, Prompt Generator, accounts) is unaffected;
-only Gallery uploads/thumbnails would break.
+Photos and videos in the Gallery are hosted on the site owner's Synology
+NAS (a DS723+), reached from the browser through a **Cloudflare Tunnel** —
+deliberately kept as the *only* part of the site that depends on it. If the
+NAS is off or the tunnel drops, the rest of the site (Home, Resources,
+Prompt Generator, accounts) is unaffected; only Gallery uploads/thumbnails
+break.
 
-- **Cloud name:** `xif5o0uw` (already set in `js/cloudinary-config.js`,
-  not a secret — it's part of every delivery URL).
-- **Plan:** Free (25 credits/month, which is Cloudinary's blended unit
-  across storage + bandwidth + transformations). Per-file size limits on
-  the free plan: **10MB for images, 100MB for videos** — enforced both
-  client-side (a friendly error before upload) and by Cloudinary itself.
-- **How uploads work:** the browser uploads the file directly to
-  Cloudinary's unsigned upload API — no backend involved. This is why the
-  one-time setup below is required: unsigned uploads only work through a
-  named "upload preset" you create yourself (Cloudinary's own anti-abuse
-  design; an unsigned preset can't be created via API, only the Console).
+The NAS-side service, setup guide, and compose file live in
+`nas-gallery-service/` (`server.js`, `docker-compose.yml`, `SETUP-GUIDE.md`).
 
-**One-time setup required** (skip if already done): in the
-[Cloudinary Console](https://console.cloudinary.com) → **Settings → Upload
-→ Upload presets → Add upload preset**:
-1. Set **Preset name** to exactly `ai_resource_hub_gallery`.
-2. Set **Signing Mode** to **Unsigned**.
-3. (Optional) Set **Folder** to `gallery` to keep uploads organized.
-4. Save.
+- **Public hostname:** `https://gallery.airesourcehub.vip` (set in
+  `NAS_GALLERY_BASE` at the top of `js/gallery.js`). The tunnel points it at
+  the `gallery` upload container (`gallery:8080`) — no ports are opened on
+  the home router.
+- **Per-file size limits:** **50MB for images, 200MB for videos** — set by
+  the `MAX_IMAGE_MB` / `MAX_VIDEO_MB` env vars in the NAS
+  `docker-compose.yml`, and mirrored client-side in `js/gallery.js`
+  (`NAS_IMAGE_MAX_BYTES` / `NAS_VIDEO_MAX_BYTES`) for a friendly pre-upload
+  error. Raise both sides to go higher.
+- **How uploads work:** the browser POSTs the file to the NAS service's
+  `/upload` endpoint with the logged-in user's Supabase access token in the
+  `Authorization` header. The service asks Supabase "is this a real user?"
+  before accepting anything, saves the file under a random name in one
+  isolated folder (`/volume1/docker/gallery-uploads`), and returns a public
+  URL (`…/files/<id>.<ext>`). Only image/video types under the size limits
+  are accepted; a per-IP rate limit and a website-origin (CORS) check are
+  also enforced.
+- **Video thumbnails:** the no-build service doesn't render posters, so the
+  browser captures a still frame from the video (via `<canvas>`) and uploads
+  it as a normal image to use as the cover. The chosen frame comes from the
+  cover-picker slider (default frame 0), or the user can upload a separate
+  cover photo.
 
-If you'd rather use a different preset name, update
-`CLOUDINARY_UPLOAD_PRESET` in `js/cloudinary-config.js` to match.
+**Legacy Cloudinary entries:** anything posted before this migration still
+points at its old Cloudinary URL and keeps working untouched — only *new*
+uploads go to the NAS. The old `js/cloudinary-config.js` is still loaded so
+those URLs and their derived poster frames continue to resolve.
 
 **Known limitation:** deleting an entry from the admin panel's Gallery
 Moderation tab removes the database row (so it disappears from the site
-immediately) but doesn't delete the underlying file from Cloudinary —
-doing that securely requires the API secret, which can't live in
-browser-side code. Orphaned files just sit in Cloudinary using up your
-free quota slowly. Ask me to clean them up periodically (I have Cloudinary
-access and can delete by `cloudinary_public_id`), or do it yourself from
-the Cloudinary Console's Media Library.
+immediately) but doesn't delete the underlying file from the NAS's uploads
+folder. Orphaned files just sit in `/volume1/docker/gallery-uploads`. Clear
+them out from File Station periodically, or ask me and I'll add a small
+delete hook to the service.
 
 ## Invite-only sign-up + admin panel
 
