@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Guides — AI Resource Hub</title>
+<meta name="description" content="Practical, beginner-friendly guides to AI image and video prompting, model selection, negative prompts, ComfyUI workflows, and character consistency." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>Guides</h1>
+      <p>Practical guides to getting more out of AI image and video tools.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container prose">
+
+      <p>Practical, no-nonsense guides to getting better results from AI image and video tools. No hype, no jargon walls &mdash; just the things that actually move the needle, written for people who'd rather make something than read a manual.</p>
+
+      <div class="guide-list">
+        <article class="guide-card">
+          <h3><a href="guide-writing-better-image-prompts.html">How to Write Better AI Image Prompts</a></h3>
+          <p>The six building blocks &mdash; subject, style, composition, lighting, mood, and detail &mdash; that turn a vague idea into the picture you actually had in mind.</p>
+        </article>
+        <article class="guide-card">
+          <h3><a href="guide-ai-video-prompting.html">A Practical Guide to Prompting AI Video</a></h3>
+          <p>How to describe motion and camera work for Veo, Runway, Sora, Kling and Wan &mdash; the two things that decide whether an AI clip looks intentional or chaotic.</p>
+        </article>
+        <article class="guide-card">
+          <h3><a href="guide-choosing-image-model.html">How to Choose the Right AI Image Model</a></h3>
+          <p>A plain-English comparison of Midjourney, FLUX, Nano Banana, Seedream, DALL&middot;E, Stable Diffusion and Firefly &mdash; and how to pick the right one for your project.</p>
+        </article>
+        <article class="guide-card">
+          <h3><a href="guide-negative-prompts.html">Negative Prompts Explained</a></h3>
+          <p>What negative prompts do, which tools support them, and how to use them to clean up artifacts and unwanted objects &mdash; without flattening your image.</p>
+        </article>
+        <article class="guide-card">
+          <h3><a href="guide-comfyui-workflows.html">ComfyUI Workflows for Beginners</a></h3>
+          <p>What those shared <code>.json</code> files are, why they make results reproducible, and how to load one someone else made.</p>
+        </article>
+        <article class="guide-card">
+          <h3><a href="guide-consistent-characters.html">Getting Consistent Characters Across AI Images</a></h3>
+          <p>Reference images, reusable descriptions, seeds, and curation &mdash; the techniques that actually keep a character looking like the same character.</p>
+        </article>
+      </div>
+
+      <p style="margin-top:28px;">More guides are on the way. Have a topic you'd like us to cover? <a href="about.html">Get in touch</a> &mdash; we're building this for people who use AI every day.</p>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+</body>
+</html>

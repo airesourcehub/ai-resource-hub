@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ComfyUI Workflows for Beginners — AI Resource Hub</title>
+<meta name="description" content="What ComfyUI workflows are, why people share them as .json files, and how to load a workflow someone else made so you can reproduce their results." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>ComfyUI Workflows for Beginners</h1>
+      <p>What those shared &lt;code&gt;.json&lt;/code&gt; files are, and how to load one to reproduce a result.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container prose">
+
+      <p>If you've spent time in AI-image communities, you've seen people trade "workflows" &mdash; usually a <code>.json</code> file or an image you can drag into an app. This is the world of <strong>ComfyUI</strong>, and while it looks intimidating at first, the core idea is simple and worth understanding even if you never build one yourself.</p>
+
+      <h2>What ComfyUI actually is</h2>
+      <p>ComfyUI is a node-based interface for Stable Diffusion and related models. Instead of a single prompt box, you build a little diagram: boxes (nodes) for loading a model, entering your prompt, setting the sampler, generating the image, and saving it &mdash; connected by wires that show how data flows. Each node does one job, and the connections define the pipeline your image passes through.</p>
+
+      <h2>Why a workflow is worth sharing</h2>
+      <p>Because the entire pipeline is data, it can be saved and shared. A workflow file captures every node, every setting, and every connection someone used to get a particular result. When you load their workflow, you're not just copying a prompt &mdash; you're reproducing their whole setup: the model, the sampler settings, any upscaling or refinement steps, the lot. That's why workflows are so valuable: they make complex, multi-step results repeatable.</p>
+
+      <h2>How workflows are shared</h2>
+      <ul>
+        <li><strong>As a <code>.json</code> file</strong> &mdash; the workflow exported directly from ComfyUI.</li>
+        <li><strong>Embedded in a PNG</strong> &mdash; ComfyUI can save the workflow inside the image's metadata, so dragging that PNG back into ComfyUI restores the whole graph.</li>
+      </ul>
+      <p>When you share your own work, exporting the <code>.json</code> is the most reliable option because it doesn't depend on metadata surviving uploads and re-saves.</p>
+
+      <h2>How to load someone else's workflow</h2>
+      <ol>
+        <li>Open ComfyUI.</li>
+        <li>Drag the <code>.json</code> file (or the workflow-embedded PNG) directly onto the ComfyUI canvas, or use <em>Load</em> from the menu.</li>
+        <li>The full node graph appears. If it references a model or custom node you don't have installed, ComfyUI will flag it &mdash; install the missing pieces, then run.</li>
+      </ol>
+
+      <h2>A realistic first step</h2>
+      <p>You don't need to build workflows from scratch to benefit from them. Loading a well-made workflow, changing only the prompt, and generating is a completely valid way to start &mdash; you get advanced results while you gradually learn what each node does. Over time you'll start tweaking a setting here and there, and eventually building your own.</p>
+
+      <p>On our <a href="gallery.html">Prompt Gallery</a>, uploaders can attach the ComfyUI workflow they used directly to a post, so you can download the exact <code>.json</code> and load it yourself &mdash; prompt, settings, and all.</p>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+</body>
+</html>

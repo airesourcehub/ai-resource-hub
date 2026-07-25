@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>A Practical Guide to Prompting AI Video — AI Resource Hub</title>
+<meta name="description" content="How to write prompts for AI video tools like Veo, Runway, Sora, Kling and Wan, including how to describe motion, camera movement, and shot structure so the clip matches your intent." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>A Practical Guide to Prompting AI Video</h1>
+      <p>Describing motion and camera work is the whole game &amp;mdash; here&#x27;s how to do it for Veo, Runway, Sora, Kling and more.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container prose">
+
+      <p>Prompting for video is not just prompting for an image with the word "video" added. A still only has to look right in one frame; a clip has to move convincingly over time. That means two ideas do most of the heavy lifting: <strong>what moves in the scene</strong>, and <strong>what the camera does</strong>. Get specific about both and your results improve dramatically.</p>
+
+      <h2>Describe the motion, not just the scene</h2>
+      <p>Image prompts describe a frozen moment. Video prompts need to describe change. Instead of "a fox in a forest," write what actually happens: "a fox trots across a mossy clearing, pauses, and turns its head toward the camera." Give the model a small piece of choreography. Vague motion ("a busy city") tends to produce either a near-static shot or chaotic, flickery movement.</p>
+
+      <h2>Direct the camera explicitly</h2>
+      <p>Camera language is the single biggest quality lever in AI video. Tools understand terms borrowed straight from filmmaking:</p>
+      <ul>
+        <li><strong>Pan / tilt</strong> &mdash; the camera rotates left/right or up/down from a fixed spot.</li>
+        <li><strong>Dolly / push in / pull out</strong> &mdash; the camera physically moves toward or away from the subject.</li>
+        <li><strong>Tracking / follow shot</strong> &mdash; the camera moves alongside a moving subject.</li>
+        <li><strong>Crane / aerial</strong> &mdash; sweeping, elevated movement.</li>
+        <li><strong>Static / locked-off</strong> &mdash; no camera movement, which is often the safest choice for a clean result.</li>
+      </ul>
+      <p>"Slow dolly-in on the fox as it turns toward camera" tells the tool exactly how the shot should feel.</p>
+
+      <h2>One clear action per clip</h2>
+      <p>Most current models produce a few seconds at a time. Trying to cram a whole sequence &mdash; "she walks in, sits down, opens a book, and it starts raining" &mdash; usually produces mush. Give each clip one clear action and one camera move, then stitch clips together afterward if you need a sequence.</p>
+
+      <h2>Match the phrasing to the tool</h2>
+      <p>Different tools reward slightly different prompt styles:</p>
+      <ul>
+        <li><strong>Veo, Runway, Sora</strong> respond well to natural, cinematic prose &mdash; describe the shot like a sentence from a screenplay, including camera direction.</li>
+        <li><strong>Kling</strong> likes a descriptive prompt plus a distinct camera-movement cue, and supports a separate negative prompt.</li>
+        <li><strong>Wan</strong> works best with a structured, six-part prompt: camera movement, subject/scene, motion, camera language, style, and atmosphere.</li>
+        <li><strong>LTX</strong> prefers chronological, literal descriptions &mdash; main action first, then motion detail, then environment and camera last.</li>
+      </ul>
+
+      <h2>Set the atmosphere and pace</h2>
+      <p>Tell the model the mood and the tempo. "Calm, dreamy, slow motion" and "energetic, fast-paced, handheld" pull a clip in completely different directions even with the same subject. Lighting and time of day matter here just as much as they do for stills.</p>
+
+      <h2>A workable template</h2>
+      <p>A dependable pattern is: <em>[camera movement] + [subject] + [specific action] + [setting] + [lighting/mood]</em>. For example: <em>"Slow tracking shot following a cyclist along a coastal road at sunset, warm golden light, calm and cinematic."</em> It's one action, one camera move, and a clear mood &mdash; exactly what these models handle best.</p>
+
+      <p>Our <a href="prompt-generator.html">Prompt Generator</a> has a video mode that structures prompts the way each of these tools prefers, so you don't have to remember every convention.</p>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+</body>
+</html>

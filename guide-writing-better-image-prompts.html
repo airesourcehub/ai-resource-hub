@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How to Write Better AI Image Prompts — AI Resource Hub</title>
+<meta name="description" content="A practical, beginner-friendly guide to writing AI image prompts that actually get you the picture you had in mind, covering subject, style, composition, lighting, and mood." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>How to Write Better AI Image Prompts</h1>
+      <p>Six building blocks that turn a vague idea into a picture the model actually understands.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container prose">
+
+      <p>Most disappointing AI images come from the same root cause: the prompt left too much to chance. The model isn't reading your mind &mdash; it's filling every gap you leave with its own averages. The fix isn't longer prompts or magic words. It's being deliberate about a handful of things the model genuinely pays attention to.</p>
+
+      <p>Here is a reliable structure you can reuse for almost any image, whether you're on Midjourney, FLUX, Nano Banana, Seedream, or DALL&middot;E.</p>
+
+      <h2>1. Subject: say exactly what (and who) is in the frame</h2>
+      <p>Start with the single most important thing the image is about, described concretely. "A woman" is weak; "a middle-aged woman with short silver hair wearing a wool coat" gives the model something to hold onto. Include count ("three lanterns," not "some lanterns"), and any details that matter to you &mdash; if you don't specify them, you're rolling dice.</p>
+
+      <h2>2. Style: name the look you want</h2>
+      <p>Style is where people are vaguest, and it's the biggest lever. Decide whether you want a photograph, an oil painting, a 3D render, a flat vector illustration, anime, a pencil sketch, and say so. You can go further with era and artist-movement references ("1970s film photography," "Art Nouveau poster," "cyberpunk concept art"). If you want realism, the word <em>photograph</em> or <em>photorealistic</em> does more work than any other single term.</p>
+
+      <h2>3. Composition: describe the shot, not just the scene</h2>
+      <p>Think like a photographer or director. Where is the camera? How much of the subject is in frame? Useful terms include <em>close-up</em>, <em>wide shot</em>, <em>overhead / top-down</em>, <em>low angle</em>, <em>portrait orientation</em>, <em>rule of thirds</em>, and <em>shallow depth of field</em>. "A cabin in the woods" and "a wide, low-angle shot of a cabin in the woods, tall pines framing the edges" produce very different results.</p>
+
+      <h2>4. Lighting: the fastest way to change the mood</h2>
+      <p>Lighting quietly decides whether an image feels warm, dramatic, clinical, or dreamy. A few dependable choices: <em>golden hour</em> for warm and flattering, <em>soft diffused light</em> for gentle and even, <em>hard directional light</em> for high contrast and drama, <em>backlighting</em> for silhouettes and glow, <em>neon</em> for moody urban scenes. Even adding just "soft window light" to a portrait prompt noticeably lifts the result.</p>
+
+      <h2>5. Mood and color: set the emotional tone</h2>
+      <p>Tell the model how the image should <em>feel</em> and roughly what palette to lean on: "moody and melancholic, muted blues and greys," or "cheerful and bright, warm pastel palette." This ties the other elements together and stops the model from defaulting to a generic, over-saturated look.</p>
+
+      <h2>6. Details and constraints: last, and optional</h2>
+      <p>Finish with any extra specifics &mdash; textures, background elements, weather, small props &mdash; and, on models that support them, technical parameters like aspect ratio. Keep these at the end so they refine rather than dominate the prompt.</p>
+
+      <h2>Putting it together</h2>
+      <p>Stacking those blocks might give you: <em>"A photorealistic close-up portrait of a middle-aged woman with short silver hair, wearing a wool coat, soft window light from the left, shallow depth of field, calm and contemplative mood, muted earthy tones."</em> Every clause there is a decision you made instead of leaving to the model.</p>
+
+      <h2>Iterate, don't restart</h2>
+      <p>When a result is close but not right, change one thing at a time. Swap the lighting, tighten the composition, or adjust the mood &mdash; then compare. Rewriting the whole prompt from scratch throws away information about what was already working. Small, controlled edits are how you steer toward the picture in your head.</p>
+
+      <p>Want a head start? Our free <a href="prompt-generator.html">Prompt Generator</a> walks you through these same building blocks and formats the result for the specific tool you're using.</p>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+</body>
+</html>

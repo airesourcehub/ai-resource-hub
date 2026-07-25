@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Negative Prompts Explained — AI Resource Hub</title>
+<meta name="description" content="What negative prompts are, which AI image tools support them, and how to use them to remove unwanted objects, artifacts, and styles from your generations." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>Negative Prompts Explained</h1>
+      <p>How to tell an AI what you &lt;em&gt;don&#x27;t&lt;/em&gt; want &amp;mdash; and when it actually helps.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container prose">
+
+      <p>A negative prompt is a second list you give the model describing what to keep <em>out</em> of the image. Where your main prompt pulls the result toward something, the negative prompt pushes it away from something. Used well, it's a precise tool for cleaning up recurring problems. Used carelessly, it does very little &mdash; so it's worth understanding when it matters.</p>
+
+      <h2>Which tools support them</h2>
+      <p>Not every tool has a dedicated negative field. Stable Diffusion has a first-class "Negative prompt" box and relies on it heavily. Midjourney uses a <code>--no</code> parameter (for example <code>--no text</code>). Kling and Wan offer an optional negative-prompt line for video. Tools like DALL&middot;E and Adobe Firefly generally don't use negatives at all &mdash; there you simply describe what you want directly and, if needed, ask for the absence in plain language ("an empty desk with nothing on it").</p>
+
+      <h2>What negative prompts are genuinely good at</h2>
+      <ul>
+        <li><strong>Removing recurring artifacts</strong> &mdash; common entries are things like <em>blurry, lowres, extra fingers, deformed hands, watermark, text, jpeg artifacts</em>.</li>
+        <li><strong>Excluding unwanted objects</strong> &mdash; if people keep appearing in a landscape, add <em>people</em> to the negative.</li>
+        <li><strong>Steering away from a style</strong> &mdash; add <em>cartoon, illustration</em> to a negative prompt when you want strict photorealism.</li>
+      </ul>
+
+      <h2>What they can't fix</h2>
+      <p>A negative prompt can't add something that isn't there, and it won't rescue a vague main prompt. If your positive prompt is thin, the model has too much freedom, and no amount of negatives will impose the composition you wanted. Fix the positive prompt first; reach for negatives to remove specific, repeatable problems.</p>
+
+      <h2>Keep them short and relevant</h2>
+      <p>It's tempting to paste a giant block of every negative term you've ever seen. That's usually counterproductive &mdash; it can suppress detail and flatten the image. Start with nothing, generate, and only add a negative term to solve a problem you actually see. If hands look wrong, add hand-related negatives. If the palette is too cartoonish, add style negatives. Grow the list in response to real results, not superstition.</p>
+
+      <h2>Weighting, where supported</h2>
+      <p>Some Stable-Diffusion-based tools let you weight terms, for example <code>(text:1.3)</code> to push harder against text. Use this sparingly &mdash; over-weighting a negative can distort the whole image as the model bends to avoid it.</p>
+
+      <h2>The short version</h2>
+      <p>Think of the negative prompt as a bug-fixing tool, not a creative one. Write a strong positive prompt, generate, and then add negatives one at a time to remove the specific things you don't want. That disciplined approach beats a copy-pasted wall of negatives every time.</p>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+</body>
+</html>

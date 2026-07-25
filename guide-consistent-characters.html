@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How to Get Consistent Characters Across AI Images — AI Resource Hub</title>
+<meta name="description" content="Practical techniques for keeping the same character looking the same across multiple AI-generated images, using reference images, detailed descriptions, and seeds." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>How to Get Consistent Characters Across AI Images</h1>
+      <p>Keeping the same face, outfit, and vibe from one image to the next is hard &amp;mdash; here&#x27;s what actually works.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container prose">
+
+      <p>One of the most requested and most frustrating things in AI image generation is character consistency: getting the <em>same</em> person to show up across a series of images. By default, each generation is independent, so the model happily gives you a slightly different face every time. Here are the techniques that reliably help, roughly from easiest to most powerful.</p>
+
+      <h2>1. Write a detailed, reusable character description</h2>
+      <p>The foundation of consistency is a specific description you reuse word-for-word. Vague descriptions leave the model too much room to improvise. Lock down the details that define the character: age, hair colour and style, eye colour, build, distinctive features, and signature clothing. Keep this block in a note and paste it into every prompt. It won't be perfect on its own, but it dramatically narrows the range.</p>
+
+      <h2>2. Use reference images where the tool supports them</h2>
+      <p>Many current tools accept a reference or "identity" image and will preserve that face across new scenes. Features built for exactly this &mdash; face-swap, character-swap, and multi-reference options &mdash; are the single most effective way to keep an identity stable, because you're giving the model the actual face to match rather than hoping a text description lands the same way twice.</p>
+
+      <h2>3. Reuse the seed (on tools that expose it)</h2>
+      <p>The "seed" is the random starting point for a generation. On Stable Diffusion and similar tools, keeping the same seed while changing only part of the prompt keeps a lot of the image stable, including facial structure. It's a blunt instrument &mdash; big prompt changes still drift &mdash; but for small variations it's useful.</p>
+
+      <h2>4. Change one thing at a time</h2>
+      <p>If you have an image you love, don't rewrite the whole prompt to make the next one. Keep the character description and settings fixed and change only the pose, the background, or the action. The more you keep constant, the more consistent the character stays.</p>
+
+      <h2>5. Generate in batches and curate</h2>
+      <p>Even with all of the above, expect variation. A practical workflow is to generate several options per scene and pick the ones where the character matches best, rather than expecting every single generation to be a keeper. Consistency across a finished set often comes as much from good selection as from perfect prompting.</p>
+
+      <h2>The honest reality</h2>
+      <p>Perfect, frame-to-frame identity is still an unsolved problem in general text-to-image generation &mdash; which is exactly why dedicated reference and character-swap tools exist. If consistency is critical to your project, lean on those features first, back them with a fixed character description, and curate the results. That combination gets you most of the way there today.</p>
+
+      <p>Ready to build a character prompt? The <a href="prompt-generator.html">Prompt Generator</a> can help you assemble a detailed, reusable description you can carry across a whole series.</p>
+
+    </div>
+  </section>
+
+  <div class="ad-slot">
+    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+</body>
+</html>
