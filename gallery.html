@@ -288,6 +288,15 @@
           <input type="text" id="editTags" />
         </div>
         <div class="field">
+          <label for="editWorkflow">Workflow / method file (optional)</label>
+          <p class="cover-frame-hint" id="editWorkflowCurrent" style="display:none;"></p>
+          <input type="file" id="editWorkflow" accept=".json,.yaml,.yml,.txt,application/json,text/yaml,text/plain" />
+          <label id="editWorkflowRemoveWrap" style="display:none; font-weight:normal; margin-top:6px;">
+            <input type="checkbox" id="editWorkflowRemove" /> Remove the current workflow file
+          </label>
+          <p class="cover-frame-hint">Attach a .json, .yaml, or .txt file so others can download it — or upload a new one to replace the current. Max 2&nbsp;MB.</p>
+        </div>
+        <div class="field">
           <label for="editModel">Model used</label>
           <select id="editModel">
             <option value="">Select a model…</option>
