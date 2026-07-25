@@ -1028,6 +1028,10 @@ document.addEventListener("DOMContentLoaded", function () {
   var editSaveBtn = document.getElementById("editSaveBtn");
   var editCancelBtn = document.getElementById("editCancelBtn");
   var editCoverField = document.getElementById("editCoverField");
+  var editWorkflow = document.getElementById("editWorkflow");
+  var editWorkflowCurrent = document.getElementById("editWorkflowCurrent");
+  var editWorkflowRemove = document.getElementById("editWorkflowRemove");
+  var editWorkflowRemoveWrap = document.getElementById("editWorkflowRemoveWrap");
 
   var editCoverPicker = setupCoverPicker({
     modeBtns: Array.prototype.slice.call(document.querySelectorAll("#editCoverField .cover-mode-btn")),
@@ -1466,6 +1470,21 @@ document.addEventListener("DOMContentLoaded", function () {
       var visRadio = lightboxEditForm.querySelector('input[name="editVisibility"][value="' + (item.is_public ? "public" : "private") + '"]');
       if (visRadio) visRadio.checked = true;
 
+      // Workflow attachment state for this post
+      if (editWorkflow) editWorkflow.value = "";
+      if (editWorkflowRemove) editWorkflowRemove.checked = false;
+      if (editWorkflowCurrent && editWorkflowRemoveWrap) {
+        if (item.workflow_json) {
+          editWorkflowCurrent.textContent = "Current file: " + (item.workflow_filename || "workflow") + " — upload a new one to replace it.";
+          editWorkflowCurrent.style.display = "";
+          editWorkflowRemoveWrap.style.display = "";
+        } else {
+          editWorkflowCurrent.textContent = "";
+          editWorkflowCurrent.style.display = "none";
+          editWorkflowRemoveWrap.style.display = "none";
+        }
+      }
+
       if (editCoverField) editCoverField.style.display = item.media_type === "video" ? "" : "none";
       if (item.media_type === "video") editCoverPicker.beginEditing();
 
@@ -1523,6 +1542,34 @@ document.addEventListener("DOMContentLoaded", function () {
           else coverChanged = false; // frame capture failed — leave the existing cover as-is
         }
 
+        // Workflow attachment: a new file replaces it, the checkbox removes it,
+        // otherwise it's left unchanged.
+        var editWorkflowChanged = false;
+        if (editWorkflow && editWorkflow.files && editWorkflow.files[0]) {
+          var ewFile = editWorkflow.files[0];
+          if (ewFile.size > 2 * 1024 * 1024) {
+            editStatus.textContent = "That workflow file is too big (max 2MB).";
+            editStatus.className = "form-status show error";
+            return;
+          }
+          var ewName = ewFile.name || "workflow.txt";
+          try {
+            var ewText = await ewFile.text();
+            if (/\.json$/i.test(ewName)) JSON.parse(ewText);
+            updatePayload.workflow_json = ewText;
+            updatePayload.workflow_filename = ewName;
+            editWorkflowChanged = true;
+          } catch (e) {
+            editStatus.textContent = "That .json workflow file isn't valid JSON — re-export it and try again.";
+            editStatus.className = "form-status show error";
+            return;
+          }
+        } else if (editWorkflowRemove && editWorkflowRemove.checked) {
+          updatePayload.workflow_json = null;
+          updatePayload.workflow_filename = null;
+          editWorkflowChanged = true;
+        }
+
         var updateResult = await client
           .from(SUPABASE_TABLE)
           .update(updatePayload)
@@ -1536,6 +1583,10 @@ document.addEventListener("DOMContentLoaded", function () {
         currentLightboxItem.model = newModel || null;
         currentLightboxItem.is_public = newIsPublic;
         if (coverChanged) currentLightboxItem.cover_url = updatePayload.cover_url;
+        if (editWorkflowChanged) {
+          currentLightboxItem.workflow_json = updatePayload.workflow_json;
+          currentLightboxItem.workflow_filename = updatePayload.workflow_filename;
+        }
 
         var stored = allItems.find(function (i) { return i.id === currentLightboxItem.id; });
         if (stored) {
@@ -1545,11 +1596,25 @@ document.addEventListener("DOMContentLoaded", function () {
           stored.model = currentLightboxItem.model;
           stored.is_public = currentLightboxItem.is_public;
           if (coverChanged) stored.cover_url = updatePayload.cover_url;
+          if (editWorkflowChanged) {
+            stored.workflow_json = currentLightboxItem.workflow_json;
+            stored.workflow_filename = currentLightboxItem.workflow_filename;
+          }
         }
 
         if (coverChanged) {
           var newPoster = posterUrl(currentLightboxItem);
           if (newPoster) lightboxVideo.poster = newPoster;
+        }
+
+        if (lightboxWorkflowBtn) {
+          if (currentLightboxItem.workflow_json) {
+            lightboxWorkflowBtn.style.display = "";
+            lightboxWorkflowBtn.onclick = function () { downloadWorkflow(currentLightboxItem); };
+          } else {
+            lightboxWorkflowBtn.style.display = "none";
+            lightboxWorkflowBtn.onclick = null;
+          }
         }
 
         renderLightboxView(currentLightboxItem);
