@@ -353,6 +353,74 @@ document.addEventListener("DOMContentLoaded", function () {
     return prompt;
   }
 
+  // ---------- Per-model form morphing ----------
+  // Each model maps to a "recipe" that decides which fields are relevant and
+  // how they're labelled, so the form reshapes itself to the selected model
+  // (and the AI-enhance guidance on the server matches the same recipes).
+  (function setupMorphing() {
+    var IMAGE_TAG_RECIPE = { midjourney: "mj", stablediffusion: "sd" };
+    var IMAGE_EDIT = ["higgsfieldfaceswap", "higgsfieldcharacterswap", "fluxkontextmax", "multireference"];
+    function imageRecipe(m) {
+      if (IMAGE_TAG_RECIPE[m]) return IMAGE_TAG_RECIPE[m];
+      if (IMAGE_EDIT.indexOf(m) !== -1) return "edit";
+      return "natural";
+    }
+    var VIDEO_RECIPE = { veo: "cinematic", runway: "cinematic", sora: "cinematic", seedance: "cinematic", wan: "wan", kling: "kling", ltx: "ltx", pika: "pika" };
+    function videoRecipe(m) { return VIDEO_RECIPE[m] || "cinematic"; }
+
+    var IMAGE_FIELDS = {
+      mj: { visible: ["imgSubject", "imgStyle", "imgSetting", "imgLighting", "imgMood", "imgAspect", "imgNegative", "imgDetails"],
+            labels: { imgAspect: "Aspect ratio (--ar)", imgNegative: "Exclude with --no" } },
+      sd: { visible: ["imgSubject", "imgStyle", "imgSetting", "imgLighting", "imgMood", "imgNegative", "imgDetails"],
+            labels: { imgStyle: "Style / quality tags", imgNegative: "Negative prompt" } },
+      natural: { visible: ["imgSubject", "imgStyle", "imgSetting", "imgLighting", "imgMood", "imgDetails"], labels: {} },
+      edit: { visible: ["imgSubject", "imgSetting", "imgStyle", "imgLighting", "imgMood", "imgDetails"],
+              labels: { imgSubject: "What to change / target scene", imgSetting: "Reference / source to keep" },
+              placeholders: { imgSubject: "e.g. place them in a sunlit Paris cafe, change the outfit to a trench coat", imgSetting: "e.g. keep the exact face and identity from the reference image" } }
+    };
+    var VIDEO_FIELDS = {
+      cinematic: { visible: ["vidScene", "vidCamera", "vidStyle", "vidPacing", "vidMood", "vidDetails"], labels: {} },
+      wan: { visible: ["vidScene", "vidCamera", "vidPacing", "vidStyle", "vidMood", "vidNegative", "vidDetails"], labels: { vidPacing: "Motion", vidMood: "Atmosphere" } },
+      kling: { visible: ["vidScene", "vidCamera", "vidStyle", "vidMood", "vidNegative", "vidDetails"], labels: { vidCamera: "Camera movement (camera_movement)" } },
+      ltx: { visible: ["vidScene", "vidPacing", "vidCamera", "vidStyle", "vidDetails"], labels: { vidPacing: "Motion (described literally)" } },
+      pika: { visible: ["vidScene", "vidStyle", "vidPacing", "vidMood", "vidDetails"], labels: { vidPacing: "Motion amount (-motion)" } }
+    };
+
+    var ALL_IMAGE = ["imgSubject", "imgStyle", "imgSetting", "imgLighting", "imgMood", "imgAspect", "imgNegative", "imgDetails"];
+    var ALL_VIDEO = ["vidScene", "vidCamera", "vidStyle", "vidPacing", "vidMood", "vidNegative", "vidDetails"];
+
+    function capture(ids) {
+      ids.forEach(function (id) {
+        var el = document.getElementById(id); if (!el) return;
+        var lab = document.querySelector('label[for="' + id + '"]');
+        if (lab && el.getAttribute("data-def-label") === null) el.setAttribute("data-def-label", lab.textContent);
+        if (el.getAttribute("data-def-ph") === null) el.setAttribute("data-def-ph", el.getAttribute("placeholder") || "");
+      });
+    }
+    capture(ALL_IMAGE); capture(ALL_VIDEO);
+
+    function applyRecipe(ids, cfg) {
+      if (!cfg) return;
+      ids.forEach(function (id) {
+        var el = document.getElementById(id); if (!el) return;
+        var field = el.closest(".field"); if (!field) return;
+        field.classList.toggle("field-hidden-model", cfg.visible.indexOf(id) === -1);
+        var lab = document.querySelector('label[for="' + id + '"]');
+        if (lab) lab.textContent = (cfg.labels && cfg.labels[id]) || el.getAttribute("data-def-label") || lab.textContent;
+        var ph = (cfg.placeholders && cfg.placeholders[id]);
+        el.setAttribute("placeholder", ph != null ? ph : (el.getAttribute("data-def-ph") || ""));
+      });
+    }
+
+    var imgSel = document.getElementById("imgModel");
+    function morphImage() { if (imgSel) applyRecipe(ALL_IMAGE, IMAGE_FIELDS[imageRecipe(imgSel.value)]); }
+    if (imgSel) { imgSel.addEventListener("change", morphImage); morphImage(); }
+
+    var vidSel = document.getElementById("vidModel");
+    function morphVideo() { if (vidSel) applyRecipe(ALL_VIDEO, VIDEO_FIELDS[videoRecipe(vidSel.value)]); }
+    if (vidSel) { vidSel.addEventListener("change", morphVideo); morphVideo(); }
+  })();
+
   // ---------- helpers ----------
   function val(id) {
     var el = document.getElementById(id);

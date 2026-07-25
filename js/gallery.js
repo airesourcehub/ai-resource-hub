@@ -501,18 +501,22 @@ document.addEventListener("DOMContentLoaded", function () {
       // as text on the post (small enough that it lives in the database, not
       // on the NAS).
       var workflowJson = null;
+      var workflowFilename = null;
       if (workflowInput && workflowInput.files && workflowInput.files[0]) {
         var wfFile = workflowInput.files[0];
         if (wfFile.size > 2 * 1024 * 1024) {
           showStatus("That workflow file is too big (max 2MB).", "error");
           return;
         }
+        var wfName = wfFile.name || "workflow.txt";
+        var isJsonFile = /\.json$/i.test(wfName);
         try {
           var wfText = await wfFile.text();
-          JSON.parse(wfText);
+          if (isJsonFile) JSON.parse(wfText); // .json files must be valid JSON
           workflowJson = wfText;
+          workflowFilename = wfName;
         } catch (e) {
-          showStatus("That workflow file isn't valid JSON — export it from ComfyUI as .json.", "error");
+          showStatus("That .json workflow file isn't valid JSON — re-export it and try again.", "error");
           return;
         }
       }
@@ -540,6 +544,7 @@ document.addEventListener("DOMContentLoaded", function () {
           hashtags: tags,
           model: modelUsed || null,
           workflow_json: workflowJson,
+          workflow_filename: workflowFilename,
           user_id: currentUser.id,
           is_public: isPublic,
           media_type: mediaType
@@ -916,12 +921,20 @@ document.addEventListener("DOMContentLoaded", function () {
   function downloadWorkflow(item) {
     if (!item || !item.workflow_json) return;
     try {
-      var blob = new Blob([item.workflow_json], { type: "application/json" });
+      var name = item.workflow_filename;
+      if (!name) {
+        var base = (item.title || "workflow").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 40) || "workflow";
+        name = base + ".json";
+      }
+      var lower = name.toLowerCase();
+      var mime = lower.slice(-5) === ".json" ? "application/json"
+               : (lower.slice(-5) === ".yaml" || lower.slice(-4) === ".yml") ? "text/yaml"
+               : "text/plain";
+      var blob = new Blob([item.workflow_json], { type: mime });
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
-      var base = (item.title || "workflow").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 40) || "workflow";
       a.href = url;
-      a.download = base + ".json";
+      a.download = name;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
