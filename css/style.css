@@ -1833,3 +1833,6 @@ video.upload-preview {
 .guide-card h3 a { text-decoration: none; }
 .guide-card p { margin: 0; color: var(--color-text-muted, #6a6a6a); }
 @media (min-width: 720px) { .guide-list { grid-template-columns: 1fr 1fr; } }
+
+/* Prompt generator: fields hidden because they don't apply to the chosen model */
+.field.field-hidden-model { display: none !important; }
