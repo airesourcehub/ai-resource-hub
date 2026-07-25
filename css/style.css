@@ -1820,3 +1820,16 @@ video.upload-preview {
 .user-notice-body { flex: 1 1 auto; }
 .user-notice-body p { margin: 6px 0 0; }
 .user-notice-dismiss { flex: 0 0 auto; }
+
+/* Guides section (index cards) */
+.guide-list { display: grid; gap: 16px; margin: 24px 0 8px; }
+.guide-card {
+  padding: 20px 22px;
+  border: 1px solid var(--color-border, #e2e2e2);
+  border-radius: 12px;
+  background: var(--color-bg-alt, #fafafa);
+}
+.guide-card h3 { margin: 0 0 6px; font-size: 1.15rem; }
+.guide-card h3 a { text-decoration: none; }
+.guide-card p { margin: 0; color: var(--color-text-muted, #6a6a6a); }
+@media (min-width: 720px) { .guide-list { grid-template-columns: 1fr 1fr; } }
