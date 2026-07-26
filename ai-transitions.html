@@ -130,6 +130,14 @@
           </div>
 
           <div class="field">
+            <label>Speed &amp; quality</label>
+            <div class="blend-mode">
+              <label class="blend-radio"><input type="radio" name="blendSpeed" value="quality" checked /> Highest quality <span class="frame-res" style="margin:0;">(20 steps &mdash; best, slower)</span></label>
+              <label class="blend-radio"><input type="radio" name="blendSpeed" value="fast" /> Fast <span class="frame-res" style="margin:0;">(4-step LoRA &mdash; much quicker)</span></label>
+            </div>
+          </div>
+
+          <div class="field">
             <label>Output</label>
             <div class="blend-mode">
               <label class="blend-radio"><input type="radio" name="blendMode" value="stitched" checked /> Full sequence <span class="frame-res" style="margin:0;">(clip A + transition + clip B)</span></label>
