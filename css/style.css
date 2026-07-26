@@ -1863,3 +1863,7 @@ video.upload-preview {
 .blend-progress-label { margin: 8px 0 0; font-size: 0.9rem; color: var(--color-text-muted, #6a6a6a); }
 .blend-result { margin-top: 24px; }
 .blend-video { width: 100%; max-height: 460px; background: #000; border-radius: 10px; display: block; }
+
+/* AI Transitions — Identity Lock + prompt tools */
+.blend-prompt-tools { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.btn-small { padding: 6px 12px; font-size: 0.85rem; }
