@@ -116,6 +116,8 @@
     var mode = modeEl ? modeEl.value : "stitched";
     var orientEl = document.querySelector('input[name="blendOrient"]:checked');
     var orientation = orientEl ? orientEl.value : "landscape";
+    var speedEl = document.querySelector('input[name="blendSpeed"]:checked');
+    var speed = speedEl ? speedEl.value : "quality";
 
     var err = validFile(a, "first clip") || validFile(b, "second clip");
     if (err) { setStatus(err, "error"); return; }
@@ -135,6 +137,7 @@
     fd.append("prompt", prompt);
     fd.append("mode", mode);
     fd.append("orientation", orientation);
+    fd.append("speed", speed);
 
     var jobId;
     try {
