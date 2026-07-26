@@ -1846,3 +1846,20 @@ video.upload-preview {
 .frame-preview { background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 120px; }
 .frame-preview img { width: 100%; height: auto; display: block; max-height: 340px; object-fit: contain; }
 .frame-res { margin: 12px 0; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 0.9rem; color: var(--color-text-muted, #6a6a6a); }
+
+/* AI Transitions — "Blend two clips" generator */
+.blend-tool { max-width: 900px; margin: 0 auto; }
+.blend-divider { display: flex; align-items: center; text-align: center; color: var(--color-text-muted, #6a6a6a); max-width: 900px; margin: 0 auto 8px; }
+.blend-divider::before, .blend-divider::after { content: ""; flex: 1; height: 1px; background: var(--color-border, #e2e2e2); }
+.blend-divider span { padding: 0 16px; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; }
+.blend-inputs { display: grid; gap: 16px; }
+@media (min-width: 720px) { .blend-inputs { grid-template-columns: 1fr 1fr; } }
+.blend-mode { display: flex; flex-direction: column; gap: 8px; }
+.blend-radio { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.blend-radio input { width: auto; margin: 0; }
+.blend-progress { margin-top: 18px; }
+.blend-progress-bar { height: 10px; border-radius: 999px; background: var(--color-border, #e2e2e2); overflow: hidden; }
+.blend-progress-bar > span { display: block; height: 100%; width: 0; background: var(--color-primary, #6c5ce7); transition: width 0.4s ease; }
+.blend-progress-label { margin: 8px 0 0; font-size: 0.9rem; color: var(--color-text-muted, #6a6a6a); }
+.blend-result { margin-top: 24px; }
+.blend-video { width: 100%; max-height: 460px; background: #000; border-radius: 10px; display: block; }
