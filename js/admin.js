@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var adminUserId = null;
+  var adminEmail = null;
 
   init();
 
@@ -38,6 +39,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     adminUserId = user.id;
+    adminEmail = user.email || null;
     panelEl.style.display = "block";
     setupTabs();
     loadAccessRequests();
@@ -45,7 +47,62 @@ document.addEventListener("DOMContentLoaded", function () {
     loadUsers();
     loadGalleryMod();
     loadFlags();
+    loadRenderSeat();
     loadAnalytics();
+  }
+
+  // ---- Render seat (AI Transitions generator) ----
+  async function loadRenderSeat() {
+    var currentEl = document.getElementById("renderSeatCurrent");
+    var select = document.getElementById("renderSeatUser");
+    if (!currentEl || !select) return;
+
+    var seatRes = await client.from("render_seat").select("holder_id, holder_email, assigned_at").eq("id", true).single();
+    var holderId = seatRes.data ? seatRes.data.holder_id : null;
+    var holderEmail = seatRes.data ? seatRes.data.holder_email : null;
+
+    currentEl.innerHTML = holderId
+      ? 'Current seat holder: <strong>' + escapeHtml(holderEmail || holderId) + '</strong>' +
+        (holderId === adminUserId ? ' <span class="tag">you</span>' : '')
+      : '<em>No one currently holds the seat.</em>';
+
+    var usersRes = await client.from("profiles").select("id, email").order("email", { ascending: true });
+    var users = (usersRes.data || []);
+    select.innerHTML = users.map(function (u) {
+      var sel = u.id === holderId ? " selected" : "";
+      return '<option value="' + escapeHtml(u.id) + '" data-email="' + escapeHtml(u.email || "") + '"' + sel + '>' + escapeHtml(u.email || u.id) + '</option>';
+    }).join("");
+
+    var form = document.getElementById("renderSeatForm");
+    var resetBtn = document.getElementById("renderSeatReset");
+    if (form && !form.dataset.wired) {
+      form.dataset.wired = "1";
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var opt = select.options[select.selectedIndex];
+        if (!opt) return;
+        assignSeat(opt.value, opt.getAttribute("data-email"));
+      });
+      resetBtn.addEventListener("click", function () {
+        assignSeat(adminUserId, adminEmail);
+      });
+    }
+  }
+
+  async function assignSeat(userId, email) {
+    var statusEl = document.getElementById("renderSeatStatus");
+    if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "form-status"; }
+    var r = await client.from("render_seat").update({
+      holder_id: userId,
+      holder_email: email || null,
+      assigned_by: adminUserId,
+      assigned_at: new Date().toISOString()
+    }).eq("id", true);
+    if (statusEl) {
+      if (r.error) { statusEl.textContent = "Couldn’t update the seat: " + r.error.message; statusEl.className = "form-status error"; }
+      else { statusEl.textContent = "Seat assigned to " + (email || userId) + "."; statusEl.className = "form-status success"; }
+    }
+    loadRenderSeat();
   }
 
   function setupTabs() {
