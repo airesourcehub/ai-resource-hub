@@ -46,6 +46,22 @@
       refreshGate();
     });
     if (genBtn) genBtn.addEventListener("click", onGenerate);
+
+    var lockBtn = document.getElementById("blendIdentityLock");
+    if (lockBtn) lockBtn.addEventListener("click", addIdentityLock);
+  }
+
+  // Text appended when the user hits "Identity Lock" — keeps people/characters
+  // looking the same from the first clip through to the second.
+  var IDENTITY_LOCK_TEXT = "Preserve the exact identity of every person and character: keep each face, facial features, hair, skin tone, body, and clothing perfectly consistent and recognizable from the first frame to the last. Do not morph, swap, distort, age, or change anyone's identity.";
+
+  function addIdentityLock() {
+    var box = document.getElementById("blendPrompt");
+    if (!box) return;
+    if (box.value.indexOf("Preserve the exact identity") !== -1) return; // already added
+    var cur = box.value.trim();
+    box.value = cur ? (cur + " " + IDENTITY_LOCK_TEXT) : IDENTITY_LOCK_TEXT;
+    box.focus();
   }
 
   async function getToken() {
