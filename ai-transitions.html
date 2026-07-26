@@ -88,6 +88,67 @@
     </div>
   </section>
 
+  <section class="alt-bg">
+    <div class="container">
+      <div class="blend-divider"><span>or</span></div>
+
+      <div class="blend-tool" id="blendTool">
+        <div class="section-header">
+          <h2>Blend two clips with AI</h2>
+          <p>Load the two clips you want to join and describe the transition. We take the <strong>last frame of the first clip</strong> and the <strong>first frame of the second</strong>, generate an AI blend between them on our own hardware, and give you a scrubable preview plus a downloadable file.</p>
+        </div>
+
+        <div id="blendGate" class="info-banner" style="display:none;"></div>
+
+        <div id="blendForm" style="display:none;">
+          <div class="blend-inputs">
+            <div class="field">
+              <label for="blendVideoA">First clip <span class="frame-res" style="margin:0;">&mdash; blends from its last frame</span></label>
+              <input type="file" id="blendVideoA" accept="video/*" />
+            </div>
+            <div class="field">
+              <label for="blendVideoB">Second clip <span class="frame-res" style="margin:0;">&mdash; blends into its first frame</span></label>
+              <input type="file" id="blendVideoB" accept="video/*" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="blendPrompt">Describe the transition</label>
+            <textarea id="blendPrompt" rows="3" placeholder="e.g. a smooth liquid morph, camera pushing through a burst of light&hellip;"></textarea>
+          </div>
+
+          <div class="field">
+            <label>Output</label>
+            <div class="blend-mode">
+              <label class="blend-radio"><input type="radio" name="blendMode" value="stitched" checked /> Full sequence <span class="frame-res" style="margin:0;">(clip A + transition + clip B)</span></label>
+              <label class="blend-radio"><input type="radio" name="blendMode" value="transition_only" /> Transition clip only</label>
+            </div>
+          </div>
+
+          <div class="output-actions">
+            <button type="button" class="btn btn-primary" id="blendGenerateBtn">Generate transition</button>
+          </div>
+
+          <div class="form-status" id="blendStatus"></div>
+
+          <div class="blend-progress" id="blendProgress" style="display:none;">
+            <div class="blend-progress-bar"><span id="blendProgressFill"></span></div>
+            <p class="blend-progress-label" id="blendProgressLabel"></p>
+          </div>
+
+          <div class="blend-result" id="blendResult" style="display:none;">
+            <h3>Result</h3>
+            <video id="blendResultVideo" controls playsinline preload="auto" class="blend-video"></video>
+            <div class="output-actions">
+              <a class="btn btn-primary" id="blendDownloadMp4" download>Download MP4</a>
+              <a class="btn btn-secondary" id="blendDownloadMov" download>Download MOV</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="ad-slot">
     <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
   </div>
@@ -125,5 +186,6 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/ai-transitions.js"></script>
+<script src="js/ai-transitions-blend.js"></script>
 </body>
 </html>

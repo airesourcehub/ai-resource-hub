@@ -72,6 +72,7 @@
           <button class="admin-tab" data-admin-tab="users">Users</button>
           <button class="admin-tab" data-admin-tab="gallery">Gallery Moderation</button>
           <button class="admin-tab" data-admin-tab="flags">Reports</button>
+          <button class="admin-tab" data-admin-tab="render">Render Seat</button>
           <button class="admin-tab" data-admin-tab="analytics">Analytics</button>
         </div>
 
@@ -123,6 +124,20 @@
             </select>
           </div>
           <div id="flagsList" class="admin-list"></div>
+        </div>
+
+        <!-- RENDER SEAT -->
+        <div class="admin-panel" id="admin-render">
+          <h3>AI Transitions — render seat</h3>
+          <p class="model-note" style="margin:0 0 16px;">The AI transition generator runs on your own hardware and serves <strong>one user at a time</strong>. Whoever holds the seat below is the only person who can generate transitions. You are the default holder.</p>
+          <div class="admin-seat-current" id="renderSeatCurrent" style="margin-bottom:18px;"></div>
+          <form id="renderSeatForm" class="admin-inline-form">
+            <label for="renderSeatUser">Assign seat to:</label>
+            <select id="renderSeatUser"></select>
+            <button type="submit" class="btn btn-primary">Assign</button>
+            <button type="button" class="btn btn-secondary" id="renderSeatReset">Reset to me</button>
+          </form>
+          <div class="form-status" id="renderSeatStatus"></div>
         </div>
 
         <!-- ANALYTICS -->
