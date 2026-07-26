@@ -98,6 +98,8 @@
     var prompt = (document.getElementById("blendPrompt").value || "").trim();
     var modeEl = document.querySelector('input[name="blendMode"]:checked');
     var mode = modeEl ? modeEl.value : "stitched";
+    var orientEl = document.querySelector('input[name="blendOrient"]:checked');
+    var orientation = orientEl ? orientEl.value : "landscape";
 
     var err = validFile(a, "first clip") || validFile(b, "second clip");
     if (err) { setStatus(err, "error"); return; }
@@ -116,6 +118,7 @@
     fd.append("videoB", b);
     fd.append("prompt", prompt);
     fd.append("mode", mode);
+    fd.append("orientation", orientation);
 
     var jobId;
     try {
