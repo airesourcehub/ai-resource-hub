@@ -28,6 +28,10 @@
 
   var currentUser = null, pollTimer = null, pollFails = 0, lastJobId = null;
 
+  var FPS_VALUES = [16, 24, 30];
+  var STEP_VALUES = [4, 8, 10, 12];
+  var STEP_WORDS = ["Fastest", "Balanced", "High", "Max"];
+
   var IDENTITY_LOCK_TEXT = "Preserve the exact identity of the character from the reference image: keep the face, facial features, hair, skin tone, and clothing perfectly consistent and recognizable throughout. Do not morph, swap, distort, age, or change the character's identity.";
 
   init();
@@ -49,6 +53,39 @@
     if (expandBtn) expandBtn.addEventListener("click", function () {
       if (resultVideo && resultVideo.src && typeof window.openRenderLightbox === "function") window.openRenderLightbox(resultVideo.src);
     });
+
+    wireControls();
+  }
+
+  // fps + steps sliders, preset buttons, and the heavy-render warning.
+  function wireControls() {
+    var fps = document.getElementById("motionFps");
+    var steps = document.getElementById("motionSteps");
+    var fastBtn = document.getElementById("motionPresetFast");
+    var qualBtn = document.getElementById("motionPresetQuality");
+    if (fps) fps.addEventListener("input", updateControls);
+    if (steps) steps.addEventListener("input", updateControls);
+    if (fastBtn) fastBtn.addEventListener("click", function () { if (steps) steps.value = "0"; updateControls(); });
+    if (qualBtn) qualBtn.addEventListener("click", function () { if (steps) steps.value = "1"; updateControls(); });
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="motionLength"]'),
+      function (r) { r.addEventListener("change", updateControls); });
+    updateControls();
+  }
+
+  function getFps() { var s = document.getElementById("motionFps"); return FPS_VALUES[s ? +s.value : 0] || 16; }
+  function getSteps() { var s = document.getElementById("motionSteps"); return STEP_VALUES[s ? +s.value : 0] || 4; }
+
+  function updateControls() {
+    var fps = getFps(), steps = getSteps();
+    var idx = STEP_VALUES.indexOf(steps);
+    var fl = document.getElementById("motionFpsLabel");
+    var sl = document.getElementById("motionStepsLabel");
+    if (fl) fl.innerHTML = "&mdash; " + fps + " fps" + (fps === 16 ? " (standard)" : fps === 30 ? " (ultra-smooth)" : " (cinematic)");
+    if (sl) sl.innerHTML = "&mdash; " + steps + " steps (" + (STEP_WORDS[idx] || "") + ")";
+    var lenEl = document.querySelector('input[name="motionLength"]:checked');
+    var len = lenEl ? lenEl.value : "5";
+    var note = document.getElementById("motionHeavyNote");
+    if (note) note.style.display = (fps === 30 && len === "10") ? "" : "none";
   }
 
   // Wire a prompt-enhancement button: append its phrase once (dedup by marker).
@@ -107,10 +144,10 @@
     var prompt = (document.getElementById("motionPrompt").value || "").trim();
     var orientEl = document.querySelector('input[name="motionOrient"]:checked');
     var orientation = orientEl ? orientEl.value : "landscape";
-    var speedEl = document.querySelector('input[name="motionSpeed"]:checked');
-    var speed = speedEl ? speedEl.value : "quality";
     var lengthEl = document.querySelector('input[name="motionLength"]:checked');
     var length = lengthEl ? lengthEl.value : "5";
+    var fps = getFps();
+    var steps = getSteps();
 
     var err = validFile(img, "image", "Reference image") || validFile(vid, "video", "Driving video");
     if (err) { setStatus(err, "error"); return; }
@@ -131,8 +168,9 @@
     fd.append("video", vid);
     fd.append("prompt", prompt || "A cinematic video of the character performing the motion, natural lighting, sharp focus, high detail.");
     fd.append("orientation", orientation);
-    fd.append("speed", speed);
     fd.append("length", length);
+    fd.append("fps", String(fps));
+    fd.append("steps", String(steps));
 
     var jobId;
     try {

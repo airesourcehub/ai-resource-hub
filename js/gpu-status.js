@@ -80,7 +80,7 @@
       var r = await fetch(RENDER_ENDPOINT + "/gpu", { headers: { "Authorization": "Bearer " + token } });
       if (!r.ok) throw new Error("HTTP " + r.status);
       var d = await r.json();
-      renderGpu(d.gpus || []);
+      renderStats(d.gpus || [], d.cpu || null);
       document.getElementById("gpuStamp").textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
       document.getElementById("gpuCards").innerHTML =
@@ -88,10 +88,19 @@
     }
   }
 
-  function renderGpu(gpus) {
+  function renderStats(gpus, cpu) {
     var host = document.getElementById("gpuCards");
-    if (!gpus.length) { host.innerHTML = '<p class="model-note">No GPU reported.</p>'; return; }
-    host.innerHTML = gpus.map(function (g) {
+    var html = "";
+    if (cpu) {
+      var ramPct = cpu.ram_total ? (cpu.ram_used / cpu.ram_total * 100) : 0;
+      html += '<div class="gpu-card">' +
+        '<div class="gpu-name">CPU' + (cpu.cores ? ' <span class="frame-res" style="margin:0;">' + cpu.cores + ' threads</span>' : '') + '</div>' +
+        meter("Utilization", cpu.percent != null ? Math.round(cpu.percent) + "%" : "—", cpu.percent || 0) +
+        meter("System RAM", fmtMem(cpu.ram_used) + " / " + fmtMem(cpu.ram_total), ramPct) +
+      '</div>';
+    }
+    if (!gpus.length && !cpu) { host.innerHTML = '<p class="model-note">No GPU reported.</p>'; return; }
+    html += gpus.map(function (g) {
       var memPct = (g.mem_total ? (g.mem_used / g.mem_total * 100) : 0);
       return '<div class="gpu-card">' +
         '<div class="gpu-name">' + esc(g.name || "GPU") + '</div>' +
@@ -103,6 +112,7 @@
         '</div>' +
       '</div>';
     }).join("");
+    host.innerHTML = html;
   }
 
   function meter(label, val, pct) {
