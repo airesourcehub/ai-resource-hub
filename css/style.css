@@ -1900,3 +1900,11 @@ video.upload-preview {
 /* AI Transitions — music-sync callout note (clean block, not flex) */
 .blend-note { display: block; background: var(--color-bg-alt, #fafafa); border: 1px solid var(--color-border, #e2e2e2); border-left: 3px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 12px 16px; margin: 0 0 20px; font-size: 0.92rem; line-height: 1.55; color: var(--color-text, inherit); }
 .blend-note strong { font-weight: 600; }
+
+/* Render "Expand" lightbox — larger centered popup (not fullscreen) */
+.render-lightbox { position: fixed; inset: 0; z-index: 500; display: none; align-items: center; justify-content: center; padding: 28px; background: rgba(0,0,0,0.82); }
+.render-lightbox.open { display: flex; }
+.render-lightbox-inner { position: relative; width: min(90vw, 1100px); max-height: 88vh; }
+.render-lightbox-video { width: 100%; max-height: 88vh; background: #000; border-radius: 12px; display: block; }
+.render-lightbox-close { position: absolute; top: -16px; right: -16px; width: 42px; height: 42px; border-radius: 50%; border: none; background: #fff; color: #111; font-size: 26px; line-height: 1; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+.render-lightbox-close:hover { background: #eee; }
