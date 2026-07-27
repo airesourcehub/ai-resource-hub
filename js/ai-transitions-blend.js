@@ -34,6 +34,7 @@
 
   var currentUser = null;
   var pollTimer = null;
+  var pollFails = 0;
 
   init();
 
@@ -159,17 +160,21 @@
     }
 
     setStatus("Generating your transition — this can take a few minutes. You can leave this tab open.");
-    pollJob(jobId, token);
+    pollFails = 0;
+    pollJob(jobId);
   }
 
-  function pollJob(jobId, token) {
+  function pollJob(jobId) {
     clearTimeout(pollTimer);
     pollTimer = setTimeout(async function () {
       try {
+        // Refresh the token every poll so long renders don't expire mid-way.
+        var token = await getToken();
         var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, {
           headers: { "Authorization": "Bearer " + token }
         });
         if (!r.ok) throw new Error("HTTP " + r.status);
+        pollFails = 0;
         var j = await r.json();
 
         if (j.status === "done") { showProgress(100, "Done"); onDone(j); return; }
@@ -177,10 +182,16 @@
 
         var p = Math.max(2, Math.min(99, j.progress || 0));
         showProgress(p, j.stage || (j.status === "processing" ? "Generating…" : "Queued…"));
-        pollJob(jobId, token);
+        pollJob(jobId);
       } catch (e) {
-        setStatus("Lost connection to the render service. It may have gone offline.", "error");
-        reset();
+        // Tolerate transient blips (token refresh, brief network drop) before giving up.
+        pollFails++;
+        if (pollFails >= 5) {
+          setStatus("Lost connection to the render service — but your render may still finish. Check “My Renders” in a few minutes.", "error");
+          reset();
+          return;
+        }
+        pollJob(jobId);
       }
     }, POLL_MS);
   }
@@ -200,6 +211,11 @@
 
     resultWrap.style.display = "";
     try { resultVideo.load(); } catch (e) {}
+
+    // Refresh the "recent renders" strip so the new one shows up immediately.
+    if (typeof window.reloadRenderArchive === "function") {
+      setTimeout(window.reloadRenderArchive, 1500);
+    }
   }
 
   function absUrl(u) {
