@@ -1896,3 +1896,7 @@ video.upload-preview {
 .mode-switch { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 18px; border: 1px solid var(--color-border, #e2e2e2); border-radius: 999px; background: var(--color-bg-alt, #fafafa); }
 .mode-btn { border: none; background: transparent; padding: 8px 20px; border-radius: 999px; cursor: pointer; font-size: 0.92rem; color: var(--color-text, inherit); }
 .mode-btn.active { background: var(--color-primary, #6c5ce7); color: #fff; }
+
+/* AI Transitions — music-sync callout note (clean block, not flex) */
+.blend-note { display: block; background: var(--color-bg-alt, #fafafa); border: 1px solid var(--color-border, #e2e2e2); border-left: 3px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 12px 16px; margin: 0 0 20px; font-size: 0.92rem; line-height: 1.55; color: var(--color-text, inherit); }
+.blend-note strong { font-weight: 600; }
