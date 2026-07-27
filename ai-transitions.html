@@ -101,13 +101,19 @@
         <div id="blendGate" class="info-banner" style="display:none;"></div>
 
         <div id="blendForm" style="display:none;">
+          <div class="mode-switch" id="blendModeSwitch">
+            <button type="button" class="mode-btn active" data-tmode="transition">AI Transition</button>
+            <button type="button" class="mode-btn" data-tmode="music">Music Sync</button>
+          </div>
+          <p class="user-notice" id="musicNote" style="display:none;">&#127925; <strong>Music Sync mode:</strong> both clips must be synced to the <strong>exact same audio</strong>. We detect that shared beat, cut each clip on the nearest beat to its middle, and time the transition to land on the beat.</p>
+
           <div class="blend-inputs">
             <div class="field">
-              <label for="blendVideoA">First clip <span class="frame-res" style="margin:0;">&mdash; blends from its last frame</span></label>
+              <label for="blendVideoA">First clip <span class="frame-res" id="hintA" style="margin:0;">&mdash; blends from its last frame</span></label>
               <input type="file" id="blendVideoA" accept="video/*" />
             </div>
             <div class="field">
-              <label for="blendVideoB">Second clip <span class="frame-res" style="margin:0;">&mdash; blends into its first frame</span></label>
+              <label for="blendVideoB">Second clip <span class="frame-res" id="hintB" style="margin:0;">&mdash; blends into its first frame</span></label>
               <input type="file" id="blendVideoB" accept="video/*" />
             </div>
           </div>
@@ -137,7 +143,7 @@
             </div>
           </div>
 
-          <div class="field">
+          <div class="field" id="blendOutputField">
             <label>Output</label>
             <div class="blend-mode">
               <label class="blend-radio"><input type="radio" name="blendMode" value="stitched" checked /> Full sequence <span class="frame-res" style="margin:0;">(clip A + transition + clip B)</span></label>
@@ -163,70 +169,6 @@
             <div class="output-actions">
               <a class="btn btn-primary" id="blendDownloadMp4" download>Download MP4</a>
               <a class="btn btn-secondary" id="blendDownloadMov" download>Download MOV</a>
-            </div>
-          </div>
-
-          <!-- MUSIC SYNC TRANSITION -->
-          <div class="blend-divider" style="margin-top:48px;"><span>or</span></div>
-          <div class="section-header">
-            <h2>Music Sync Transition</h2>
-            <p>Upload two clips that move to the same beat. We detect the beat in each, cut them on the nearest beat to their middle, blend them with an AI transition timed to the beat, and keep the music playing continuously across the whole thing.</p>
-          </div>
-
-          <div class="blend-inputs">
-            <div class="field">
-              <label for="musicVideoA">First clip <span class="frame-res" style="margin:0;">&mdash; with its music/beat</span></label>
-              <input type="file" id="musicVideoA" accept="video/*" />
-            </div>
-            <div class="field">
-              <label for="musicVideoB">Second clip <span class="frame-res" style="margin:0;">&mdash; same beat</span></label>
-              <input type="file" id="musicVideoB" accept="video/*" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="musicPrompt">Describe the transition</label>
-            <textarea id="musicPrompt" rows="3" placeholder="e.g. a punchy zoom-blur cut, a swirl of light on the beat drop&hellip;"></textarea>
-            <div class="blend-prompt-tools">
-              <button type="button" class="btn btn-secondary btn-small" id="musicIdentityLock">🔒 Identity Lock</button>
-              <span class="frame-res" style="margin:0;">Keeps every person &amp; character consistent across the blend.</span>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Resolution</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="musicOrient" value="landscape" checked /> Landscape <span class="frame-res" style="margin:0;">(1280 &times; 720)</span></label>
-              <label class="blend-radio"><input type="radio" name="musicOrient" value="portrait" /> Portrait <span class="frame-res" style="margin:0;">(720 &times; 1280)</span></label>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Speed &amp; quality</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="musicSpeed" value="quality" checked /> Highest quality <span class="frame-res" style="margin:0;">(20 steps &mdash; best, slower)</span></label>
-              <label class="blend-radio"><input type="radio" name="musicSpeed" value="fast" /> Fast <span class="frame-res" style="margin:0;">(4-step LoRA &mdash; much quicker)</span></label>
-            </div>
-          </div>
-
-          <div class="output-actions">
-            <button type="button" class="btn btn-primary" id="musicGenerateBtn">Generate music-synced transition</button>
-            <button type="button" class="btn btn-danger" id="musicDeleteBtn" style="display:none;">Delete this render</button>
-          </div>
-
-          <div class="form-status" id="musicStatus"></div>
-
-          <div class="blend-progress" id="musicProgress" style="display:none;">
-            <div class="blend-progress-bar"><span id="musicProgressFill"></span></div>
-            <p class="blend-progress-label" id="musicProgressLabel"></p>
-          </div>
-
-          <div class="blend-result" id="musicResult" style="display:none;">
-            <h3>Result</h3>
-            <video id="musicResultVideo" controls playsinline preload="auto" class="blend-video"></video>
-            <div class="output-actions">
-              <a class="btn btn-primary" id="musicDownloadMp4" download>Download MP4</a>
-              <a class="btn btn-secondary" id="musicDownloadMov" download>Download MOV</a>
             </div>
           </div>
         </div>
@@ -280,7 +222,6 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/ai-transitions.js"></script>
 <script src="js/ai-transitions-blend.js"></script>
-<script src="js/ai-transitions-music.js"></script>
 <script src="js/render-archive.js"></script>
 </body>
 </html>
