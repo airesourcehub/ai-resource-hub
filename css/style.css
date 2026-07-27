@@ -1913,3 +1913,52 @@ video.upload-preview {
 .file-thumb { margin-top: 10px; }
 .file-thumb img, .file-thumb video { max-width: 100%; max-height: 170px; display: block; border-radius: 8px; background: #000; border: 1px solid var(--color-border, #e2e2e2); }
 .file-thumb-loading { font-size: 0.85rem; color: var(--color-text-muted, #6a6a6a); }
+
+/* Global render-status pill (fixed, top-right, on every page) */
+.render-pill {
+  position: fixed; top: 74px; right: 16px; z-index: 1200;
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  border-radius: 999px; box-shadow: var(--shadow-md);
+  max-width: min(360px, calc(100vw - 32px)); overflow: hidden;
+  font-family: var(--font-body);
+}
+.render-pill-main {
+  display: flex; align-items: center; gap: 9px;
+  background: transparent; border: 0; cursor: pointer;
+  padding: 8px 6px 8px 14px; min-width: 0; color: var(--color-text);
+}
+.render-pill-body { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.render-pill-text {
+  font-size: 0.82rem; font-weight: 600; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;
+}
+.render-pill-track {
+  margin-top: 5px; width: 220px; max-width: 100%; height: 4px;
+  background: var(--color-border); border-radius: 999px; overflow: hidden;
+}
+.render-pill-fill { display: block; height: 100%; width: 2%; background: var(--color-accent); transition: width 0.4s ease; }
+.render-pill-dot {
+  flex: none; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--color-accent); box-shadow: 0 0 0 0 var(--color-accent);
+  animation: render-pulse 1.6s ease-out infinite;
+}
+.render-pill.is-done .render-pill-dot { background: var(--color-success); animation: none; }
+.render-pill.is-done .render-pill-fill { background: var(--color-success); }
+.render-pill.is-error .render-pill-dot { background: var(--color-red); animation: none; }
+.render-pill.is-error .render-pill-fill { background: var(--color-red); }
+.render-pill-close {
+  background: transparent; border: 0; border-left: 1px solid var(--color-border);
+  cursor: pointer; color: var(--color-text-muted); font-size: 1.1rem; line-height: 1;
+  padding: 0 12px; align-self: stretch;
+}
+.render-pill-close:hover { color: var(--color-text); background: var(--color-bg-alt); }
+@keyframes render-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(26, 138, 68, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(26, 138, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(26, 138, 68, 0); }
+}
+@media (max-width: 640px) {
+  .render-pill { top: auto; bottom: 16px; right: 12px; left: 12px; max-width: none; }
+  .render-pill-track, .render-pill-text { width: auto; max-width: none; }
+}
