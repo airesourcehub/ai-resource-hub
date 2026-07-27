@@ -77,7 +77,18 @@
             <textarea id="motionPrompt" rows="3" placeholder="e.g. a cinematic shot of the character dancing, natural lighting, sharp focus&hellip;"></textarea>
             <div class="blend-prompt-tools">
               <button type="button" class="btn btn-secondary btn-small" id="motionIdentityLock">🔒 Identity Lock</button>
-              <span class="frame-res" style="margin:0;">Adds wording to keep the character&rsquo;s face &amp; appearance consistent.</span>
+              <button type="button" class="btn btn-secondary btn-small" id="motionHandheld">🎥 Handheld Shake</button>
+              <button type="button" class="btn btn-secondary btn-small" id="motionAnimateBg">🌆 Animate Background</button>
+              <button type="button" class="btn btn-secondary btn-small" id="motionDancers">💃 Backup Dancers</button>
+            </div>
+            <p class="frame-res" style="margin:6px 0 0;">Tap to add music-video style directions to your prompt &mdash; they stack.</p>
+          </div>
+
+          <div class="field">
+            <label>Length</label>
+            <div class="blend-mode">
+              <label class="blend-radio"><input type="radio" name="motionLength" value="5" checked /> 5 seconds</label>
+              <label class="blend-radio"><input type="radio" name="motionLength" value="10" /> 10 seconds <span class="frame-res" style="margin:0;">(heavier &mdash; slower)</span></label>
             </div>
           </div>
 
