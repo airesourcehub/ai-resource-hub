@@ -110,7 +110,8 @@
     var mp4 = abs(r.result_url);
     var mov = r.result_mov_url ? abs(r.result_mov_url) : null;
     var when = new Date(r.created_at).toLocaleString();
-    var kind = r.mode === "stitched" ? "Full sequence" : "Transition only";
+    var kind = r.mode === "music_sync" ? "Music sync"
+             : r.mode === "stitched" ? "Full sequence" : "Transition only";
     var moveSel = "";
     if (fullList) {
       var opts = '<option value="">Unfiled</option>' + folders.map(function (f) {
