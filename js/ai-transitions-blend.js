@@ -37,6 +37,7 @@
   var pollTimer = null;
   var pollFails = 0;
   var lastJobId = null;
+  var currentTMode = "transition"; // 'transition' | 'music'
 
   init();
 
@@ -53,6 +54,43 @@
 
     var lockBtn = document.getElementById("blendIdentityLock");
     if (lockBtn) lockBtn.addEventListener("click", addIdentityLock);
+
+    var sw = document.getElementById("blendModeSwitch");
+    if (sw) {
+      var btns = sw.querySelectorAll(".mode-btn");
+      Array.prototype.forEach.call(btns, function (btn) {
+        btn.addEventListener("click", function () { setTMode(btn.getAttribute("data-tmode")); });
+      });
+    }
+  }
+
+  // Switch the single generator between AI-transition and music-sync modes.
+  function setTMode(m) {
+    currentTMode = (m === "music") ? "music" : "transition";
+    var sw = document.getElementById("blendModeSwitch");
+    if (sw) {
+      var btns = sw.querySelectorAll(".mode-btn");
+      Array.prototype.forEach.call(btns, function (b) {
+        b.classList.toggle("active", b.getAttribute("data-tmode") === currentTMode);
+      });
+    }
+    var note = document.getElementById("musicNote");
+    var outField = document.getElementById("blendOutputField");
+    var hintA = document.getElementById("hintA");
+    var hintB = document.getElementById("hintB");
+    if (currentTMode === "music") {
+      if (note) note.style.display = "";
+      if (outField) outField.style.display = "none";
+      if (hintA) hintA.innerHTML = "— with its music/beat";
+      if (hintB) hintB.innerHTML = "— the exact same audio";
+      if (genBtn) genBtn.textContent = "Generate music-synced transition";
+    } else {
+      if (note) note.style.display = "none";
+      if (outField) outField.style.display = "";
+      if (hintA) hintA.innerHTML = "— blends from its last frame";
+      if (hintB) hintB.innerHTML = "— blends into its first frame";
+      if (genBtn) genBtn.textContent = "Generate transition";
+    }
   }
 
   // Text appended when the user hits "Identity Lock" — keeps people/characters
@@ -159,9 +197,14 @@
     fd.append("videoA", a);
     fd.append("videoB", b);
     fd.append("prompt", prompt);
-    fd.append("mode", mode);
     fd.append("orientation", orientation);
     fd.append("speed", speed);
+    if (currentTMode === "music") {
+      fd.append("kind", "music_sync");
+    } else {
+      fd.append("kind", "blend");
+      fd.append("mode", mode);
+    }
 
     var jobId;
     try {
