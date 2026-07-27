@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Render Status — AI Resource Hub</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="ai-transitions.html">AI Transitions</a></li>
+      <li><a href="motion-transfer.html">Motion Transfer</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+
+  <div class="page-header">
+    <div class="container">
+      <h1>Render Status</h1>
+      <p>Live status of the render machine &mdash; what the GPU is doing right now, and the job currently running with its estimated time remaining.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+      <div id="gpuGate" class="info-banner" style="display:none;"></div>
+
+      <div id="gpuBody" style="display:none;">
+        <div class="status-card">
+          <div class="section-header"><h2>Current render</h2></div>
+          <div id="jobNone" class="model-note">No render is running right now.</div>
+          <div id="jobActive" style="display:none;">
+            <div class="status-row"><span class="status-key">Tool</span><span class="status-val" id="jobTool">&mdash;</span></div>
+            <div class="status-row"><span class="status-key">Stage</span><span class="status-val" id="jobStage">&mdash;</span></div>
+            <div class="blend-progress" style="display:block;margin:16px 0;">
+              <div class="blend-progress-bar"><span id="jobFill" style="width:2%;"></span></div>
+            </div>
+            <div class="status-grid">
+              <div class="status-metric"><span class="status-metric-label">Estimated time left</span><span class="status-metric-val" id="jobEta">&mdash;</span></div>
+              <div class="status-metric"><span class="status-metric-label">Elapsed</span><span class="status-metric-val" id="jobElapsed">&mdash;</span></div>
+              <div class="status-metric"><span class="status-metric-label">Progress</span><span class="status-metric-val" id="jobPct">&mdash;</span></div>
+            </div>
+            <div class="output-actions" style="margin-top:16px;">
+              <button type="button" class="btn btn-danger" id="jobCancelBtn">Cancel this render</button>
+            </div>
+            <div class="form-status" id="jobMsg"></div>
+          </div>
+        </div>
+
+        <div class="status-card" style="margin-top:28px;">
+          <div class="section-header"><h2>GPU</h2></div>
+          <div id="gpuCards"><p class="model-note">Reading GPU&hellip;</p></div>
+          <p class="frame-res" id="gpuStamp" style="margin-top:12px;"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="ai-transitions.html">AI Transitions</a></li>
+        <li><a href="motion-transfer.html">Motion Transfer</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+<script src="js/render-status.js"></script>
+<script src="js/gpu-status.js"></script>
+</body>
+</html>
