@@ -15,6 +15,7 @@
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   var genBtn = document.getElementById("motionGenerateBtn");
+  var cancelBtn = document.getElementById("motionCancelBtn");
   var deleteBtn = document.getElementById("motionDeleteBtn");
   var statusEl = document.getElementById("motionStatus");
   var progress = document.getElementById("motionProgress");
@@ -38,6 +39,7 @@
     client.auth.onAuthStateChange(function (_e, session) { currentUser = session ? session.user : null; refreshGate(); });
 
     if (genBtn) genBtn.addEventListener("click", onGenerate);
+    if (cancelBtn) cancelBtn.addEventListener("click", cancelRender);
     if (deleteBtn) deleteBtn.addEventListener("click", deleteCurrent);
     wirePhrase("motionIdentityLock", "Preserve the exact identity", IDENTITY_LOCK_TEXT);
     wirePhrase("motionHandheld", "handheld camera", "Filmed on a handheld camera with subtle, realistic camera shake and organic movement, like a live music video — slight bobbing, drift, and natural instability that adds dynamic energy.");
@@ -119,6 +121,7 @@
 
     genBtn.disabled = true;
     if (deleteBtn) deleteBtn.style.display = "none";
+    if (cancelBtn) { cancelBtn.style.display = ""; cancelBtn.disabled = false; cancelBtn.textContent = "Cancel render"; }
     resultWrap.style.display = "none";
     setStatus("Uploading your files…");
     showProgress(2, "Uploading…");
@@ -161,8 +164,11 @@
         pollFails = 0;
         var j = await r.json();
         if (j.status === "done") { showProgress(100, "Done"); onDone(j); return; }
+        if (j.status === "cancelled") { setStatus("Render cancelled.", "error"); reset(); return; }
         if (j.status === "error") { setStatus("Generation failed: " + (j.error || "unknown error"), "error"); reset(); return; }
-        showProgress(Math.max(2, Math.min(99, j.progress || 0)), j.stage || "Generating…");
+        var lbl = j.stage || "Generating…";
+        if (j.eta_seconds != null && j.eta_seconds > 0) lbl += " • ~" + fmtDur(j.eta_seconds) + " left";
+        showProgress(Math.max(2, Math.min(99, j.progress || 0)), lbl);
         pollJob(jobId);
       } catch (e) {
         pollFails++;
@@ -174,6 +180,7 @@
 
   function onDone(j) {
     genBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = "none";
     progress.style.display = "none";
     setStatus("Motion transfer ready.", "success");
     var cb = "v=" + Date.now();
@@ -214,5 +221,27 @@
     return RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u;
   }
   function showProgress(pct, label) { progress.style.display = ""; progressFill.style.width = pct + "%"; progressLabel.textContent = label || ""; }
-  function reset() { genBtn.disabled = false; progress.style.display = "none"; clearTimeout(pollTimer); }
+  function reset() { genBtn.disabled = false; if (cancelBtn) cancelBtn.style.display = "none"; progress.style.display = "none"; clearTimeout(pollTimer); }
+
+  async function cancelRender() {
+    if (!lastJobId) return;
+    if (!window.confirm("Cancel this render? It will stop immediately and free the GPU.")) return;
+    cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
+    try {
+      var token = await freshToken();
+      await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      setStatus("Cancelling the render…");
+    } catch (e) {
+      cancelBtn.disabled = false; cancelBtn.textContent = "Cancel render";
+      setStatus("Couldn’t reach the render service to cancel.", "error");
+    }
+  }
+
+  function fmtDur(s) {
+    s = Math.max(0, Math.round(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h) return h + "h " + m + "m";
+    if (m) return m + "m";
+    return sec + "s";
+  }
 })();

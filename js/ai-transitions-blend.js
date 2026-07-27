@@ -23,6 +23,7 @@
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   var genBtn = document.getElementById("blendGenerateBtn");
+  var cancelBtn = document.getElementById("blendCancelBtn");
   var deleteBtn = document.getElementById("blendDeleteBtn");
   var statusEl = document.getElementById("blendStatus");
   var progress = document.getElementById("blendProgress");
@@ -50,6 +51,7 @@
       refreshGate();
     });
     if (genBtn) genBtn.addEventListener("click", onGenerate);
+    if (cancelBtn) cancelBtn.addEventListener("click", cancelRender);
     if (deleteBtn) deleteBtn.addEventListener("click", deleteCurrent);
 
     var lockBtn = document.getElementById("blendIdentityLock");
@@ -196,6 +198,7 @@
 
     genBtn.disabled = true;
     if (deleteBtn) deleteBtn.style.display = "none";
+    if (cancelBtn) { cancelBtn.style.display = ""; cancelBtn.disabled = false; cancelBtn.textContent = "Cancel render"; }
     resultWrap.style.display = "none";
     setStatus("Uploading your clips…");
     showProgress(2, "Uploading…");
@@ -252,10 +255,13 @@
         var j = await r.json();
 
         if (j.status === "done") { showProgress(100, "Done"); onDone(j); return; }
+        if (j.status === "cancelled") { setStatus("Render cancelled.", "error"); reset(); return; }
         if (j.status === "error") { setStatus("Generation failed: " + (j.error || "unknown error"), "error"); reset(); return; }
 
         var p = Math.max(2, Math.min(99, j.progress || 0));
-        showProgress(p, j.stage || (j.status === "processing" ? "Generating…" : "Queued…"));
+        var lbl = j.stage || (j.status === "processing" ? "Generating…" : "Queued…");
+        if (j.eta_seconds != null && j.eta_seconds > 0) lbl += " • ~" + fmtDur(j.eta_seconds) + " left";
+        showProgress(p, lbl);
         pollJob(jobId);
       } catch (e) {
         // Tolerate transient blips (token refresh, brief network drop) before giving up.
@@ -272,6 +278,7 @@
 
   function onDone(j) {
     genBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = "none";
     progress.style.display = "none";
     setStatus("Transition ready.", "success");
 
@@ -338,7 +345,30 @@
 
   function reset() {
     genBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = "none";
     progress.style.display = "none";
     clearTimeout(pollTimer);
+  }
+
+  async function cancelRender() {
+    if (!lastJobId) return;
+    if (!window.confirm("Cancel this render? It will stop immediately and free the GPU.")) return;
+    cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
+    try {
+      var token = await freshToken();
+      await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      setStatus("Cancelling the render…");
+    } catch (e) {
+      cancelBtn.disabled = false; cancelBtn.textContent = "Cancel render";
+      setStatus("Couldn’t reach the render service to cancel.", "error");
+    }
+  }
+
+  function fmtDur(s) {
+    s = Math.max(0, Math.round(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h) return h + "h " + m + "m";
+    if (m) return m + "m";
+    return sec + "s";
   }
 })();
