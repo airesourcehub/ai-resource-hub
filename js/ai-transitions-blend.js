@@ -23,6 +23,7 @@
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   var genBtn = document.getElementById("blendGenerateBtn");
+  var deleteBtn = document.getElementById("blendDeleteBtn");
   var statusEl = document.getElementById("blendStatus");
   var progress = document.getElementById("blendProgress");
   var progressFill = document.getElementById("blendProgressFill");
@@ -35,6 +36,7 @@
   var currentUser = null;
   var pollTimer = null;
   var pollFails = 0;
+  var lastJobId = null;
 
   init();
 
@@ -47,6 +49,7 @@
       refreshGate();
     });
     if (genBtn) genBtn.addEventListener("click", onGenerate);
+    if (deleteBtn) deleteBtn.addEventListener("click", deleteCurrent);
 
     var lockBtn = document.getElementById("blendIdentityLock");
     if (lockBtn) lockBtn.addEventListener("click", addIdentityLock);
@@ -68,6 +71,24 @@
   async function getToken() {
     var r = await client.auth.getSession();
     return r.data.session ? r.data.session.access_token : null;
+  }
+
+  // Returns a valid token, proactively refreshing a near-expired session so
+  // clicking Generate never silently fails on a stale login.
+  async function freshToken() {
+    var r = await client.auth.getSession();
+    var sess = r.data.session;
+    if (sess && sess.expires_at) {
+      var now = Math.floor(Date.now() / 1000);
+      if (sess.expires_at - now < 120) {
+        setStatus("Refreshing your session…");
+        try {
+          var rr = await client.auth.refreshSession();
+          if (rr.data && rr.data.session) sess = rr.data.session;
+        } catch (e) {}
+      }
+    }
+    return sess ? sess.access_token : null;
   }
 
   async function refreshGate() {
@@ -124,10 +145,12 @@
     if (err) { setStatus(err, "error"); return; }
     if (!prompt) { setStatus("Please describe the transition you want.", "error"); return; }
 
-    var token = await getToken();
+    setStatus("Checking your session…");
+    var token = await freshToken();
     if (!token) { setStatus("Your session expired — please log in again.", "error"); return; }
 
     genBtn.disabled = true;
+    if (deleteBtn) deleteBtn.style.display = "none";
     resultWrap.style.display = "none";
     setStatus("Uploading your clips…");
     showProgress(2, "Uploading…");
@@ -153,6 +176,7 @@
       var data = await r.json();
       jobId = data.job_id || data.id;
       if (!jobId) throw new Error("no job id");
+      lastJobId = jobId;
     } catch (e) {
       setStatus("Couldn’t reach the render service. The desktop may be offline or the tunnel isn’t running.", "error");
       reset();
@@ -169,7 +193,7 @@
     pollTimer = setTimeout(async function () {
       try {
         // Refresh the token every poll so long renders don't expire mid-way.
-        var token = await getToken();
+        var token = await freshToken();
         var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, {
           headers: { "Authorization": "Bearer " + token }
         });
@@ -212,9 +236,40 @@
     resultWrap.style.display = "";
     try { resultVideo.load(); } catch (e) {}
 
+    // Now that the render exists, reveal the delete option next to Generate.
+    if (deleteBtn) { deleteBtn.style.display = ""; deleteBtn.disabled = false; deleteBtn.textContent = "Delete this render"; }
+
     // Refresh the "recent renders" strip so the new one shows up immediately.
     if (typeof window.reloadRenderArchive === "function") {
       setTimeout(window.reloadRenderArchive, 1500);
+    }
+  }
+
+  async function deleteCurrent() {
+    if (!lastJobId) return;
+    if (!window.confirm("Delete this render permanently? This removes the video file and can't be undone.")) return;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Deleting…";
+    var ok = false;
+    try {
+      var token = await freshToken();
+      var r = await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token }
+      });
+      ok = r.ok;
+    } catch (e) { ok = false; }
+
+    if (ok) {
+      resultWrap.style.display = "none";
+      deleteBtn.style.display = "none";
+      lastJobId = null;
+      setStatus("Render deleted.", "success");
+      if (typeof window.reloadRenderArchive === "function") window.reloadRenderArchive();
+    } else {
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = "Delete this render";
+      setStatus("Couldn’t delete right now — the render service may be offline.", "error");
     }
   }
 
