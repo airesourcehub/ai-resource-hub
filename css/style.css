@@ -1867,3 +1867,12 @@ video.upload-preview {
 /* AI Transitions — Identity Lock + prompt tools */
 .blend-prompt-tools { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
 .btn-small { padding: 6px 12px; font-size: 0.85rem; }
+
+/* AI Transitions — render archive (My Renders) */
+.archive-grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+@media (min-width: 620px) { .archive-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 960px) { .archive-grid { grid-template-columns: 1fr 1fr 1fr; } }
+.archive-card { border: 1px solid var(--color-border, #e2e2e2); border-radius: 12px; padding: 14px; background: var(--color-bg-alt, #fafafa); }
+.archive-video { width: 100%; max-height: 260px; background: #000; border-radius: 8px; display: block; }
+.archive-prompt { margin: 10px 0 2px; font-size: 0.92rem; line-height: 1.4; }
+.blend-archive-wrap { margin-top: 8px; }
