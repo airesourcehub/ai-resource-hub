@@ -275,8 +275,9 @@
     progress.style.display = "none";
     setStatus("Transition ready.", "success");
 
-    var mp4 = absUrl(j.result_url);
-    var mov = j.result_mov_url ? absUrl(j.result_mov_url) : null;
+    var cb = "v=" + Date.now();
+    var mp4 = absUrl(j.result_url) + (absUrl(j.result_url).indexOf("?") >= 0 ? "&" : "?") + cb;
+    var mov = j.result_mov_url ? absUrl(j.result_mov_url) + (absUrl(j.result_mov_url).indexOf("?") >= 0 ? "&" : "?") + cb : null;
 
     resultVideo.src = mp4;
     dlMp4.href = mp4;

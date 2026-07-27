@@ -146,9 +146,17 @@
       '</span>';
   }
 
+  function bust(url, key) {
+    if (!url) return url;
+    return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + key;
+  }
+
   function card(r) {
-    var mp4 = abs(r.result_url);
-    var mov = r.result_mov_url ? abs(r.result_mov_url) : null;
+    // Cache-buster keyed to the render's timestamp so Cloudflare can't serve a
+    // stale error it may have cached while the tunnel was briefly down.
+    var key = String(Date.parse(r.created_at) || r.id);
+    var mp4 = bust(abs(r.result_url), key);
+    var mov = r.result_mov_url ? bust(abs(r.result_mov_url), key) : null;
     var when = new Date(r.created_at).toLocaleString();
     var kind = r.mode === "music_sync" ? "Music sync"
              : r.mode === "stitched" ? "Full sequence" : "Transition only";
