@@ -160,6 +160,7 @@
       try {
         var token = await freshToken();
         var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
+        if (r.status === 404) { setStatus("This render is no longer running (the service may have restarted).", "error"); reset(); return; }
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;
         var j = await r.json();

@@ -80,6 +80,7 @@
       try {
         var token = await freshToken();
         var r = await fetch(RENDER_ENDPOINT + "/jobs/" + activeJobId, { headers: { "Authorization": "Bearer " + token } });
+        if (r.status === 404) { hide(); finishTracking(); return; } // job gone (service restarted)
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;
         var j = await r.json();

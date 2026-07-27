@@ -124,6 +124,7 @@
     activeJobId = job.id;
     try {
       var r = await fetch(RENDER_ENDPOINT + "/jobs/" + job.id, { headers: { "Authorization": "Bearer " + token } });
+      if (r.status === 404) { showNoJob(); return; }
       if (!r.ok) throw new Error("HTTP " + r.status);
       var j = await r.json();
       if (j.status === "done" || j.status === "error" || j.status === "cancelled") { showNoJob(); return; }
