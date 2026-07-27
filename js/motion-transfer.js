@@ -39,17 +39,26 @@
 
     if (genBtn) genBtn.addEventListener("click", onGenerate);
     if (deleteBtn) deleteBtn.addEventListener("click", deleteCurrent);
-    var lockBtn = document.getElementById("motionIdentityLock");
-    if (lockBtn) lockBtn.addEventListener("click", function () {
-      var box = document.getElementById("motionPrompt");
-      if (!box || box.value.indexOf("Preserve the exact identity") !== -1) return;
-      var cur = box.value.trim();
-      box.value = cur ? (cur + " " + IDENTITY_LOCK_TEXT) : IDENTITY_LOCK_TEXT;
-      box.focus();
-    });
+    wirePhrase("motionIdentityLock", "Preserve the exact identity", IDENTITY_LOCK_TEXT);
+    wirePhrase("motionHandheld", "handheld camera", "Filmed on a handheld camera with subtle, realistic camera shake and organic movement, like a live music video — slight bobbing, drift, and natural instability that adds dynamic energy.");
+    wirePhrase("motionAnimateBg", "background is alive", "The environment and background is alive with motion — moving lights, drifting atmosphere, swaying elements, and subtle depth and parallax throughout the scene.");
+    wirePhrase("motionDancers", "backup dancers", "Choreographed backup dancers perform in sync behind the main subject, music-video style, with energetic coordinated movement.");
     var expandBtn = document.getElementById("motionExpandBtn");
     if (expandBtn) expandBtn.addEventListener("click", function () {
       if (resultVideo && resultVideo.src && typeof window.openRenderLightbox === "function") window.openRenderLightbox(resultVideo.src);
+    });
+  }
+
+  // Wire a prompt-enhancement button: append its phrase once (dedup by marker).
+  function wirePhrase(btnId, marker, text) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var box = document.getElementById("motionPrompt");
+      if (!box || box.value.toLowerCase().indexOf(marker.toLowerCase()) !== -1) return;
+      var cur = box.value.trim();
+      box.value = cur ? (cur + " " + text) : text;
+      box.focus();
     });
   }
 
@@ -98,6 +107,8 @@
     var orientation = orientEl ? orientEl.value : "landscape";
     var speedEl = document.querySelector('input[name="motionSpeed"]:checked');
     var speed = speedEl ? speedEl.value : "quality";
+    var lengthEl = document.querySelector('input[name="motionLength"]:checked');
+    var length = lengthEl ? lengthEl.value : "5";
 
     var err = validFile(img, "image", "Reference image") || validFile(vid, "video", "Driving video");
     if (err) { setStatus(err, "error"); return; }
@@ -118,6 +129,7 @@
     fd.append("prompt", prompt || "A cinematic video of the character performing the motion, natural lighting, sharp focus, high detail.");
     fd.append("orientation", orientation);
     fd.append("speed", speed);
+    fd.append("length", length);
 
     var jobId;
     try {
