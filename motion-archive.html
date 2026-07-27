@@ -12,8 +12,8 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>About — AI Resource Hub</title>
-<meta name="description" content="Learn what AI Resource Hub is, why it exists, and how to get in touch." />
+<meta name="robots" content="noindex, nofollow" />
+<title>My Motion Transfer Renders — AI Resource Hub</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -24,13 +24,14 @@
       <span class="logo-mark">AI</span>
       AI Resource Hub
     </a>
-    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
     <ul class="nav-links">
       <li><a href="index.html">Home</a></li>
       <li><a href="resources.html">Resources</a></li>
       <li><a href="prompt-generator.html">Prompt Generator</a></li>
       <li><a href="gallery.html">Prompt Gallery</a></li>
-      <li><a href="ai-transitions.html">AI Transitions</a></li> <li><a href="motion-transfer.html">Motion Transfer</a></li>
+      <li><a href="ai-transitions.html">AI Transitions</a></li>
+      <li><a href="motion-transfer.html">Motion Transfer</a></li>
       <li><a href="guides.html">Guides</a></li>
       <li><a href="about.html">About</a></li>
       <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
@@ -44,31 +45,19 @@
 
   <div class="page-header">
     <div class="container">
-      <h1>About AI Resource Hub</h1>
-      <p>Making AI more enjoyable, easier, and more understandable for everyone.</p>
+      <h1>My Motion Transfer Renders</h1>
+      <p>Every motion transfer you&rsquo;ve generated, saved to your account and organized into project folders. Scrub or expand any clip to preview it, or download the MP4 or MOV. <a href="motion-transfer.html">&larr; Back to Motion Transfer</a></p>
     </div>
   </div>
 
   <section>
-    <div class="container prose">
-      <h2>Why this exists</h2>
-      <p>AI moves fast, and it's easy to feel behind. New tools launch constantly, terminology changes, and knowing which tool to use — let alone how to prompt it well — isn't obvious. AI Resource Hub was built to fix that: a single, trustworthy place to find good AI tools and learn how to use them effectively, without wading through hype or ads.</p>
-
-      <h2>What you'll find here</h2>
-      <p>Right now, the site offers a curated directory of AI tools across chatbots, image generation, video generation, and writing/productivity, along with a free Prompt Generator to help you build clear, effective prompts for text, image, and video AI — no experience required.</p>
-
-      <h2>Where this is headed</h2>
-      <p>AI Resource Hub is just getting started. Over time it will grow into a fuller AI service platform, including more advanced tools, deeper guides, and a subscriber tier for premium features. For now, everything on the site is free to use.</p>
-
-      <h2>Get in touch</h2>
-      <p>Have a tool suggestion, found a broken link, or want to share feedback? Reach out anytime.</p>
-      <p><a class="btn btn-primary" href="mailto:mrcrissp@gmail.com">Email Us</a></p>
+    <div class="container">
+      <div class="folder-bar" id="folderBar"></div>
+      <div class="archive-grid" id="archiveList" data-render-type="motion_transfer" data-tool="motion_transfer">
+        <p class="model-note">Loading your renders&hellip;</p>
+      </div>
     </div>
   </section>
-
-  <div class="ad-slot">
-    <div class="ad-placeholder">Ad space — displays once Google AdSense is approved and connected</div>
-  </div>
 
 </main>
 
@@ -84,7 +73,8 @@
         <li><a href="resources.html">Resources</a></li>
         <li><a href="prompt-generator.html">Prompt Generator</a></li>
         <li><a href="gallery.html">Prompt Gallery</a></li>
-        <li><a href="ai-transitions.html">AI Transitions</a></li> <li><a href="motion-transfer.html">Motion Transfer</a></li>
+        <li><a href="ai-transitions.html">AI Transitions</a></li>
+        <li><a href="motion-transfer.html">Motion Transfer</a></li>
         <li><a href="guides.html">Guides</a></li>
         <li><a href="about.html">About</a></li>
         <li><a href="privacy-policy.html">Privacy Policy</a></li>
@@ -102,5 +92,6 @@
 <script src="js/theme.js"></script>
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
+<script src="js/render-archive.js"></script>
 </body>
 </html>
