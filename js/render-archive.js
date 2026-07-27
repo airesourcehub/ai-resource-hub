@@ -31,6 +31,7 @@
   window.reloadRenderArchive = init;
 
   async function init() {
+    ensureLightbox();
     var s = await client.auth.getSession();
     user = s.data.session ? s.data.session.user : null;
     await refresh();
@@ -41,6 +42,45 @@
     if (fullList) wire(fullList);
     if (recent) wire(recent);
   }
+
+  // ---- Shared "Expand" lightbox (larger centered popup, not fullscreen) ----
+  function ensureLightbox() {
+    if (document.getElementById("renderLightbox")) return;
+    var ov = document.createElement("div");
+    ov.id = "renderLightbox";
+    ov.className = "render-lightbox";
+    ov.innerHTML =
+      '<div class="render-lightbox-inner">' +
+        '<button type="button" class="render-lightbox-close" aria-label="Close">&times;</button>' +
+        '<video class="render-lightbox-video" controls playsinline></video>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.addEventListener("click", function (e) {
+      if (e.target === ov || e.target.classList.contains("render-lightbox-close")) closeLightbox();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeLightbox();
+    });
+  }
+
+  function closeLightbox() {
+    var ov = document.getElementById("renderLightbox");
+    if (!ov) return;
+    var v = ov.querySelector("video");
+    try { v.pause(); } catch (e) {}
+    v.removeAttribute("src");
+    try { v.load(); } catch (e) {}
+    ov.classList.remove("open");
+  }
+
+  window.openRenderLightbox = function (src) {
+    ensureLightbox();
+    var ov = document.getElementById("renderLightbox");
+    var v = ov.querySelector("video");
+    v.src = src;
+    ov.classList.add("open");
+    try { v.play(); } catch (e) {}
+  };
 
   async function getToken() {
     var r = await client.auth.getSession();
@@ -125,6 +165,7 @@
       '<p class="frame-res" style="margin:6px 0;">' + esc(when) + ' &middot; ' + kind + '</p>' +
       (moveSel ? '<div class="archive-move-wrap">' + moveSel + '</div>' : '') +
       '<div class="output-actions">' +
+        '<button type="button" class="btn btn-secondary btn-small archive-expand" data-src="' + mp4 + '">⤢ Expand</button>' +
         '<a class="btn btn-primary btn-small" href="' + mp4 + '" download>MP4</a>' +
         (mov ? '<a class="btn btn-secondary btn-small" href="' + mov + '" download>MOV</a>' : '') +
         '<button type="button" class="btn btn-danger btn-small archive-del" data-id="' + esc(r.id) + '">Delete</button>' +
@@ -137,6 +178,8 @@
     container.dataset.wired = "1";
 
     container.addEventListener("click", async function (e) {
+      var exp = e.target.closest(".archive-expand");
+      if (exp) { window.openRenderLightbox(exp.getAttribute("data-src")); return; }
       var del = e.target.closest(".archive-del");
       if (del) return onDelete(del);
       var folderChip = e.target.closest("[data-folder]");

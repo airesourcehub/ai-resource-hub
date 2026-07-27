@@ -55,6 +55,13 @@
     var lockBtn = document.getElementById("blendIdentityLock");
     if (lockBtn) lockBtn.addEventListener("click", addIdentityLock);
 
+    var expandBtn = document.getElementById("blendExpandBtn");
+    if (expandBtn) expandBtn.addEventListener("click", function () {
+      if (resultVideo && resultVideo.src && typeof window.openRenderLightbox === "function") {
+        window.openRenderLightbox(resultVideo.src);
+      }
+    });
+
     var sw = document.getElementById("blendModeSwitch");
     if (sw) {
       var btns = sw.querySelectorAll(".mode-btn");
