@@ -43,7 +43,7 @@
   <div class="page-header">
     <div class="container">
       <h1>Render Status</h1>
-      <p>Live status of the render machine &mdash; what the GPU is doing right now, and the job currently running with its estimated time remaining.</p>
+      <p>Live status of the render machine &mdash; the service, ComfyUI, what the GPU is working on right now, who it&rsquo;s for, and who&rsquo;s waiting in line.</p>
     </div>
   </div>
 
@@ -52,11 +52,23 @@
       <div id="gpuGate" class="info-banner" style="display:none;"></div>
 
       <div id="gpuBody" style="display:none;">
+
+        <!-- System health chips -->
+        <div class="status-chips" id="statusChips" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+          <span class="status-chip" id="chipService">Render service &mdash; checking&hellip;</span>
+          <span class="status-chip" id="chipComfy">ComfyUI &mdash; checking&hellip;</span>
+          <span class="status-chip" id="chipGpu">GPU &mdash; checking&hellip;</span>
+        </div>
+
+        <div id="reserveBanner" class="info-banner" style="display:none;margin-bottom:20px;"></div>
+
+        <!-- Running now -->
         <div class="status-card">
-          <div class="section-header"><h2>Current render</h2></div>
-          <div id="jobNone" class="model-note">No render is running right now.</div>
+          <div class="section-header"><h2>Running now</h2></div>
+          <div id="jobNone" class="model-note">The GPU is idle &mdash; nothing is processing right now.</div>
           <div id="jobActive" style="display:none;">
-            <div class="status-row"><span class="status-key">Tool</span><span class="status-val" id="jobTool">&mdash;</span></div>
+            <div class="status-row"><span class="status-key">Task</span><span class="status-val" id="jobTool">&mdash;</span></div>
+            <div class="status-row"><span class="status-key">For</span><span class="status-val" id="jobOwner">&mdash;</span></div>
             <div class="status-row"><span class="status-key">Stage</span><span class="status-val" id="jobStage">&mdash;</span></div>
             <div class="blend-progress" style="display:block;margin:16px 0;">
               <div class="blend-progress-bar"><span id="jobFill" style="width:2%;"></span></div>
@@ -66,15 +78,26 @@
               <div class="status-metric"><span class="status-metric-label">Elapsed</span><span class="status-metric-val" id="jobElapsed">&mdash;</span></div>
               <div class="status-metric"><span class="status-metric-label">Progress</span><span class="status-metric-val" id="jobPct">&mdash;</span></div>
             </div>
+            <div id="jobLogWrap" style="display:none;margin-top:14px;">
+              <span class="status-metric-label">Live log</span>
+              <pre id="jobLog" style="margin:6px 0 0;padding:12px;border-radius:8px;background:rgba(0,0,0,.25);font-size:12px;line-height:1.5;overflow:auto;max-height:180px;white-space:pre-wrap;"></pre>
+            </div>
             <div class="output-actions" style="margin-top:16px;">
-              <button type="button" class="btn btn-danger" id="jobCancelBtn">Cancel this render</button>
+              <button type="button" class="btn btn-danger" id="jobCancelBtn" style="display:none;">Cancel this render</button>
             </div>
             <div class="form-status" id="jobMsg"></div>
           </div>
         </div>
 
+        <!-- Queue -->
         <div class="status-card" style="margin-top:28px;">
-          <div class="section-header"><h2>Hardware &mdash; CPU &amp; GPU</h2><p>The CPU handles prep (loading models, analyzing motion); the GPU does the heavy rendering. It's normal to see the CPU active first, then the GPU take over.</p></div>
+          <div class="section-header"><h2>Waiting in line</h2><p>Jobs run one at a time on the single GPU. New jobs join the back of this queue.</p></div>
+          <div id="queueList"><p class="model-note">Nobody&rsquo;s waiting &mdash; the queue is empty.</p></div>
+        </div>
+
+        <!-- Hardware -->
+        <div class="status-card" style="margin-top:28px;">
+          <div class="section-header"><h2>Hardware &mdash; CPU &amp; GPU</h2><p>The CPU handles prep (loading models, analyzing motion); the GPU does the heavy rendering. It&rsquo;s normal to see the CPU active first, then the GPU take over.</p></div>
           <div id="gpuCards"><p class="model-note">Reading hardware&hellip;</p></div>
           <p class="frame-res" id="gpuStamp" style="margin-top:12px;"></p>
         </div>

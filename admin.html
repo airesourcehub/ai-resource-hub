@@ -124,16 +124,17 @@
           <div id="flagsList" class="admin-list"></div>
         </div>
 
-        <!-- RENDER SEAT -->
+        <!-- GPU PRIORITY SEAT -->
         <div class="admin-panel" id="admin-render">
-          <h3>AI Transitions — render seat</h3>
-          <p class="model-note" style="margin:0 0 16px;">The AI transition generator runs on your own hardware and serves <strong>one user at a time</strong>. Whoever holds the seat below is the only person who can generate transitions. You are the default holder.</p>
+          <h3>GPU priority seat (override)</h3>
+          <p class="model-note" style="margin:0 0 16px;">By default the GPU is <strong>open to every signed-in member</strong> &mdash; jobs simply queue and run one at a time. Assigning the priority seat below <strong>reserves the whole GPU for one person</strong>: only their jobs run, and everyone else is paused until you clear it. Use it to jump the line for yourself or push a specific member&rsquo;s project through. Leave it cleared for normal open access.</p>
           <div class="admin-seat-current" id="renderSeatCurrent" style="margin-bottom:18px;"></div>
           <form id="renderSeatForm" class="admin-inline-form">
-            <label for="renderSeatUser">Assign seat to:</label>
+            <label for="renderSeatUser">Reserve GPU for:</label>
             <select id="renderSeatUser"></select>
-            <button type="submit" class="btn btn-primary">Assign</button>
-            <button type="button" class="btn btn-secondary" id="renderSeatReset">Reset to me</button>
+            <button type="submit" class="btn btn-primary">Reserve</button>
+            <button type="button" class="btn btn-secondary" id="renderSeatReset">Take it myself</button>
+            <button type="button" class="btn btn-secondary" id="renderSeatClear">Clear (open to everyone)</button>
           </form>
           <div class="form-status" id="renderSeatStatus"></div>
         </div>
