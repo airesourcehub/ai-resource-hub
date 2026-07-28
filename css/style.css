@@ -2021,7 +2021,7 @@ video.upload-preview {
   background: rgba(0,0,0,0.6); color: #fff; padding: 2px 8px; border-radius: 999px;
 }
 .model-badge-lora { left: auto; right: 8px; background: rgba(26,138,68,0.85); }
-.model-name { font-weight: 700; padding: 10px 12px 2px; }
+.model-name { font-weight: 700; padding: 10px 12px 2px; color: var(--color-gold); }
 .model-card .model-note { padding: 0 12px 12px; font-size: 0.82rem; color: var(--color-text-muted); margin: 0; }
 
 .lora-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
