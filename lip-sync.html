@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lip Sync — AI Resource Hub</title>
+<meta name="description" content="Turn a photo and an audio clip into a talking, lip-synced video with LTX-2, running on our own hardware." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand"><span class="logo-mark">AI</span> AI Resource Hub</a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="image-studio.html">Image Studio</a></li>
+      <li><a href="ai-transitions.html">AI Transitions</a></li>
+      <li><a href="motion-transfer.html">Motion Transfer</a></li>
+      <li><a href="lip-sync.html">Lip Sync</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>Lip Sync</h1>
+      <p>Give a <strong>photo</strong> of a face and an <strong>audio clip</strong>, and LTX&nbsp;2 makes them speak it &mdash; a talking, lip-synced video timed to your audio, on our own hardware.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+      <div class="blend-tool">
+        <div class="section-header">
+          <h2>Make a talking video</h2>
+          <p>The person in your photo lip-syncs to the audio you upload. The video length matches your clip (up to 30 seconds).</p>
+        </div>
+
+        <div id="lipGate" class="info-banner" style="display:none;"></div>
+
+        <div id="lipForm" style="display:none;">
+          <div class="blend-inputs">
+            <div class="field">
+              <label for="lipImage">Photo <span class="frame-res" style="margin:0;">&mdash; the face to animate</span></label>
+              <input type="file" id="lipImage" accept="image/*" />
+            </div>
+            <div class="field">
+              <label for="lipAudio">Audio <span class="frame-res" style="margin:0;">&mdash; the speech to sync (mp3, wav, m4a)</span></label>
+              <input type="file" id="lipAudio" accept="audio/*" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="lipPrompt">Describe the scene (optional)</label>
+            <textarea id="lipPrompt" rows="2" placeholder="e.g. a cinematic close-up, natural lighting, subtle head movement&hellip;"></textarea>
+          </div>
+
+          <div class="output-actions">
+            <button type="button" class="btn btn-primary" id="lipGenerateBtn">Generate lip sync</button>
+            <button type="button" class="btn btn-danger" id="lipCancelBtn" style="display:none;">Cancel</button>
+            <button type="button" class="btn btn-danger" id="lipDeleteBtn" style="display:none;">Delete this render</button>
+          </div>
+
+          <div class="form-status" id="lipStatus"></div>
+          <div class="blend-progress" id="lipProgress" style="display:none;">
+            <div class="blend-progress-bar"><span id="lipProgressFill"></span></div>
+            <p class="blend-progress-label" id="lipProgressLabel"></p>
+          </div>
+
+          <div class="blend-result" id="lipResult" style="display:none;">
+            <h3>Result</h3>
+            <video id="lipResultVideo" controls playsinline preload="auto" class="blend-video"></video>
+            <div class="output-actions">
+              <button type="button" class="btn btn-secondary" id="lipExpandBtn">&#10530; Expand view</button>
+              <a class="btn btn-primary" id="lipDownloadMp4" download>Download MP4</a>
+              <a class="btn btn-secondary" id="lipDownloadMov" download>Download MOV</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="render-archive-wrap" id="lipArchiveWrap" style="display:none;">
+          <div class="section-header" style="margin-top:40px;">
+            <h3>Your recent lip syncs</h3>
+            <p>Every finished render is saved to your account. <a href="lip-sync-archive.html">View all my lip syncs &rarr;</a></p>
+          </div>
+          <div class="archive-grid render-archive-strip" id="lipArchive" data-render-type="lipsync" data-tool="lipsync"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ad-slot"><div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div></div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand"><span class="logo-mark">AI</span> AI Resource Hub</div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="image-studio.html">Image Studio</a></li>
+        <li><a href="motion-transfer.html">Motion Transfer</a></li>
+        <li><a href="lip-sync.html">Lip Sync</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">&copy; <span id="year"></span> AI Resource Hub. All rights reserved.</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+<script src="js/render-status.js"></script>
+<script src="js/lip-sync.js"></script>
+<script src="js/render-archive.js"></script>
+<script src="js/file-thumb.js"></script>
+</body>
+</html>
