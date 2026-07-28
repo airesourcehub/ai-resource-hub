@@ -1,7 +1,7 @@
 // AI Resource Hub — Render Status page.
-// Live GPU stats + the currently-running render (stage, progress, ETA) with a
-// Cancel button. Reads GPU from the desktop service and finds the active job
-// via the database, same as the global status pill.
+// One /status call paints everything: service + ComfyUI health, the job the GPU
+// is working on right now (and who it's for), the queue with estimated start
+// times, and live CPU/GPU stats. Admins see emails; members see "another member".
 
 (function () {
   var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
@@ -10,14 +10,15 @@
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  var TOOLS = {
-    ai_transition:  "AI Transition",
-    music_sync:     "AI Music Sync Transition",
-    motion_transfer:"Motion Transfer"
+  var LABELS = {
+    ai_transition: "AI Transition", blend: "AI Transition", stitched: "AI Transition",
+    transition_only: "AI Transition", music_sync: "Music Sync Transition",
+    motion_transfer: "Motion Transfer", lipsync: "Lip Sync", wan_video: "WAN Video",
+    image: "Image Studio", training: "LoRA Training"
   };
 
   var user = null, pollTimer = null, tickTimer = null;
-  var activeJobId = null, etaLeft = null;
+  var curEtaLeft = null, curJobId = null;
 
   var gate = document.getElementById("gpuGate");
   var body = document.getElementById("gpuBody");
@@ -32,7 +33,7 @@
     user = s.data.session ? s.data.session.user : null;
     client.auth.onAuthStateChange(function (_e, session) { user = session ? session.user : null; boot(); });
     boot();
-    if (cancelBtn) cancelBtn.addEventListener("click", cancelActive);
+    if (cancelBtn) cancelBtn.addEventListener("click", cancelCurrent);
     tickTimer = setInterval(tickEta, 1000);
   }
 
@@ -50,44 +51,109 @@
   async function freshToken() {
     var r = await client.auth.getSession();
     var sess = r.data.session;
-    if (sess && sess.expires_at) {
-      var now = Math.floor(Date.now() / 1000);
-      if (sess.expires_at - now < 120) {
-        try { var rr = await client.auth.refreshSession(); if (rr.data && rr.data.session) sess = rr.data.session; } catch (e) {}
-      }
+    if (sess && sess.expires_at && sess.expires_at - Math.floor(Date.now() / 1000) < 120) {
+      try { var rr = await client.auth.refreshSession(); if (rr.data && rr.data.session) sess = rr.data.session; } catch (e) {}
     }
     return sess ? sess.access_token : null;
   }
 
   function poll() {
     clearTimeout(pollTimer);
-    pollTimer = setTimeout(run, POLL_MS);
     run();
+    pollTimer = setTimeout(poll, POLL_MS);
   }
 
   async function run() {
     if (!user) return;
     var token = await freshToken();
     if (!token) return;
-    loadGpu(token);
-    loadJob(token);
-    clearTimeout(pollTimer);
-    pollTimer = setTimeout(run, POLL_MS);
-  }
-
-  async function loadGpu(token) {
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/gpu", { headers: { "Authorization": "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT + "/status", { headers: { "Authorization": "Bearer " + token } });
       if (!r.ok) throw new Error("HTTP " + r.status);
       var d = await r.json();
+      paintChips(true, d.comfy_up, d.busy);
+      paintReserve(d);
+      paintCurrent(d);
+      paintQueue(d);
       renderStats(d.gpus || [], d.cpu || null);
       document.getElementById("gpuStamp").textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
+      paintChips(false, false, false);
       document.getElementById("gpuCards").innerHTML =
         '<p class="model-note">The render machine isn’t reachable right now (desktop offline or tunnel down).</p>';
     }
   }
 
+  // ---- health chips ------------------------------------------------------
+  function chip(el, up, upText, downText) {
+    el.textContent = (up ? "● " : "○ ") + (up ? upText : downText);
+    el.style.cssText = "padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;" +
+      "background:" + (up ? "rgba(46,160,67,.15)" : "rgba(210,60,60,.15)") + ";" +
+      "color:" + (up ? "#3fb950" : "#f06a6a") + ";border:1px solid " + (up ? "rgba(46,160,67,.4)" : "rgba(210,60,60,.4)") + ";";
+  }
+  function paintChips(serviceUp, comfyUp, busy) {
+    chip(document.getElementById("chipService"), serviceUp, "Render service online", "Render service offline");
+    chip(document.getElementById("chipComfy"), comfyUp, "ComfyUI running", "ComfyUI not running");
+    var g = document.getElementById("chipGpu");
+    if (!serviceUp) { chip(g, false, "", "GPU unknown"); g.textContent = "○ GPU unknown"; return; }
+    chip(g, true, busy ? "GPU busy — processing" : "GPU idle — ready", "");
+    if (!busy) g.style.color = "#8b95a1", g.style.background = "rgba(120,130,145,.12)", g.style.borderColor = "rgba(120,130,145,.35)";
+  }
+
+  function paintReserve(d) {
+    var b = document.getElementById("reserveBanner");
+    if (d.seat_holder) {
+      var who = d.seat_label || "a user";
+      b.innerHTML = d.seat_holder === (user && user.id)
+        ? "🔒 <strong>You hold the priority seat.</strong> Only your jobs will run until you release it in the admin panel."
+        : "🔒 The GPU is <strong>reserved by the admin</strong> for " + esc(who) + ". Other members’ jobs are paused until it’s released.";
+      b.classList.add("show"); b.style.display = "";
+    } else {
+      b.style.display = "none"; b.classList.remove("show");
+    }
+  }
+
+  // ---- running job -------------------------------------------------------
+  function paintCurrent(d) {
+    var c = d.current;
+    if (!c) { curJobId = null; curEtaLeft = null; jobActive.style.display = "none"; jobNone.style.display = ""; return; }
+    jobNone.style.display = "none"; jobActive.style.display = "";
+    curJobId = c.id || null;
+    document.getElementById("jobTool").textContent = LABELS[c.kind] || c.kind || "Render";
+    document.getElementById("jobOwner").textContent = c.owner || "—";
+    document.getElementById("jobStage").textContent = c.stage || "Working…";
+    var pct = Math.max(2, Math.min(99, c.progress || 0));
+    document.getElementById("jobFill").style.width = pct + "%";
+    document.getElementById("jobPct").textContent = Math.round(pct) + "%";
+    document.getElementById("jobElapsed").textContent = fmtDur(c.elapsed_seconds || 0);
+    curEtaLeft = (c.eta_seconds != null && c.eta_seconds >= 0) ? c.eta_seconds : null;
+    document.getElementById("jobEta").textContent = curEtaLeft != null ? "~" + fmtDur(curEtaLeft) : "estimating…";
+    // Live training log
+    var logWrap = document.getElementById("jobLogWrap"), logEl = document.getElementById("jobLog");
+    if (c.kind === "training" && c.log_tail && c.log_tail.length) {
+      logWrap.style.display = ""; logEl.textContent = c.log_tail.join("\n");
+    } else { logWrap.style.display = "none"; }
+    // Cancel: only when the server handed us an id (your job, or you're admin)
+    cancelBtn.style.display = curJobId ? "" : "none";
+  }
+
+  // ---- queue -------------------------------------------------------------
+  function paintQueue(d) {
+    var host = document.getElementById("queueList");
+    var q = d.queue || [];
+    if (!q.length) { host.innerHTML = '<p class="model-note">Nobody’s waiting — the queue is empty.</p>'; return; }
+    host.innerHTML = q.map(function (j) {
+      var est = (j.est_start_seconds != null && j.est_start_seconds > 0) ? "~" + fmtDur(j.est_start_seconds) + " until start" : "starting soon";
+      return '<div class="status-row" style="align-items:center;">' +
+        '<span class="status-key" style="min-width:34px;">#' + (j.position + 1) + '</span>' +
+        '<span class="status-val" style="flex:1;">' + esc(LABELS[j.kind] || j.kind || "Render") +
+          ' <span class="frame-res" style="margin:0;">— ' + esc(j.owner || "member") + (j.is_yours ? " (you)" : "") + '</span></span>' +
+        '<span class="frame-res" style="margin:0;">' + est + '</span>' +
+      '</div>';
+    }).join("");
+  }
+
+  // ---- hardware ----------------------------------------------------------
   function renderStats(gpus, cpu) {
     var host = document.getElementById("gpuCards");
     var html = "";
@@ -122,60 +188,22 @@
       '<div class="gpu-meter-track"><span style="width:' + pct + '%;"></span></div></div>';
   }
 
-  async function loadJob(token) {
-    var res = await client.from("render_jobs")
-      .select("id, render_type, status")
-      .eq("user_id", user.id)
-      .in("status", ["queued", "processing"])
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (res.error || !res.data || !res.data.length) { showNoJob(); return; }
-    var job = res.data[0];
-    activeJobId = job.id;
-    try {
-      var r = await fetch(RENDER_ENDPOINT + "/jobs/" + job.id, { headers: { "Authorization": "Bearer " + token } });
-      if (r.status === 404) { showNoJob(); return; }
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      var j = await r.json();
-      if (j.status === "done" || j.status === "error" || j.status === "cancelled") { showNoJob(); return; }
-      showJob(job.render_type, j);
-    } catch (e) { /* keep last shown state */ }
-  }
-
-  function showNoJob() {
-    activeJobId = null; etaLeft = null;
-    jobActive.style.display = "none";
-    jobNone.style.display = "";
-  }
-
-  function showJob(type, j) {
-    jobNone.style.display = "none";
-    jobActive.style.display = "";
-    document.getElementById("jobTool").textContent = TOOLS[type] || type;
-    document.getElementById("jobStage").textContent = j.stage || "Working…";
-    var pct = Math.max(2, Math.min(99, j.progress || 0));
-    document.getElementById("jobFill").style.width = pct + "%";
-    document.getElementById("jobPct").textContent = Math.round(pct) + "%";
-    document.getElementById("jobElapsed").textContent = fmtDur(j.elapsed_seconds || 0);
-    etaLeft = (j.eta_seconds != null && j.eta_seconds >= 0) ? j.eta_seconds : null;
-    document.getElementById("jobEta").textContent = etaLeft != null ? "~" + fmtDur(etaLeft) : "estimating…";
-  }
-
   function tickEta() {
-    if (etaLeft == null || etaLeft <= 0) return;
-    etaLeft = Math.max(0, etaLeft - 1);
+    if (curEtaLeft == null || curEtaLeft <= 0) return;
+    if (jobActive.style.display === "none") return;
+    curEtaLeft = Math.max(0, curEtaLeft - 1);
     var el = document.getElementById("jobEta");
-    if (el && jobActive.style.display !== "none") el.textContent = etaLeft > 0 ? "~" + fmtDur(etaLeft) : "almost done…";
+    if (el) el.textContent = curEtaLeft > 0 ? "~" + fmtDur(curEtaLeft) : "almost done…";
   }
 
-  async function cancelActive() {
-    if (!activeJobId) return;
-    if (!window.confirm("Cancel the running render? It will stop immediately and free the GPU.")) return;
+  async function cancelCurrent() {
+    if (!curJobId) return;
+    if (!window.confirm("Cancel the running job? It will stop immediately and free the GPU for the next in line.")) return;
     cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + activeJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
-      document.getElementById("jobMsg").textContent = "Cancel sent — the render is stopping.";
+      await fetch(RENDER_ENDPOINT + "/jobs/" + curJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      document.getElementById("jobMsg").textContent = "Cancel sent — the job is stopping.";
       document.getElementById("jobMsg").className = "form-status success";
     } catch (e) {
       document.getElementById("jobMsg").textContent = "Couldn’t reach the render service to cancel.";

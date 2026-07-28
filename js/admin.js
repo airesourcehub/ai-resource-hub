@@ -62,9 +62,10 @@ document.addEventListener("DOMContentLoaded", function () {
     var holderEmail = seatRes.data ? seatRes.data.holder_email : null;
 
     currentEl.innerHTML = holderId
-      ? 'Current seat holder: <strong>' + escapeHtml(holderEmail || holderId) + '</strong>' +
-        (holderId === adminUserId ? ' <span class="tag">you</span>' : '')
-      : '<em>No one currently holds the seat.</em>';
+      ? '🔒 GPU reserved for: <strong>' + escapeHtml(holderEmail || holderId) + '</strong>' +
+        (holderId === adminUserId ? ' <span class="tag">you</span>' : '') +
+        ' <span class="frame-res" style="margin:0;">— everyone else is paused</span>'
+      : '<em>Open to everyone — jobs queue and run one at a time.</em>';
 
     var usersRes = await client.from("profiles").select("id, email").order("email", { ascending: true });
     var users = (usersRes.data || []);
@@ -75,6 +76,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     var form = document.getElementById("renderSeatForm");
     var resetBtn = document.getElementById("renderSeatReset");
+    var clearBtn = document.getElementById("renderSeatClear");
     if (form && !form.dataset.wired) {
       form.dataset.wired = "1";
       form.addEventListener("submit", function (e) {
@@ -86,6 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
       resetBtn.addEventListener("click", function () {
         assignSeat(adminUserId, adminEmail);
       });
+      if (clearBtn) clearBtn.addEventListener("click", function () { assignSeat(null, null); });
     }
   }
 
@@ -100,7 +103,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }).eq("id", true);
     if (statusEl) {
       if (r.error) { statusEl.textContent = "Couldn’t update the seat: " + r.error.message; statusEl.className = "form-status error"; }
-      else { statusEl.textContent = "Seat assigned to " + (email || userId) + "."; statusEl.className = "form-status success"; }
+      else if (!userId) { statusEl.textContent = "Seat cleared — the GPU is now open to everyone."; statusEl.className = "form-status success"; }
+      else { statusEl.textContent = "GPU reserved for " + (email || userId) + "."; statusEl.className = "form-status success"; }
     }
     loadRenderSeat();
   }

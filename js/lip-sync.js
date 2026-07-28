@@ -60,11 +60,11 @@
       return;
     }
     var res = await client.from("render_seat").select("holder_id").eq("id", true).single();
-    if (res.error) { showGate("Couldn’t check tool access right now. Please try again in a moment."); return; }
-    if (res.data && res.data.holder_id && res.data.holder_id === currentUser.id) {
+    var holder = (!res.error && res.data) ? res.data.holder_id : null;
+    if (!holder || holder === currentUser.id) {
       gate.style.display = "none"; gate.classList.remove("show"); form.style.display = "";
     } else {
-      showGate("The generator is currently assigned to another user — only one person can use it at a time. Contact the site admin if you need access.");
+      showGate("The GPU is currently reserved by the admin for another user. You’ll be able to use it as soon as it’s free — no seat needed anymore, jobs just queue one at a time.");
     }
   }
   function showGate(html) { gate.innerHTML = html; gate.classList.add("show"); gate.style.display = ""; form.style.display = "none"; }
@@ -101,7 +101,7 @@
     var jobId;
     try {
       var r = await fetch(RENDER_ENDPOINT + "/lipsync-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
-      if (r.status === 403) { setStatus("You don’t currently hold the render seat.", "error"); reset(); return; }
+      if (r.status === 423 || r.status === 403) { setStatus("The GPU is reserved by the admin for another user right now.", "error"); reset(); return; }
       if (r.status === 409) { setStatus("The generator is busy with another job. Please try again shortly.", "error"); reset(); return; }
       if (!r.ok) throw new Error("HTTP " + r.status);
       var data = await r.json();

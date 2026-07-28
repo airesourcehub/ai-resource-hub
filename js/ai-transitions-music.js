@@ -102,7 +102,7 @@
       var r = await fetch(RENDER_ENDPOINT + "/jobs", {
         method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd
       });
-      if (r.status === 403) { setStatus("You don’t currently hold the render seat.", "error"); reset(); return; }
+      if (r.status === 423 || r.status === 403) { setStatus("The GPU is reserved by the admin for another user right now.", "error"); reset(); return; }
       if (r.status === 409) { setStatus("The generator is busy with another job. Please try again shortly.", "error"); reset(); return; }
       if (!r.ok) throw new Error("HTTP " + r.status);
       var data = await r.json();
