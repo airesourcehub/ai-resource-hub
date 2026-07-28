@@ -2040,3 +2040,13 @@ video.upload-preview {
   border: 0; background: rgba(206,17,38,0.9); color: #fff; font-size: 1.1rem; line-height: 1; cursor: pointer;
 }
 .image-del:hover { background: var(--color-red); }
+
+/* Yellow title text (category headers + page/section titles) */
+.model-category-title {
+  color: var(--color-gold); font-size: 1.2rem; font-weight: 800;
+  margin: 28px 0 12px; letter-spacing: 0.2px;
+}
+.model-category-title:first-child { margin-top: 6px; }
+.page-header h1,
+.section-header h2,
+.section-header h3 { color: var(--color-gold); }
