@@ -29,8 +29,8 @@
   var currentUser = null, pollTimer = null, pollFails = 0, lastJobId = null;
 
   var FPS_VALUES = [16, 24, 30];
-  var STEP_VALUES = [4, 8, 10, 12];
-  var STEP_WORDS = ["Fastest", "Balanced", "High", "Max"];
+  var STEP_VALUES = [4, 8, 10, 12, 20];
+  var STEP_WORDS = ["Fastest", "Balanced", "High", "Max", "Extreme"];
 
   var IDENTITY_LOCK_TEXT = "Preserve the exact identity of the character from the reference image: keep the face, facial features, hair, skin tone, and clothing perfectly consistent and recognizable throughout. Do not morph, swap, distort, age, or change the character's identity.";
 
