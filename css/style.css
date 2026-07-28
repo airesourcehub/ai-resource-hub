@@ -2050,3 +2050,10 @@ video.upload-preview {
 .page-header h1,
 .section-header h2,
 .section-header h3 { color: var(--color-gold); }
+
+/* Admin: model thumbnail manager */
+.thumb-admin-card { text-align: center; }
+.thumb-admin-img {
+  width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+  border-radius: var(--radius); border: 1px solid var(--color-border); background: #000;
+}
