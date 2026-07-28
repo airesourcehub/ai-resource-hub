@@ -171,18 +171,51 @@
 
   async function loadList() {
     if (!currentUser) return;
-    var res = await client.from("training_jobs").select("name, base, status, trigger_word, created_at")
-      .eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(20);
+    var res = await client.from("training_jobs").select("id, name, base, status, trigger_word, lora_file, created_at")
+      .eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(50);
     if (res.error || !res.data || !res.data.length) return;
     var wrap = document.getElementById("trainListWrap");
     var list = document.getElementById("trainList");
     list.innerHTML = res.data.map(function (t) {
       var badge = t.status === "done" ? "✓ ready" : t.status === "error" ? "✕ failed" : t.status;
-      return '<div class="admin-row"><div><strong>' + esc(t.name) + '</strong> ' +
-        '<span class="frame-res">' + (t.base || "flux") + (t.trigger_word ? " · " + esc(t.trigger_word) : "") + '</span></div>' +
-        '<div>' + badge + '</div></div>';
+      var where = t.base === "wan" ? "WAN Video" : "Image Studio";
+      return '<div class="admin-row" data-lora-row="' + esc(t.id) + '"><div><strong>' + esc(t.name) + '</strong> ' +
+        '<span class="frame-res">' + (t.base || "flux") + (t.trigger_word ? " · " + esc(t.trigger_word) : "") +
+        (t.status === "done" ? " · in " + where : "") + '</span></div>' +
+        '<div style="display:flex;align-items:center;gap:10px;">' + badge +
+        '<button type="button" class="btn btn-danger btn-small" data-del-lora="' + esc(t.id) + '">Delete</button>' +
+        '</div></div>';
     }).join("");
     wrap.style.display = "";
+    Array.prototype.forEach.call(list.querySelectorAll("[data-del-lora]"), function (b) {
+      b.addEventListener("click", function () { deleteLora(b.getAttribute("data-del-lora"), b); });
+    });
+  }
+
+  async function deleteLora(id, btn) {
+    if (!id) return;
+    if (!window.confirm("Delete this identity/LoRA permanently? It will be removed from your account and from every generator that lists it. This can't be undone.")) return;
+    btn.disabled = true; btn.textContent = "Deleting…";
+    var ok = false;
+    try {
+      var token = await freshToken();
+      var r = await fetch(RENDER_ENDPOINT + "/my-loras/" + id, {
+        method: "DELETE", headers: { "Authorization": "Bearer " + token } });
+      ok = r.ok;
+    } catch (e) { ok = false; }
+    // Fallback: if the render service is offline, at least remove the record so
+    // it stops showing up in the pickers (RLS allows deleting your own row).
+    if (!ok) {
+      try { var d = await client.from("training_jobs").delete().eq("id", id); ok = !d.error; } catch (e) {}
+    }
+    if (ok) {
+      var row = document.querySelector('[data-lora-row="' + id + '"]');
+      if (row) row.parentNode.removeChild(row);
+      setStatus("Identity deleted.", "success");
+    } else {
+      btn.disabled = false; btn.textContent = "Delete";
+      setStatus("Couldn’t delete right now — the render service may be offline. Try again shortly.", "error");
+    }
   }
 
   function getRadio(name, dv) { var el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : dv; }
