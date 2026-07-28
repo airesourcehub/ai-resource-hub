@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Image Studio — AI Resource Hub</title>
+<meta name="description" content="Generate and edit images with a choice of local AI models — FLUX.2, Qwen-Image, Krea, HiDream and more — with optional custom LoRAs, running on our own hardware." />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand"><span class="logo-mark">AI</span> AI Resource Hub</a>
+    <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="prompt-generator.html">Prompt Generator</a></li>
+      <li><a href="gallery.html">Prompt Gallery</a></li>
+      <li><a href="image-studio.html">Image Studio</a></li>
+      <li><a href="ai-transitions.html">AI Transitions</a></li>
+      <li><a href="motion-transfer.html">Motion Transfer</a></li>
+      <li><a href="guides.html">Guides</a></li>
+      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <div class="container">
+      <h1>Image Studio</h1>
+      <p>Pick a model, describe your image, and generate on our own hardware. Some models <strong>create</strong> from a prompt; others <strong>edit</strong> a photo you upload. Where supported, you can stack a <strong>custom LoRA</strong>.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+      <div id="imgGate" class="info-banner" style="display:none;"></div>
+
+      <div id="imageStudio" style="display:none;">
+        <div class="section-header"><h2>1. Choose a model</h2></div>
+        <div class="model-grid" id="modelPicker"></div>
+
+        <div id="imageForm" style="display:none;">
+          <div class="section-header" style="margin-top:34px;"><h2>2. <span id="stepTwoLabel">Describe your image</span></h2></div>
+
+          <div class="field" id="editImageField" style="display:none;">
+            <label for="imgInput">Photo to edit</label>
+            <div class="blend-inputs"><div class="field" style="margin:0;"><input type="file" id="imgInput" accept="image/*" /></div></div>
+          </div>
+
+          <div class="field">
+            <label for="imgPrompt">Prompt</label>
+            <textarea id="imgPrompt" rows="3" placeholder="e.g. a cinematic portrait of a fox in a snowy forest, golden hour, sharp focus&hellip;"></textarea>
+            <div class="blend-prompt-tools">
+              <button type="button" class="btn btn-secondary btn-small" id="imgEnhance">&#10024; Enhance prompt</button>
+              <span class="frame-res" style="margin:0;">Adds tasteful quality &amp; lighting detail to your prompt.</span>
+            </div>
+          </div>
+
+          <div class="field" id="negField">
+            <label for="imgNegative">Negative prompt <span class="frame-res" style="margin:0;">&mdash; things to avoid (optional)</span></label>
+            <textarea id="imgNegative" rows="2" placeholder="e.g. blurry, extra fingers, watermark, low quality"></textarea>
+          </div>
+
+          <div class="field" id="sizeField">
+            <label>Aspect ratio</label>
+            <div class="blend-mode" id="sizePicker">
+              <label class="blend-radio"><input type="radio" name="imgSize" value="1024x1024" checked /> Square <span class="frame-res" style="margin:0;">1024&times;1024</span></label>
+              <label class="blend-radio"><input type="radio" name="imgSize" value="832x1216" /> Portrait <span class="frame-res" style="margin:0;">832&times;1216</span></label>
+              <label class="blend-radio"><input type="radio" name="imgSize" value="1216x832" /> Landscape <span class="frame-res" style="margin:0;">1216&times;832</span></label>
+              <label class="blend-radio"><input type="radio" name="imgSize" value="768x1344" /> Tall 9:16 <span class="frame-res" style="margin:0;">768&times;1344</span></label>
+              <label class="blend-radio"><input type="radio" name="imgSize" value="1344x768" /> Wide 16:9 <span class="frame-res" style="margin:0;">1344&times;768</span></label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>How many images</label>
+            <div class="blend-mode" id="batchPicker">
+              <label class="blend-radio"><input type="radio" name="imgBatch" value="1" checked /> 1</label>
+              <label class="blend-radio"><input type="radio" name="imgBatch" value="2" /> 2</label>
+              <label class="blend-radio"><input type="radio" name="imgBatch" value="3" /> 3</label>
+              <label class="blend-radio"><input type="radio" name="imgBatch" value="4" /> 4</label>
+            </div>
+          </div>
+
+          <div class="field" id="loraField" style="display:none;">
+            <label>Custom LoRA <span class="frame-res" style="margin:0;">&mdash; optional</span></label>
+            <div class="lora-row">
+              <select id="loraPick" class="lora-select"><option value="">None</option></select>
+              <label class="btn btn-secondary btn-small" for="loraFile" style="margin:0;">Upload .safetensors</label>
+              <input type="file" id="loraFile" accept=".safetensors" style="display:none;" />
+            </div>
+            <div class="lora-row" style="margin-top:10px;">
+              <span class="frame-res" style="margin:0;">Strength <span id="loraStrengthLabel">1.0</span></span>
+              <input type="range" id="loraStrength" class="range-slider" min="0" max="15" step="1" value="10" style="max-width:220px;" />
+            </div>
+            <p class="frame-res" id="loraMsg" style="margin:8px 0 0;">Remember to add your LoRA&rsquo;s <strong>trigger word</strong> to the prompt.</p>
+          </div>
+
+          <div class="output-actions">
+            <button type="button" class="btn btn-primary" id="imgGenerateBtn">Generate</button>
+            <button type="button" class="btn btn-danger" id="imgCancelBtn" style="display:none;">Cancel</button>
+          </div>
+
+          <div class="form-status" id="imgStatus"></div>
+          <div class="blend-progress" id="imgProgress" style="display:none;">
+            <div class="blend-progress-bar"><span id="imgProgressFill"></span></div>
+            <p class="blend-progress-label" id="imgProgressLabel"></p>
+          </div>
+
+          <div class="image-results" id="imgResults" style="display:none;">
+            <h3>Result</h3>
+            <div class="image-grid" id="imgResultGrid"></div>
+          </div>
+        </div>
+
+        <div class="render-archive-wrap" id="imgGalleryWrap" style="display:none;">
+          <div class="section-header" style="margin-top:40px;">
+            <h3>Your recent images</h3>
+            <p>Every image is saved to your account. <a href="image-gallery.html">View all my images &rarr;</a></p>
+          </div>
+          <div class="image-grid" id="imgRecent"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ad-slot"><div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div></div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand"><span class="logo-mark">AI</span> AI Resource Hub</div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="image-studio.html">Image Studio</a></li>
+        <li><a href="ai-transitions.html">AI Transitions</a></li>
+        <li><a href="motion-transfer.html">Motion Transfer</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">&copy; <span id="year"></span> AI Resource Hub. All rights reserved.</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+<script src="js/render-status.js"></script>
+<script src="js/image-studio.js"></script>
+</body>
+</html>
