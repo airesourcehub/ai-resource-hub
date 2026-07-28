@@ -13,20 +13,27 @@
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // Mirrors the service registry (image_support.py).
+  // Mirrors the service registry (image_support.py). `category` groups the
+  // picker; `type` (create/edit) controls whether an input photo is needed.
   var MODELS = [
-    { id: "flux2", name: "FLUX.2", type: "create", lora: true, note: "Best all-round quality. Built-in Turbo toggle." },
-    { id: "qwen2512", name: "Qwen-Image 2512", type: "create", lora: true, note: "Strong prompt adherence and text." },
-    { id: "krea2", name: "Krea 2 Turbo", type: "create", lora: true, note: "Fast, stylish." },
-    { id: "zimage", name: "Z-Image Turbo", type: "create", lora: false, note: "Very fast." },
-    { id: "anima", name: "Anima", type: "create", lora: false, note: "Stylized." },
-    { id: "hidream", name: "HiDream O1", type: "create", lora: false, note: "High detail." },
-    { id: "sd35", name: "Stable Diffusion 3.5", type: "create", lora: false, note: "Classic, flexible." },
-    { id: "flux2_edit", name: "FLUX.2 Edit", type: "edit", lora: true, note: "Edit a photo with a prompt." },
-    { id: "qwen_edit", name: "Qwen Image Edit", type: "edit", lora: true, note: "Instruction-based edits." },
-    { id: "qwen_edit2509", name: "Qwen Edit 2509", type: "edit", lora: true, note: "Newer Qwen edit." },
-    { id: "qwen_edit2511", name: "Qwen Edit 2511", type: "edit", lora: true, note: "Multi-reference edit." },
-    { id: "firered", name: "FireRed Edit", type: "edit", lora: true, note: "Detailed photo edits." }
+    { id: "flux2", name: "FLUX.2", type: "create", category: "t2i", lora: true, note: "Best all-round quality. Built-in Turbo toggle." },
+    { id: "qwen2512", name: "Qwen-Image 2512", type: "create", category: "t2i", lora: true, note: "Strong prompt adherence and text." },
+    { id: "krea2", name: "Krea 2 Turbo", type: "create", category: "t2i", lora: true, note: "Fast, stylish." },
+    { id: "zimage", name: "Z-Image Turbo", type: "create", category: "t2i", lora: false, note: "Very fast." },
+    { id: "anima", name: "Anima", type: "create", category: "t2i", lora: false, note: "Stylized." },
+    { id: "hidream", name: "HiDream O1", type: "create", category: "t2i", lora: false, note: "High detail." },
+    { id: "sd35", name: "Stable Diffusion 3.5", type: "create", category: "t2i", lora: false, note: "Classic, flexible." },
+    { id: "qwen_edit", name: "Qwen Image Edit", type: "edit", category: "edit", lora: true, note: "Instruction-based edits." },
+    { id: "qwen_edit2509", name: "Qwen Edit 2509", type: "edit", category: "edit", lora: true, note: "Newer Qwen edit." },
+    { id: "qwen_edit2511", name: "Qwen Edit 2511", type: "edit", category: "edit", lora: true, note: "Multi-reference edit." },
+    { id: "firered", name: "FireRed Edit", type: "edit", category: "edit", lora: true, note: "Detailed photo edits." },
+    { id: "flux2_edit", name: "FLUX.2 Image-to-Image", type: "edit", category: "i2i", lora: true, note: "Transform a photo with a prompt." }
+  ];
+
+  var CATEGORIES = [
+    { key: "t2i", label: "Text to Image" },
+    { key: "edit", label: "Image Edit" },
+    { key: "i2i", label: "Image to Image" }
   ];
 
   var GRADIENTS = ["a1c4fd,c2e9fb", "fbc2eb,a6c1ee", "84fab0,8fd3f4", "ffecd2,fcb69f", "d4fc79,96e6a1",
@@ -65,19 +72,27 @@
     loadRecent();
   }
 
+  function card(m, i) {
+    var g = GRADIENTS[i % GRADIENTS.length].split(",");
+    return '<button type="button" class="model-card" data-id="' + m.id + '">' +
+      '<span class="model-thumb" style="background-image:url(img/models/' + m.id + '.jpg),linear-gradient(135deg,#' + g[0] + ',#' + g[1] + ')">' +
+        (m.lora ? '<span class="model-badge model-badge-lora">LoRA</span>' : '') +
+      '</span>' +
+      '<span class="model-name">' + m.name + '</span>' +
+      '<span class="model-note">' + m.note + '</span>' +
+    '</button>';
+  }
+
   function renderPicker() {
     var host = document.getElementById("modelPicker");
-    host.innerHTML = MODELS.map(function (m, i) {
-      var g = GRADIENTS[i % GRADIENTS.length].split(",");
-      return '<button type="button" class="model-card" data-id="' + m.id + '">' +
-        '<span class="model-thumb" style="background-image:url(img/models/' + m.id + '.jpg),linear-gradient(135deg,#' + g[0] + ',#' + g[1] + ')">' +
-          '<span class="model-badge">' + (m.type === "edit" ? "Edit" : "Create") + '</span>' +
-          (m.lora ? '<span class="model-badge model-badge-lora">LoRA</span>' : '') +
-        '</span>' +
-        '<span class="model-name">' + m.name + '</span>' +
-        '<span class="model-note">' + m.note + '</span>' +
-      '</button>';
-    }).join("");
+    var idx = 0, html = "";
+    CATEGORIES.forEach(function (cat) {
+      var models = MODELS.filter(function (m) { return m.category === cat.key; });
+      if (!models.length) return;
+      html += '<h3 class="model-category-title">' + cat.label + '</h3>';
+      html += '<div class="model-grid">' + models.map(function (m) { return card(m, idx++); }).join("") + '</div>';
+    });
+    host.innerHTML = html;
     Array.prototype.forEach.call(host.querySelectorAll(".model-card"), function (c) {
       c.addEventListener("click", function () { selectModel(c.getAttribute("data-id")); });
     });
