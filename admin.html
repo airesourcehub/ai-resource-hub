@@ -73,6 +73,7 @@
           <button class="admin-tab" data-admin-tab="gallery">Gallery Moderation</button>
           <button class="admin-tab" data-admin-tab="flags">Reports</button>
           <button class="admin-tab" data-admin-tab="render">Render Seat</button>
+          <button class="admin-tab" data-admin-tab="thumbs">Model Thumbnails</button>
           <button class="admin-tab" data-admin-tab="analytics">Analytics</button>
         </div>
 
@@ -138,6 +139,13 @@
             <button type="button" class="btn btn-secondary" id="renderSeatReset">Reset to me</button>
           </form>
           <div class="form-status" id="renderSeatStatus"></div>
+        </div>
+
+        <!-- MODEL THUMBNAILS -->
+        <div class="admin-panel" id="admin-thumbs">
+          <h3>Image Studio model thumbnails</h3>
+          <p class="model-note" style="margin:0 0 16px;">Replace any model&rsquo;s picker thumbnail. Upload a square image (a real output from that model looks best). Changes go live for everyone on their next refresh.</p>
+          <div id="thumbAdminGrid" class="model-grid"></div>
         </div>
 
         <!-- ANALYTICS -->
@@ -211,5 +219,6 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/admin-thumbs.js"></script>
 </body>
 </html>
