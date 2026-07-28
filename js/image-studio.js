@@ -15,19 +15,21 @@
 
   // Mirrors the service registry (image_support.py). `category` groups the
   // picker; `type` (create/edit) controls whether an input photo is needed.
+  // `family` decides which trained LoRAs auto-appear: a Flux-family model
+  // shows the user's own trained Flux identities; Qwen models don't.
   var MODELS = [
-    { id: "flux2", name: "FLUX.2", type: "create", category: "t2i", lora: true, note: "Best all-round quality. Built-in Turbo toggle." },
-    { id: "qwen2512", name: "Qwen-Image 2512", type: "create", category: "t2i", lora: true, note: "Strong prompt adherence and text." },
-    { id: "krea2", name: "Krea 2 Turbo", type: "create", category: "t2i", lora: true, note: "Fast, stylish." },
+    { id: "flux2", name: "FLUX.2", type: "create", category: "t2i", lora: true, family: "flux", note: "Best all-round quality. Built-in Turbo toggle." },
+    { id: "qwen2512", name: "Qwen-Image 2512", type: "create", category: "t2i", lora: true, family: "qwen", note: "Strong prompt adherence and text." },
+    { id: "krea2", name: "Krea 2 Turbo", type: "create", category: "t2i", lora: true, family: "flux", note: "Fast, stylish." },
     { id: "zimage", name: "Z-Image Turbo", type: "create", category: "t2i", lora: false, note: "Very fast." },
     { id: "anima", name: "Anima", type: "create", category: "t2i", lora: false, note: "Stylized." },
     { id: "hidream", name: "HiDream O1", type: "create", category: "t2i", lora: false, note: "High detail." },
     { id: "sd35", name: "Stable Diffusion 3.5", type: "create", category: "t2i", lora: false, note: "Classic, flexible." },
-    { id: "qwen_edit", name: "Qwen Image Edit", type: "edit", category: "edit", lora: true, note: "Instruction-based edits." },
-    { id: "qwen_edit2509", name: "Qwen Edit 2509", type: "edit", category: "edit", lora: true, note: "Newer Qwen edit." },
-    { id: "qwen_edit2511", name: "Qwen Edit 2511", type: "edit", category: "edit", lora: true, note: "Multi-reference edit." },
-    { id: "firered", name: "FireRed Edit", type: "edit", category: "edit", lora: true, note: "Detailed photo edits." },
-    { id: "flux2_edit", name: "FLUX.2 Image-to-Image", type: "edit", category: "i2i", lora: true, note: "Transform a photo with a prompt." }
+    { id: "qwen_edit", name: "Qwen Image Edit", type: "edit", category: "edit", lora: true, family: "qwen", note: "Instruction-based edits." },
+    { id: "qwen_edit2509", name: "Qwen Edit 2509", type: "edit", category: "edit", lora: true, family: "qwen", note: "Newer Qwen edit." },
+    { id: "qwen_edit2511", name: "Qwen Edit 2511", type: "edit", category: "edit", lora: true, family: "qwen", note: "Multi-reference edit." },
+    { id: "firered", name: "FireRed Edit", type: "edit", category: "edit", lora: true, family: "qwen", note: "Detailed photo edits." },
+    { id: "flux2_edit", name: "FLUX.2 Image-to-Image", type: "edit", category: "i2i", lora: true, family: "flux", note: "Transform a photo with a prompt." }
   ];
 
   var CATEGORIES = [
@@ -136,20 +138,65 @@
   }
 
   // ---- LoRA list + upload ------------------------------------------------
+  // Your own trained identities (from the Train LoRA page) auto-appear here
+  // for the matching family — train a Flux LoRA and it's waiting for you in
+  // every Flux model, listed by the trigger word you chose.
+  async function myTrainedLoras(family) {
+    if (!user || !family) return [];
+    try {
+      var res = await client.from("training_jobs")
+        .select("name, trigger_word, base, lora_file, created_at")
+        .eq("user_id", user.id).eq("base", family).eq("status", "done")
+        .order("created_at", { ascending: false });
+      return (res.data || []).filter(function (t) {
+        // Only usable if it landed in the shared LoRA folder (a bare filename).
+        return t.lora_file && !/[\\/]/.test(t.lora_file);
+      });
+    } catch (e) { return []; }
+  }
+
   async function loadLoras() {
     var sel = document.getElementById("loraPick");
+    var family = selected && selected.family;
+    var mine = await myTrainedLoras(family);
     try {
       var token = await freshToken();
       var r = await fetch(RENDER_ENDPOINT + "/loras", { headers: { "Authorization": "Bearer " + token } });
       var d = await r.json();
       var opts = '<option value="">None</option>';
-      (d.loras || []).forEach(function (n) { opts += '<option value="' + n + '">' + n + '</option>'; });
+      if (mine.length) {
+        opts += '<optgroup label="Your trained identities">';
+        mine.forEach(function (t) {
+          var label = (t.trigger_word || t.name || t.lora_file).trim();
+          opts += '<option value="' + esc(t.lora_file) + '">' + esc(label) + '</option>';
+        });
+        opts += '</optgroup>';
+      }
+      var others = (d.loras || []);
+      if (others.length) {
+        opts += '<optgroup label="Installed / uploaded LoRAs">';
+        others.forEach(function (n) { opts += '<option value="' + esc(n) + '">' + esc(n) + '</option>'; });
+        opts += '</optgroup>';
+      }
       sel.innerHTML = opts;
-      document.getElementById("loraMsg").innerHTML = d.configured === false
-        ? "Uploading is off until the LoRA folder is set on the server. You can still pick installed LoRAs."
-        : "Remember to add your LoRA&rsquo;s <strong>trigger word</strong> to the prompt.";
-    } catch (e) {}
+      var trained = mine.length
+        ? "Your trained " + family + " identities are listed at the top — pick one, and remember to include its trigger word in the prompt. "
+        : "";
+      document.getElementById("loraMsg").innerHTML = trained + (d.configured === false
+        ? "Uploading is off until the LoRA folder is set on the server."
+        : "Remember to add your LoRA&rsquo;s <strong>trigger word</strong> to the prompt.");
+    } catch (e) {
+      // Even if the render service is unreachable, still show trained identities.
+      if (mine.length) {
+        var o = '<option value="">None</option><optgroup label="Your trained identities">';
+        mine.forEach(function (t) {
+          o += '<option value="' + esc(t.lora_file) + '">' + esc((t.trigger_word || t.name || t.lora_file).trim()) + '</option>';
+        });
+        sel.innerHTML = o + '</optgroup>';
+      }
+    }
   }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   async function onLoraUpload() {
     var f = document.getElementById("loraFile").files[0];

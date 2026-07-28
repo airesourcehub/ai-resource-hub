@@ -147,9 +147,13 @@
     setStatus("Training complete.", "success");
     var name = (document.getElementById("trainName").value || "your LoRA").trim();
     var trig = (document.getElementById("trainTrigger").value || "").trim();
+    var base = getRadio("trainBase", "flux");
+    var where = base === "wan"
+      ? "now one of your identities on the <a href='wan-video.html'>WAN Video</a> page"
+      : "now available in every Flux model in the <a href='image-studio.html'>Image Studio</a>";
     document.getElementById("trainDoneMsg").innerHTML =
-      "✓ <strong>" + name + "</strong> is trained and now available in the <a href='image-studio.html'>Image Studio</a> custom-LoRA picker." +
-      (trig ? " Use the trigger word <strong>" + trig + "</strong> in your prompt." : "");
+      "✓ <strong>" + esc(name) + "</strong> is trained and " + where + "." +
+      (trig ? " Use the trigger word <strong>" + esc(trig) + "</strong> in your prompt." : "");
     document.getElementById("trainResult").style.display = "";
     loadList();
   }
