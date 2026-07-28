@@ -23,12 +23,14 @@
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   var user = null, folders = [], selected = "all";
+  var CACHE_BUST = Date.now(); // refreshed each load so stale cached videos don't stick
   try { selected = localStorage.getItem(LS_KEY) || "all"; } catch (e) {}
 
   init();
   window.reloadRenderArchive = init;
 
   async function init() {
+    CACHE_BUST = Date.now();
     ensureLightbox();
     var s = await client.auth.getSession();
     user = s.data.session ? s.data.session.user : null;
@@ -89,13 +91,13 @@
   async function loadRenders() {
     var q = client.from("render_jobs")
       .select("id,status,mode,prompt,result_url,result_mov_url,created_at,folder_id")
-      .eq("user_id", user.id).eq("render_type", RENDER_TYPE)
+      .eq("user_id", user.id).eq("render_type", RENDER_TYPE).eq("status", "done")
       .order("created_at", { ascending: false });
     if (strip && !fullList) q = q.limit(RECENT_LIMIT);
 
     var res = await q;
     if (res.error) { setMsg("Couldn't load your renders right now."); return; }
-    var rows = (res.data || []).filter(function (r) { return r.status === "done" && r.result_url; });
+    var rows = (res.data || []).filter(function (r) { return r.result_url; });
 
     if (fullList) {
       if (selected === "unfiled") rows = rows.filter(function (r) { return !r.folder_id; });
@@ -129,7 +131,7 @@
   }
 
   function card(r) {
-    var key = String(Date.parse(r.created_at) || r.id);
+    var key = String(Date.parse(r.created_at) || r.id) + "_" + CACHE_BUST;
     var mp4 = bust(abs(r.result_url), key);
     var mov = r.result_mov_url ? bust(abs(r.result_mov_url), key) : null;
     var when = new Date(r.created_at).toLocaleString();
