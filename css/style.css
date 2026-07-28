@@ -2002,3 +2002,41 @@ video.upload-preview {
 .range-ticks > span { flex: 1; text-align: center; }
 .range-ticks > span:first-child { text-align: left; }
 .range-ticks > span:last-child { text-align: right; }
+
+/* Image Studio */
+.model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.model-card {
+  display: flex; flex-direction: column; text-align: left; cursor: pointer;
+  background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  overflow: hidden; padding: 0; transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+.model-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.model-card.selected { border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent); }
+.model-thumb {
+  position: relative; display: block; width: 100%; aspect-ratio: 1 / 1;
+  background-size: cover; background-position: center;
+}
+.model-badge {
+  position: absolute; top: 8px; left: 8px; font-size: 0.7rem; font-weight: 700;
+  background: rgba(0,0,0,0.6); color: #fff; padding: 2px 8px; border-radius: 999px;
+}
+.model-badge-lora { left: auto; right: 8px; background: rgba(26,138,68,0.85); }
+.model-name { font-weight: 700; padding: 10px 12px 2px; }
+.model-card .model-note { padding: 0 12px 12px; font-size: 0.82rem; color: var(--color-text-muted); margin: 0; }
+
+.lora-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lora-select {
+  flex: 1; min-width: 180px; padding: 9px 12px; border-radius: var(--radius);
+  border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); font-size: 0.95rem;
+}
+
+.image-results { margin-top: 20px; }
+.image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.image-cell-wrap { position: relative; }
+.image-cell { display: block; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--color-border); background: #000; }
+.image-cell img { display: block; width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1; }
+.image-del {
+  position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%;
+  border: 0; background: rgba(206,17,38,0.9); color: #fff; font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.image-del:hover { background: var(--color-red); }
