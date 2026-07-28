@@ -72,10 +72,16 @@
     loadRecent();
   }
 
+  // Admin-uploaded thumbnail (Supabase Storage) first, then the bundled
+  // default in img/models/, then the gradient — the browser uses the first
+  // that loads. Cache-busted per page load so admin swaps show on refresh.
+  var THUMB_BASE = (typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "") + "/storage/v1/object/public/model-thumbnails/";
+  var TB = Date.now();
+
   function card(m, i) {
     var g = GRADIENTS[i % GRADIENTS.length].split(",");
     return '<button type="button" class="model-card" data-id="' + m.id + '">' +
-      '<span class="model-thumb" style="background-image:url(img/models/' + m.id + '.jpg),linear-gradient(135deg,#' + g[0] + ',#' + g[1] + ')">' +
+      '<span class="model-thumb" style="background-image:url(' + THUMB_BASE + m.id + '.jpg?t=' + TB + '),url(img/models/' + m.id + '.jpg),linear-gradient(135deg,#' + g[0] + ',#' + g[1] + ')">' +
         (m.lora ? '<span class="model-badge model-badge-lora">LoRA</span>' : '') +
       '</span>' +
       '<span class="model-name">' + m.name + '</span>' +
