@@ -44,6 +44,14 @@
 
   var user = null, selected = null, pollTimer = null, pollFails = 0, lastJobId = null;
 
+  // Admin-uploaded thumbnail (Supabase Storage) first, then the bundled
+  // default in img/models/, then the gradient — the browser uses the first
+  // that loads. Cache-busted per page load so admin swaps show on refresh.
+  // NOTE: must be defined BEFORE init()/renderPicker() runs, or card() would
+  // build the URL with THUMB_BASE still undefined and never hit the bucket.
+  var THUMB_BASE = (typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "") + "/storage/v1/object/public/model-thumbnails/";
+  var TB = Date.now();
+
   init();
 
   async function init() {
@@ -73,12 +81,6 @@
     g.style.display = "none"; g.classList.remove("show"); studio.style.display = "";
     loadRecent();
   }
-
-  // Admin-uploaded thumbnail (Supabase Storage) first, then the bundled
-  // default in img/models/, then the gradient — the browser uses the first
-  // that loads. Cache-busted per page load so admin swaps show on refresh.
-  var THUMB_BASE = (typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "") + "/storage/v1/object/public/model-thumbnails/";
-  var TB = Date.now();
 
   function card(m, i) {
     var g = GRADIENTS[i % GRADIENTS.length].split(",");
