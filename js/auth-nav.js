@@ -30,8 +30,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (session && session.user) {
       var email = session.user.email || "Account";
       slot.innerHTML =
-        '<a href="my-activity.html" class="nav-auth-activity" title="Your activity log">My Activity</a>' +
-        '<span class="nav-auth-email" title="' + escapeHtml(email) + '">' + escapeHtml(truncate(email, 20)) + '</span>' +
+        '<a href="messages.html" class="nav-auth-activity" title="Your messages">Messages</a>' +
+        '<a href="profile.html" class="nav-auth-email" title="View your profile">' + escapeHtml(truncate(email, 20)) + '</a>' +
         '<button type="button" class="nav-auth-signout" id="navSignOutBtn">Log out</button>';
       var btn = document.getElementById("navSignOutBtn");
       if (btn) {

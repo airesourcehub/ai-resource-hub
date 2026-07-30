@@ -1182,7 +1182,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var canDelete = currentUser && c.user_id === currentUser.id;
 
       row.innerHTML =
-        '<div class="comment-meta"><span class="comment-author">' + escapeHtml(pseudoName(c.user_id)) + "</span></div>" +
+        '<div class="comment-meta"><a class="comment-author" href="profile.html?u=' + escapeHtml(c.user_id) + '">' + escapeHtml(pseudoName(c.user_id)) + "</a></div>" +
         (c.body ? '<p class="comment-body">' + escapeHtml(c.body) + "</p>" : "") +
         remixHtml +
         (canDelete ? '<button type="button" class="comment-delete" data-comment-id="' + escapeHtml(c.id) + '">Delete</button>' : "");
@@ -1425,8 +1425,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     lightboxPrompt.textContent = item.prompt;
     if (lightboxModel) {
-      lightboxModel.textContent = item.model ? "Model: " + item.model : "";
-      lightboxModel.style.display = item.model ? "block" : "none";
+      var modelTxt = item.model ? "Model: " + escapeHtml(item.model) : "";
+      var authorLink = item.user_id
+        ? (modelTxt ? " &middot; " : "") + '<a href="profile.html?u=' + escapeHtml(item.user_id) + '">View uploader&rsquo;s profile &rarr;</a>'
+        : "";
+      lightboxModel.innerHTML = modelTxt + authorLink;
+      lightboxModel.style.display = (modelTxt || authorLink) ? "block" : "none";
     }
     var badges = (item.hashtags || []).map(function (t) {
       return '<span class="tag">#' + escapeHtml(t) + "</span>";
