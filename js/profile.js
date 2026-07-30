@@ -72,7 +72,8 @@
 
     document.getElementById("profEditBtn").style.display = isOwn ? "" : "none";
     document.getElementById("profActivityBtn").style.display = isOwn ? "" : "none";
-    document.getElementById("profMessageBtn").style.display = (!isOwn && me) ? "" : "none";
+    // Messaging is disabled for now — keep the button hidden.
+    document.getElementById("profMessageBtn").style.display = "none";
   }
 
   function socialUrl(s, v) {
