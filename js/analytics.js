@@ -34,6 +34,14 @@ document.addEventListener("DOMContentLoaded", function () {
   async function logVisit() {
     var geo = await lookupGeo();
 
+    // Tie the visit to the signed-in user (if any) so the admin can see a
+    // per-user activity trail. Anonymous visits keep user_id null.
+    var uid = null;
+    try {
+      var s = await client.auth.getSession();
+      uid = s.data.session ? s.data.session.user.id : null;
+    } catch (e) {}
+
     try {
       var insertResult = await client.from("analytics_events").insert([{
         path: window.location.pathname,
@@ -43,7 +51,8 @@ document.addEventListener("DOMContentLoaded", function () {
         city: geo.city || null,
         region: geo.region || null,
         country: geo.country || null,
-        session_id: sessionId
+        session_id: sessionId,
+        user_id: uid
       }]).select("id").single();
 
       if (!insertResult.error && insertResult.data) {

@@ -327,6 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
             '<span class="admin-row-meta">joined ' + fmtDate(r.created_at) + '</span>' +
           '</div>' +
           '<div class="admin-row-actions">' +
+            '<button class="btn btn-secondary btn-sm user-activity" data-email="' + escapeHtml(r.email || "") + '">View activity</button> ' +
             (r.is_admin ? '' :
               '<button class="btn btn-secondary btn-sm user-toggle">' +
                 (r.status === "active" ? "Block" : "Unblock") +
@@ -347,6 +348,79 @@ document.addEventListener("DOMContentLoaded", function () {
         loadUsers();
       });
     });
+
+    table.querySelectorAll(".user-activity").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var row = btn.closest(".admin-row");
+        loadUserDetail(row.getAttribute("data-id"), btn.getAttribute("data-email"));
+      });
+    });
+  }
+
+  // ---------- Per-user activity drill-down ----------
+  async function loadUserDetail(uid, email) {
+    var box = document.getElementById("userDetail");
+    if (!box) return;
+    box.style.display = "";
+    box.innerHTML = '<p class="model-note">Loading activity for ' + escapeHtml(email) + '…</p>';
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    var res = await Promise.all([
+      client.from("image_jobs").select("id,model,prompt,status,created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(100),
+      client.from("render_jobs").select("id,render_type,mode,prompt,status,created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(100),
+      client.from("training_jobs").select("id,name,base,trigger_word,status,created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(100),
+      client.from("analytics_events").select("id,path,ip,city,region,country,user_agent,created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(300)
+    ]);
+    var images = res[0].data || [], videos = res[1].data || [], loras = res[2].data || [], visits = res[3].data || [];
+
+    // Distinct IPs with location + last-seen
+    var ipMap = {};
+    visits.forEach(function (v) {
+      if (!v.ip) return;
+      if (!ipMap[v.ip]) ipMap[v.ip] = { ip: v.ip, loc: [v.city, v.region, v.country].filter(Boolean).join(", "), count: 0, last: v.created_at };
+      ipMap[v.ip].count++;
+    });
+    var ips = Object.keys(ipMap).map(function (k) { return ipMap[k]; });
+
+    var VL = { ai_transition: "AI Transition", blend: "AI Transition", music_sync: "Music Sync", motion_transfer: "Motion Transfer", lipsync: "Lip Sync", wan_video: "WAN Video" };
+
+    var timeline = []
+      .concat(images.map(function (r) { return { t: r.created_at, s: "🖼️ Image — " + (r.model || "") + statusTag(r.status) + meta(r.prompt) }; }))
+      .concat(videos.map(function (r) { return { t: r.created_at, s: "🎬 " + (VL[r.render_type] || r.render_type || "Video") + statusTag(r.status) + meta(r.prompt) }; }))
+      .concat(loras.map(function (r) { return { t: r.created_at, s: "🧬 LoRA — " + escapeHtml(r.name || "") + " (" + (r.base || "flux") + ")" + statusTag(r.status) + meta(r.trigger_word ? "trigger: " + r.trigger_word : "") }; }))
+      .concat(visits.map(function (r) { return { t: r.created_at, s: "👁️ " + escapeHtml(r.path || "/") + meta([[r.city, r.country].filter(Boolean).join(", "), r.ip].filter(Boolean).join(" · ")) }; }))
+      .sort(function (a, b) { return (Date.parse(b.t) || 0) - (Date.parse(a.t) || 0); });
+
+    var html = '<div class="status-card">' +
+      '<div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<h3 style="margin:0;">Activity — ' + escapeHtml(email) + '</h3>' +
+        '<button class="btn btn-secondary btn-sm" id="userDetailClose">Close</button></div>' +
+      '<div class="status-chips" style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;">' +
+        chip("Images", images.length) + chip("Videos", videos.length) + chip("LoRAs", loras.length) +
+        chip("Page visits", visits.length) + chip("Distinct IPs", ips.length) +
+      '</div>';
+
+    html += '<h4 style="margin:14px 0 6px;">IP addresses &amp; locations</h4>';
+    html += ips.length ? '<div class="admin-list">' + ips.map(function (i) {
+      return '<div class="admin-row"><div class="admin-row-main"><strong>' + escapeHtml(i.ip) + '</strong>' +
+        (i.loc ? '<span class="admin-row-meta">' + escapeHtml(i.loc) + '</span>' : '') +
+        '<span class="admin-row-meta">' + i.count + ' visit' + (i.count === 1 ? '' : 's') + ' · last ' + fmtDate(i.last) + '</span></div></div>';
+    }).join("") + '</div>' : '<p class="admin-empty">No IP data recorded yet (only captured on visits made after this feature went live).</p>';
+
+    html += '<h4 style="margin:18px 0 6px;">Full timeline</h4>';
+    html += timeline.length ? '<div class="admin-list">' + timeline.slice(0, 400).map(function (it) {
+      return '<div class="admin-row"><div class="admin-row-main">' + it.s +
+        '<span class="admin-row-meta">' + fmtDate(it.t) + '</span></div></div>';
+    }).join("") + '</div>' : '<p class="admin-empty">No activity recorded for this user yet.</p>';
+
+    html += '</div>';
+    box.innerHTML = html;
+    var closeBtn = document.getElementById("userDetailClose");
+    if (closeBtn) closeBtn.addEventListener("click", function () { box.style.display = "none"; box.innerHTML = ""; });
+
+    function statusTag(s) { return s ? ' <span class="tag' + (s === "done" ? "" : " private") + '">' + escapeHtml(s) + '</span>' : ""; }
+    function meta(m) { m = String(m || ""); return m ? '<span class="admin-row-meta">' + escapeHtml(m.length > 100 ? m.slice(0, 99) + "…" : m) + '</span>' : ""; }
+    function chip(label, n) { return '<span class="status-chip">' + label + ': ' + n + '</span>'; }
   }
 
   // ---------- Gallery moderation ----------
