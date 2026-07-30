@@ -1912,6 +1912,8 @@ video.upload-preview {
    ratio, and stack the download button beneath it. */
 #imgLightbox .render-lightbox-inner { width: auto; max-width: min(92vw, 1100px); display: flex; flex-direction: column; align-items: center; gap: 14px; }
 #imgLightbox .render-lightbox-inner img { max-width: 100%; max-height: 82vh; width: auto; height: auto; object-fit: contain; background: #000; border-radius: 12px; display: block; }
+/* Selected camera-move button (Motion Transfer) */
+.blend-prompt-tools .btn.selected { border-color: var(--color-gold); color: var(--color-gold); box-shadow: 0 0 0 1px var(--color-gold) inset; }
 
 /* File-input thumbnails (AI Transitions + Motion Transfer pickers) */
 .file-thumb { margin-top: 10px; }
