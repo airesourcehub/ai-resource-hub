@@ -101,8 +101,10 @@
           <div class="mode-switch" id="blendModeSwitch">
             <button type="button" class="mode-btn active" data-tmode="transition">AI Transition</button>
             <button type="button" class="mode-btn" data-tmode="music">AI Music Sync Transition</button>
+            <button type="button" class="mode-btn" data-tmode="midsync">Sync (no music)</button>
           </div>
           <p class="blend-note" id="musicNote" style="display:none;">&#127925;&nbsp; Both clips must be synced to the <strong>exact same audio.</strong> We detect that shared beat, cut each clip on the nearest beat to its middle, and time the transition to land on the beat.</p>
+          <p class="blend-note" id="midSyncNote" style="display:none;">&#9986;&nbsp; No audio needed. We cut <strong>each clip at its midpoint</strong>, AI-blend between those two middle frames, and stitch clip&nbsp;A + transition + clip&nbsp;B into one <strong>silent</strong> video.</p>
 
           <div class="blend-inputs">
             <div class="field">
