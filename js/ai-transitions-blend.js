@@ -75,7 +75,7 @@
 
   // Switch the single generator between AI-transition and music-sync modes.
   function setTMode(m) {
-    currentTMode = (m === "music") ? "music" : "transition";
+    currentTMode = (m === "music") ? "music" : (m === "midsync") ? "midsync" : "transition";
     var sw = document.getElementById("blendModeSwitch");
     if (sw) {
       var btns = sw.querySelectorAll(".mode-btn");
@@ -84,18 +84,23 @@
       });
     }
     var note = document.getElementById("musicNote");
+    var midNote = document.getElementById("midSyncNote");
     var outField = document.getElementById("blendOutputField");
     var hintA = document.getElementById("hintA");
     var hintB = document.getElementById("hintB");
-    if (currentTMode === "music") {
-      if (note) note.style.display = "";
-      if (outField) outField.style.display = "none";
+    var isMusic = currentTMode === "music", isMid = currentTMode === "midsync";
+    if (note) note.style.display = isMusic ? "" : "none";
+    if (midNote) midNote.style.display = isMid ? "" : "none";
+    if (outField) outField.style.display = (isMusic || isMid) ? "none" : "";
+    if (isMusic) {
       if (hintA) hintA.innerHTML = "— with its music/beat";
       if (hintB) hintB.innerHTML = "— the exact same audio";
       if (genBtn) genBtn.textContent = "Generate music-synced transition";
+    } else if (isMid) {
+      if (hintA) hintA.innerHTML = "— cut at its midpoint";
+      if (hintB) hintB.innerHTML = "— cut at its midpoint";
+      if (genBtn) genBtn.textContent = "Generate silent sync transition";
     } else {
-      if (note) note.style.display = "none";
-      if (outField) outField.style.display = "";
       if (hintA) hintA.innerHTML = "— blends from its last frame";
       if (hintB) hintB.innerHTML = "— blends into its first frame";
       if (genBtn) genBtn.textContent = "Generate transition";
@@ -208,6 +213,9 @@
     fd.append("speed", speed);
     if (currentTMode === "music") {
       fd.append("kind", "music_sync");
+    } else if (currentTMode === "midsync") {
+      fd.append("kind", "music_sync");
+      fd.append("no_music", "1");   // midpoint cut, silent output
     } else {
       fd.append("kind", "blend");
       fd.append("mode", mode);
