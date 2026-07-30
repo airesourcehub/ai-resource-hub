@@ -131,7 +131,10 @@
   }
 
   function card(r) {
-    var key = String(Date.parse(r.created_at) || r.id) + "_" + CACHE_BUST;
+    // Stable per-render key: the URL stays the same across reloads, so a video
+    // that already loaded is served from cache instead of re-downloading (which
+    // is what made finished renders flash blank for a while over the tunnel).
+    var key = String(Date.parse(r.created_at) || r.id);
     var mp4 = bust(abs(r.result_url), key);
     var mov = r.result_mov_url ? bust(abs(r.result_mov_url), key) : null;
     var when = new Date(r.created_at).toLocaleString();

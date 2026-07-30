@@ -48,7 +48,18 @@
     wirePhrase("motionIdentityLock", "Preserve the exact identity", IDENTITY_LOCK_TEXT);
     wirePhrase("motionHandheld", "handheld camera", "Filmed on a handheld camera with subtle, realistic camera shake and organic movement, like a live music video — slight bobbing, drift, and natural instability that adds dynamic energy.");
     wirePhrase("motionAnimateBg", "background is alive", "The environment and background is alive with motion — moving lights, drifting atmosphere, swaying elements, and subtle depth and parallax throughout the scene.");
+    wirePhrase("motionAnimateCrowd", "crowd in the scene is fully animated", "The crowd in the scene is fully animated and alive — cheering, waving, clapping, and moving energetically throughout, adding atmosphere and depth.");
     wirePhrase("motionDancers", "backup dancers", "Choreographed backup dancers perform in sync behind the main subject, music-video style, with energetic coordinated movement.");
+
+    // Camera moves are mutually exclusive — picking one swaps out any prior move.
+    wireCameraMove("motionDollyIn", "Camera slowly dollies in toward the subject, gradually closing the distance for a cinematic push-in.");
+    wireCameraMove("motionDollyOut", "Camera slowly dollies out away from the subject, gradually revealing more of the scene in a cinematic pull-back.");
+    wireCameraMove("motionGlideLeft", "Camera glides smoothly to the left in a steady lateral tracking move.");
+    wireCameraMove("motionGlideRight", "Camera glides smoothly to the right in a steady lateral tracking move.");
+    wireCameraMove("motionGlideUp", "Camera glides smoothly upward in a steady vertical crane move.");
+    wireCameraMove("motionGlideDown", "Camera glides smoothly downward in a steady vertical crane move.");
+    wireCameraMove("motionDrone", "Filmed as an aerial drone shot, floating high above with smooth sweeping motion and a wide elevated perspective.");
+    wireCameraMove("motionDivingDrone", "Filmed as a diving drone shot, plunging rapidly downward from a high aerial view toward the subject with dynamic FPV-style motion.");
     var expandBtn = document.getElementById("motionExpandBtn");
     if (expandBtn) expandBtn.addEventListener("click", function () {
       if (resultVideo && resultVideo.src && typeof window.openRenderLightbox === "function") window.openRenderLightbox(resultVideo.src);
@@ -98,6 +109,30 @@
       var cur = box.value.trim();
       box.value = cur ? (cur + " " + text) : text;
       box.focus();
+    });
+  }
+
+  // Camera moves are single-select: remember every camera phrase so picking a
+  // new one first strips whichever was there before, then appends the new one.
+  var CAMERA_TEXTS = [];
+  function wireCameraMove(btnId, text) {
+    CAMERA_TEXTS.push(text);
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var box = document.getElementById("motionPrompt");
+      if (!box) return;
+      var v = box.value;
+      CAMERA_TEXTS.forEach(function (t) { v = v.split(t).join(""); });   // remove any prior move
+      v = v.replace(/\s{2,}/g, " ").trim();
+      if (v.toLowerCase().indexOf(text.toLowerCase()) === -1) {
+        v = v ? (v + " " + text) : text;
+      }
+      box.value = v;
+      box.focus();
+      Array.prototype.forEach.call(document.querySelectorAll("#motionCameraTools .btn"),
+        function (b) { b.classList.remove("selected"); });
+      btn.classList.add("selected");
     });
   }
 

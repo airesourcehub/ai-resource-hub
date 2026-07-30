@@ -88,8 +88,9 @@
     startBtn.disabled = true;
     cancelBtn.style.display = ""; cancelBtn.disabled = false; cancelBtn.textContent = "Cancel";
     document.getElementById("trainResult").style.display = "none";
-    setStatus("Uploading your images…");
-    showProgress(2, "Uploading…");
+    var imgCount = Array.prototype.filter.call(files, function (f) { return f.type.indexOf("image/") === 0; }).length;
+    setStatus("Uploading your " + imgCount + " images…");
+    showProgress(1, "Uploading your " + imgCount + " images… 0%");
 
     var fd = new FormData();
     fd.append("name", name);
@@ -98,22 +99,46 @@
     fd.append("steps", steps);
     Array.prototype.forEach.call(files, function (f) { if (f.type.indexOf("image/") === 0) fd.append("images", f); });
 
-    var jobId;
+    // XHR (not fetch) so we can show real upload progress as the photos send.
+    var data;
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/training-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
-      var data = await r.json().catch(function () { return {}; });
-      if (r.status === 423 || r.status === 403) { setStatus("The GPU is reserved by the admin for another user right now.", "error"); reset(); return; }
-      if (r.status === 409) { setStatus("The GPU is busy with another job. Please try again shortly.", "error"); reset(); return; }
-      if (!r.ok) throw new Error(data.detail || ("HTTP " + r.status));
-      jobId = data.job_id;
-      lastJobId = jobId;
+      data = await uploadTraining(fd, token, imgCount);
     } catch (e) {
-      setStatus("Couldn’t reach the render service. " + (e.message || ""), "error");
+      if (e && e.status === 423) { setStatus("The GPU is reserved by the admin for another user right now.", "error"); reset(); return; }
+      if (e && e.status === 409) { setStatus("The GPU is busy with another job. Please try again shortly.", "error"); reset(); return; }
+      setStatus("Couldn’t reach the render service. " + ((e && e.message) || ""), "error");
       reset(); return;
     }
-    setStatus("Training started — this can take 30 minutes to a few hours. You can leave this page.");
+    var jobId = data.job_id;
+    lastJobId = jobId;
+    setStatus("Upload complete — training queued. This can take 30 minutes to a few hours. You can leave this page.");
+    showProgress(3, "Queued — waiting for the GPU…");
     pollFails = 0;
     pollJob(jobId);
+  }
+
+  // Upload the dataset with a live progress bar, resolving with the JSON body.
+  function uploadTraining(fd, token, imgCount) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", RENDER_ENDPOINT + "/training-jobs");
+      xhr.setRequestHeader("Authorization", "Bearer " + token);
+      xhr.upload.onprogress = function (e) {
+        if (!e.lengthComputable) return;
+        var pct = Math.round(e.loaded / e.total * 100);
+        var mb = (e.loaded / 1048576).toFixed(1) + " / " + (e.total / 1048576).toFixed(1) + " MB";
+        showProgress(Math.max(1, pct), "Uploading your " + imgCount + " images… " + pct + "% (" + mb + ")");
+      };
+      xhr.upload.onload = function () { showProgress(100, "Upload complete — handing off to the GPU…"); };
+      xhr.onload = function () {
+        var body = {};
+        try { body = JSON.parse(xhr.responseText); } catch (e) {}
+        if (xhr.status >= 200 && xhr.status < 300) { resolve(body); return; }
+        reject({ status: xhr.status, message: body.detail || ("HTTP " + xhr.status) });
+      };
+      xhr.onerror = function () { reject({ status: 0, message: "network error" }); };
+      xhr.send(fd);
+    });
   }
 
   function pollJob(jobId) {
@@ -133,6 +158,7 @@
         if (j.step && j.total_steps) lbl = "Training — step " + j.step + " / " + j.total_steps;
         if (j.eta_seconds != null && j.eta_seconds > 0) lbl += " • ~" + fmtDur(j.eta_seconds) + " left";
         showProgress(Math.max(2, Math.min(99, j.progress || 0)), lbl);
+        showLog(j.log_tail);
         pollJob(jobId);
       } catch (e) {
         pollFails++;
@@ -220,6 +246,11 @@
 
   function getRadio(name, dv) { var el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : dv; }
   function showProgress(pct, label) { progress.style.display = ""; progressFill.style.width = pct + "%"; progressLabel.textContent = label || ""; }
+  function showLog(lines) {
+    var wrap = document.getElementById("trainLogWrap"), el = document.getElementById("trainLog");
+    if (!wrap || !el) return;
+    if (lines && lines.length) { wrap.style.display = ""; el.textContent = lines.join("\n"); el.scrollTop = el.scrollHeight; }
+  }
   function reset() { startBtn.disabled = false; cancelBtn.style.display = "none"; progress.style.display = "none"; clearTimeout(pollTimer); }
   function fmtDur(s) { s = Math.max(0, Math.round(s)); var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? h + "h " + m + "m" : (m ? m + "m" : Math.round(s) + "s"); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
