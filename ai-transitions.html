@@ -104,13 +104,13 @@
             <button type="button" class="mode-btn" data-tmode="transform">Transform &amp; Stay</button>
           </div>
           <p class="blend-note" id="musicNote" style="display:none;">&#127925;&nbsp; Both clips must be synced to the <strong>exact same audio.</strong> We detect that shared beat, cut each clip on the nearest beat to its middle, and time the transition to land on the beat.</p>
-          <p class="blend-note" id="transformNote" style="display:none;">&#128081;&nbsp; Upload the <strong>same performance twice</strong>: clip&nbsp;A plain, clip&nbsp;B already transformed (e.g. wearing the robe &amp; crown) &mdash; both singing the <strong>same lyrics</strong>. At the midpoint we flip from plain to transformed and it <strong>stays</strong>, keeping the vocals on time.</p>
+          <p class="blend-note" id="transformNote" style="display:none;">&#127916;&nbsp; Upload the <strong>same performance in two different scenes</strong> &mdash; clip&nbsp;A and clip&nbsp;B, both singing the <strong>same lyrics</strong>. At the midpoint we jump from scene&nbsp;A to scene&nbsp;B and stay on time. Pick a <strong>prompt-driven AI morph</strong> for a magical scene change (describe it in the prompt), or a clean crossfade. <em>Tip: use Highest quality below so the morph follows your prompt, and run it when training isn&rsquo;t using the GPU.</em></p>
 
           <div class="field" id="transformControls" style="display:none;">
             <label>Middle style</label>
             <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="tfStyle" value="crossfade" checked /> Crossfade <span class="frame-res" style="margin:0;">(dead-on time, no warp)</span></label>
-              <label class="blend-radio"><input type="radio" name="tfStyle" value="morph" /> Short AI morph <span class="frame-res" style="margin:0;">(fancier &mdash; tiny timing gap)</span></label>
+              <label class="blend-radio"><input type="radio" name="tfStyle" value="morph" checked /> Prompt AI morph <span class="frame-res" style="margin:0;">(scene A morphs into scene B, follows your prompt)</span></label>
+              <label class="blend-radio"><input type="radio" name="tfStyle" value="crossfade" /> Crossfade <span class="frame-res" style="margin:0;">(clean dissolve, no AI, instant)</span></label>
             </div>
             <label style="margin-top:10px;display:block;">Overlap length</label>
             <div class="blend-mode">
