@@ -118,13 +118,20 @@
   // Text appended when the user hits "Identity Lock" — keeps people/characters
   // looking the same from the first clip through to the second.
   var IDENTITY_LOCK_TEXT = "Preserve the exact identity of every person and character: keep each face, facial features, hair, skin tone, body, and clothing perfectly consistent and recognizable from the first frame to the last. Do not morph, swap, distort, age, or change anyone's identity.";
+  // Transform & Stay is a WARDROBE morph -- lock the person and the background
+  // but explicitly ALLOW the clothing to change, or the outfit never appears.
+  var TRANSFORM_LOCK_TEXT = "Keep the exact same face, facial features, hair, skin tone, body and pose, and keep the exact same background, lighting and camera framing. Only the clothing and accessories change -- everything else stays identical and sharp.";
 
   function addIdentityLock() {
     var box = document.getElementById("blendPrompt");
     if (!box) return;
-    if (box.value.indexOf("Preserve the exact identity") !== -1) return; // already added
+    var isTf = (currentTMode === "transform");
+    var lock = isTf ? TRANSFORM_LOCK_TEXT : IDENTITY_LOCK_TEXT;
+    if (box.value.indexOf(lock) !== -1) return; // already added
+    // Remove the other variant if it was added under a different mode.
+    box.value = box.value.replace(IDENTITY_LOCK_TEXT, "").replace(TRANSFORM_LOCK_TEXT, "").trim();
     var cur = box.value.trim();
-    box.value = cur ? (cur + " " + IDENTITY_LOCK_TEXT) : IDENTITY_LOCK_TEXT;
+    box.value = cur ? (cur + " " + lock) : lock;
     box.focus();
   }
 
