@@ -75,7 +75,7 @@
 
   // Switch the single generator between AI-transition and music-sync modes.
   function setTMode(m) {
-    currentTMode = (m === "music") ? "music" : (m === "midsync") ? "midsync" : "transition";
+    currentTMode = (m === "music") ? "music" : (m === "midsync") ? "midsync" : (m === "transform") ? "transform" : "transition";
     var sw = document.getElementById("blendModeSwitch");
     if (sw) {
       var btns = sw.querySelectorAll(".mode-btn");
@@ -85,13 +85,17 @@
     }
     var note = document.getElementById("musicNote");
     var midNote = document.getElementById("midSyncNote");
+    var tfNote = document.getElementById("transformNote");
+    var tfCtrl = document.getElementById("transformControls");
     var outField = document.getElementById("blendOutputField");
     var hintA = document.getElementById("hintA");
     var hintB = document.getElementById("hintB");
-    var isMusic = currentTMode === "music", isMid = currentTMode === "midsync";
+    var isMusic = currentTMode === "music", isMid = currentTMode === "midsync", isTf = currentTMode === "transform";
     if (note) note.style.display = isMusic ? "" : "none";
     if (midNote) midNote.style.display = isMid ? "" : "none";
-    if (outField) outField.style.display = (isMusic || isMid) ? "none" : "";
+    if (tfNote) tfNote.style.display = isTf ? "" : "none";
+    if (tfCtrl) tfCtrl.style.display = isTf ? "" : "none";
+    if (outField) outField.style.display = (isMusic || isMid || isTf) ? "none" : "";
     if (isMusic) {
       if (hintA) hintA.innerHTML = "— with its music/beat";
       if (hintB) hintB.innerHTML = "— the exact same audio";
@@ -100,6 +104,10 @@
       if (hintA) hintA.innerHTML = "— cut at its midpoint";
       if (hintB) hintB.innerHTML = "— cut at its midpoint";
       if (genBtn) genBtn.textContent = "Generate silent sync transition";
+    } else if (isTf) {
+      if (hintA) hintA.innerHTML = "— plain clip";
+      if (hintB) hintB.innerHTML = "— transformed clip, same lyrics";
+      if (genBtn) genBtn.textContent = "Generate transform";
     } else {
       if (hintA) hintA.innerHTML = "— blends from its last frame";
       if (hintB) hintB.innerHTML = "— blends into its first frame";
@@ -192,7 +200,9 @@
 
     var err = validFile(a, "first clip") || validFile(b, "second clip");
     if (err) { setStatus(err, "error"); return; }
-    if (!prompt) { setStatus("Please describe the transition you want.", "error"); return; }
+    // A prompt is required except for Transform & Stay (the crossfade needs none,
+    // and the morph works with an empty prompt — it just blends toward clip B).
+    if (!prompt && currentTMode !== "transform") { setStatus("Please describe the transition you want.", "error"); return; }
 
     setStatus("Checking your session…");
     var token = await freshToken();
@@ -216,6 +226,12 @@
     } else if (currentTMode === "midsync") {
       fd.append("kind", "music_sync");
       fd.append("no_music", "1");   // midpoint cut, silent output
+    } else if (currentTMode === "transform") {
+      fd.append("kind", "transform_stay");
+      var st = document.querySelector('input[name="tfStyle"]:checked');
+      fd.append("middle_style", st ? st.value : "crossfade");
+      var ov = document.querySelector('input[name="tfOverlap"]:checked');
+      fd.append("overlap", ov ? ov.value : "1");
     } else {
       fd.append("kind", "blend");
       fd.append("mode", mode);
