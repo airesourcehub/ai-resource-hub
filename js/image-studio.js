@@ -76,6 +76,7 @@
   wireDragDrop();
   syncChips();
   autosize();
+  applyLinkParams();
 
   if (client) {
     client.auth.getSession().then(function (r) {
@@ -281,6 +282,27 @@
   function closePops() {
     Array.prototype.forEach.call(document.querySelectorAll(".pop"), function (p) { p.hidden = true; });
     Array.prototype.forEach.call(document.querySelectorAll(".chip[data-pop]"), function (c) { c.setAttribute("aria-expanded", "false"); });
+  }
+
+  // Links from the gallery: ?prompt=…&model=…&ref=<image url>
+  function applyLinkParams() {
+    var q;
+    try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var prompt = q.get("prompt"), model = q.get("model"), ref = q.get("ref");
+    if (!prompt && !model && !ref) return;
+    if (model) {
+      var want = model.toLowerCase().replace(/[^a-z0-9]/g, "");
+      var match = MODELS.filter(function (m) {
+        var id = m.id.replace(/[^a-z0-9]/g, ""), nm = m.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return id === want || nm === want || (want.length > 3 && (nm.indexOf(want) !== -1 || want.indexOf(nm) !== -1));
+      })[0];
+      if (match) selectModel(match.id, true);
+    }
+    if (prompt) { $("prompt").value = prompt; autosize(); }
+    if (ref) useAsRef(ref);
+    else if (prompt) hint("Prompt loaded from the gallery. Pick a model and ratio, then generate.");
+    syncGenerate();
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
   }
 
   // ---------------------------------------------------------- model menu
@@ -659,6 +681,18 @@
       img.src = src;
       img.alt = "Generated image " + (idx + 1) + ": " + (job.prompt || "");
       img.addEventListener("load", function () { if (!job.width) shot.style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight; });
+      img.addEventListener("error", function () {
+        // Images live on the GPU server; when it's offline, show a calm placeholder instead of a broken icon.
+        shot.classList.add("is-missing");
+        if (!shot.style.aspectRatio) shot.style.aspectRatio = "1 / 1";
+        img.removeAttribute("alt");
+        if (!shot.querySelector(".shot-missing")) {
+          var note = document.createElement("div");
+          note.className = "shot-missing";
+          note.innerHTML = "<strong>Image unavailable</strong><span>It's stored on the GPU server, which isn't reachable right now. It will show again once the server is back.</span>";
+          shot.appendChild(note);
+        }
+      });
       img.addEventListener("click", function () { openLightbox(src); });
       shot.querySelector('[data-act="dl"]').addEventListener("click", function () { download(src, job); });
       shot.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(src); });

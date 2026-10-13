@@ -315,6 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var currentUser = null;
   var likedIds = {}; // gallery_id -> true, for the current user
   var activeHoverPopup = null; // the single floating video-hover preview, if any
+  var currentViewItems = []; // items in the order currently shown (viewer prev/next)
 
   init();
 
@@ -336,6 +337,16 @@ document.addEventListener("DOMContentLoaded", function () {
     await loadLikes();
     renderCurrentView();
     loadUserNotices();
+    openFromLink();
+  }
+
+  // ?post=<id> opens that post straight away (shared links).
+  function openFromLink() {
+    var id = null;
+    try { id = new URLSearchParams(location.search).get("post"); } catch (e) {}
+    if (!id) return;
+    var item = allItems.find(function (i) { return i.id === id; });
+    if (item) openLightbox(item);
   }
 
   // Shows any unread messages a moderator has sent the logged-in user, as a
@@ -637,20 +648,26 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     emptyState.style.display = "none";
 
+    currentViewItems = items.slice();
+
     items.forEach(function (item) {
       var card = document.createElement("div");
-      card.className = "gallery-item";
+      card.className = "gallery-item g-tile" + (item.media_type === "video" ? " is-video" : "");
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", "Open " + (item.title || "post"));
 
-      var mediaHtml = item.media_type === "video"
-        ? '<video src="' + escapeHtml(item.image_url) + '"' + posterAttr(item) + ' muted loop preload="metadata" playsinline></video>'
-        : '<img src="' + escapeHtml(item.image_url) + '" alt="Gallery image" loading="lazy" />';
-
-      var badges = (item.hashtags || []).map(function (t) {
-        return '<span class="tag">#' + escapeHtml(t) + "</span>";
-      }).join("");
-
-      if (!item.is_public) {
-        badges = '<span class="tag private">Private</span>' + badges;
+      var poster = item.media_type === "video" ? posterUrl(item) : null;
+      var mediaHtml;
+      if (item.media_type === "video") {
+        // A still poster sets the tile's natural height; the video only loads
+        // and plays while the tile is hovered (Higgsfield-style).
+        mediaHtml = (poster
+          ? '<img class="g-media" src="' + escapeHtml(poster) + '" alt="" loading="lazy" />'
+          : '<video class="g-media" src="' + escapeHtml(item.image_url) + '" muted loop preload="metadata" playsinline></video>') +
+          (poster ? '<video class="g-hover-video" muted loop playsinline preload="none" data-src="' + escapeHtml(item.image_url) + '"></video>' : "");
+      } else {
+        mediaHtml = '<img class="g-media" src="' + escapeHtml(item.image_url) + '" alt="' + escapeHtml(item.title || "Gallery image") + '" loading="lazy" />';
       }
 
       var liked = !!likedIds[item.id];
@@ -661,27 +678,35 @@ document.addEventListener("DOMContentLoaded", function () {
         var parentItem = allItems.find(function (i) { return i.id === item.parent_id; });
         var parentLabel = parentItem ? (parentItem.title || parentItem.prompt) : null;
         remixOfHtml = parentLabel
-          ? '<div class="remix-of" data-parent-id="' + escapeHtml(item.parent_id) + '">↻ Remix of ' + escapeHtml(parentLabel) + "</div>"
-          : '<div class="remix-of remix-of-hidden">↻ A remix</div>';
+          ? '<span class="remix-of" data-parent-id="' + escapeHtml(item.parent_id) + '">Remix of ' + escapeHtml(parentLabel) + "</span>"
+          : '<span class="remix-of remix-of-hidden">A remix</span>';
       }
 
       card.innerHTML =
         mediaHtml +
-        (item.media_type === "video" ? '<span class="gallery-media-badge">Video</span>' : "") +
-        '<div class="gallery-item-body">' +
+        '<div class="g-shade" aria-hidden="true"></div>' +
+        '<div class="g-flags">' +
+          (item.media_type === "video" ? '<span class="g-flag" title="Video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>' : "") +
+          (!item.is_public ? '<span class="g-flag g-flag-private">Private</span>' : "") +
+        "</div>" +
+        '<div class="g-actions">' +
+          '<button type="button" class="g-btn like-btn card-like-btn' + (liked ? " liked" : "") + '" data-gallery-id="' + escapeHtml(item.id) + '" aria-label="Like">' +
+            '<span class="like-heart">' + (liked ? "♥" : "♡") + '</span><span class="like-count">' + likesCount + "</span>" +
+          "</button>" +
+          '<button type="button" class="g-btn g-copy" aria-label="Copy prompt" title="Copy prompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>' +
+          '<button type="button" class="g-btn g-dl" aria-label="Download" title="Download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg></button>' +
+        "</div>" +
+        '<div class="g-meta">' +
           remixOfHtml +
-          (item.title ? "<h4>" + escapeHtml(item.title) + "</h4>" : "") +
-          "<p>" + escapeHtml(item.prompt) + "</p>" +
-          '<div class="gallery-item-footer">' +
-            '<div class="gallery-tags">' + badges + "</div>" +
-            '<button type="button" class="like-btn card-like-btn' + (liked ? " liked" : "") + '" data-gallery-id="' + escapeHtml(item.id) + '">' +
-              '<span class="like-heart">' + (liked ? "♥" : "♡") + '</span> <span class="like-count">' + likesCount + "</span>" +
-            "</button>" +
-          "</div>" +
+          '<span class="g-title">' + escapeHtml(item.title || item.prompt || "") + "</span>" +
         "</div>";
+
       card.addEventListener("click", function (e) {
-        if (e.target.closest(".card-like-btn") || e.target.closest(".remix-of")) return;
+        if (e.target.closest(".g-btn") || e.target.closest(".remix-of")) return;
         openLightbox(item);
+      });
+      card.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target === card) { e.preventDefault(); openLightbox(item); }
       });
 
       var likeBtn = card.querySelector(".card-like-btn");
@@ -691,6 +716,14 @@ document.addEventListener("DOMContentLoaded", function () {
           toggleLike(item, likeBtn);
         });
       }
+      card.querySelector(".g-copy").addEventListener("click", function (e) {
+        e.stopPropagation();
+        copyText(item.prompt || "", e.currentTarget);
+      });
+      card.querySelector(".g-dl").addEventListener("click", function (e) {
+        e.stopPropagation();
+        downloadMedia(item);
+      });
 
       var remixOfEl = card.querySelector(".remix-of[data-parent-id]");
       if (remixOfEl) {
@@ -701,14 +734,23 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
 
-      if (item.media_type === "video") {
-        card.addEventListener("mouseenter", function () {
-          closeHoverPreview();
-          activeHoverPopup = showHoverPreview(card, item);
-        });
-        card.addEventListener("mouseleave", function () {
-          closeHoverPreview();
-        });
+      var hoverVid = card.querySelector(".g-hover-video");
+      if (hoverVid) {
+        var startHover = function () {
+          if (!hoverVid.getAttribute("src")) hoverVid.setAttribute("src", hoverVid.getAttribute("data-src"));
+          card.classList.add("is-playing");
+          var pp = hoverVid.play();
+          if (pp && pp.catch) pp.catch(function () {});
+        };
+        var stopHover = function () { card.classList.remove("is-playing"); hoverVid.pause(); };
+        card.addEventListener("mouseenter", startHover);
+        card.addEventListener("mouseleave", stopHover);
+        card.addEventListener("focus", startHover);
+        card.addEventListener("blur", stopHover);
+      } else if (item.media_type === "video") {
+        var inlineVid = card.querySelector("video.g-media");
+        card.addEventListener("mouseenter", function () { var pp = inlineVid.play(); if (pp && pp.catch) pp.catch(function () {}); });
+        card.addEventListener("mouseleave", function () { inlineVid.pause(); });
       }
 
       galleryGrid.appendChild(card);
@@ -1363,6 +1405,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     renderLightboxView(item);
     renderLightboxLike(item);
+    renderViewerExtras(item);
     exitEditMode();
     resetCommentComposer();
     updateCommentAuthGate();
@@ -1384,12 +1427,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     overlay.classList.add("open");
+    document.body.classList.add("viewer-open");
+    setPostParam(item.id);
 
-    lightboxCopy.onclick = function () {
-      navigator.clipboard.writeText(item.prompt);
-      lightboxCopy.textContent = "Copied ✓";
-      setTimeout(function () { lightboxCopy.textContent = "Copy Prompt"; }, 1500);
-    };
+    lightboxCopy.onclick = function () { copyText(item.prompt || "", lightboxCopy); };
 
     if (lightboxLikeBtn) {
       lightboxLikeBtn.onclick = function () {
@@ -1425,9 +1466,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     lightboxPrompt.textContent = item.prompt;
     if (lightboxModel) {
-      var modelTxt = item.model ? "Model: " + escapeHtml(item.model) : "";
+      var modelTxt = "";
       var authorLink = item.user_id
-        ? (modelTxt ? " &middot; " : "") + '<a href="profile.html?u=' + escapeHtml(item.user_id) + '">View uploader&rsquo;s profile &rarr;</a>'
+        ? '<a href="profile.html?u=' + escapeHtml(item.user_id) + '">View creator&rsquo;s profile</a>'
         : "";
       lightboxModel.innerHTML = modelTxt + authorLink;
       lightboxModel.style.display = (modelTxt || authorLink) ? "block" : "none";
@@ -1440,6 +1481,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function exitEditMode() {
+    if (overlay) overlay.classList.remove("is-editing");
     if (lightboxView) lightboxView.style.display = "";
     if (lightboxEditForm) lightboxEditForm.style.display = "none";
     if (editStatus) { editStatus.textContent = ""; editStatus.className = "form-status"; }
@@ -1448,6 +1490,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (lightboxEditBtn) {
     lightboxEditBtn.addEventListener("click", function () {
       if (!currentLightboxItem) return;
+      if (overlay) overlay.classList.add("is-editing");
       var item = currentLightboxItem;
 
       editTitle.value = item.title || "";
@@ -1632,19 +1675,179 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  if (lightboxClose) {
-    lightboxClose.addEventListener("click", function () {
-      overlay.classList.remove("open");
-      lightboxVideo.pause();
-    });
+  function closeViewer() {
+    if (!overlay || !overlay.classList.contains("open")) return;
+    overlay.classList.remove("open");
+    overlay.classList.remove("is-editing");
+    document.body.classList.remove("viewer-open");
+    lightboxVideo.pause();
+    setPostParam(null);
   }
+
+  if (lightboxClose) lightboxClose.addEventListener("click", closeViewer);
   if (overlay) {
     overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) {
-        overlay.classList.remove("open");
-        lightboxVideo.pause();
-      }
+      if (e.target === overlay || e.target.classList.contains("viewer-backdrop") || e.target.id === "viewerStage") closeViewer();
     });
+  }
+
+  // Keyboard: Esc closes, arrows step through the posts currently shown.
+  document.addEventListener("keydown", function (e) {
+    if (!overlay || !overlay.classList.contains("open")) return;
+    var typing = /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "");
+    if (e.key === "Escape") { closeViewer(); return; }
+    if (typing || overlay.classList.contains("is-editing")) return;
+    if (e.key === "ArrowLeft") stepViewer(-1);
+    if (e.key === "ArrowRight") stepViewer(1);
+  });
+
+  var viewerPrev = document.getElementById("viewerPrev");
+  var viewerNext = document.getElementById("viewerNext");
+  if (viewerPrev) viewerPrev.addEventListener("click", function (e) { e.stopPropagation(); stepViewer(-1); });
+  if (viewerNext) viewerNext.addEventListener("click", function (e) { e.stopPropagation(); stepViewer(1); });
+
+  function stepViewer(dir) {
+    if (!currentLightboxItem || currentViewItems.length < 2) return;
+    var idx = currentViewItems.findIndex(function (i) { return i.id === currentLightboxItem.id; });
+    if (idx === -1) return;
+    var next = currentViewItems[(idx + dir + currentViewItems.length) % currentViewItems.length];
+    lightboxVideo.pause();
+    openLightbox(next);
+  }
+
+  var promptMoreBtn = document.getElementById("viewerPromptMore");
+  if (promptMoreBtn) {
+    promptMoreBtn.addEventListener("click", function () {
+      var clamped = lightboxPrompt.classList.toggle("is-clamped");
+      promptMoreBtn.textContent = clamped ? "See all" : "Show less";
+    });
+  }
+
+  // Everything the Higgsfield-style side panel shows beyond title/prompt/tags.
+  function renderViewerExtras(item) {
+    var isVideo = item.media_type === "video";
+    if (overlay) overlay.classList.toggle("is-video", isVideo);
+    var backdrop = document.getElementById("viewerBackdrop");
+    var still = isVideo ? posterUrl(item) : item.image_url;
+    if (backdrop) backdrop.style.backgroundImage = still ? 'url("' + String(still).replace(/"/g, "%22") + '")' : "none";
+
+    // Prompt: clamp long ones behind "See all"
+    lightboxPrompt.classList.add("is-clamped");
+    if (promptMoreBtn) {
+      promptMoreBtn.textContent = "See all";
+      promptMoreBtn.hidden = (item.prompt || "").length < 260;
+    }
+
+    // Details list
+    var details = document.getElementById("viewerDetails");
+    if (details) {
+      var rows = [];
+      if (item.model) rows.push(["Model", escapeHtml(item.model)]);
+      rows.push(["Type", isVideo ? "Video" : "Image"]);
+      if (item.created_at) {
+        rows.push(["Posted", escapeHtml(new Date(item.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }))]);
+      }
+      rows.push(["Likes", String(item.likes_count || 0)]);
+      rows.push(["Visibility", item.is_public ? "Public" : "Private"]);
+      if (item.parent_id) {
+        var parent = allItems.find(function (i) { return i.id === item.parent_id; });
+        rows.push(["Remix of", parent ? '<button type="button" class="viewer-link" data-open-id="' + escapeHtml(parent.id) + '">' + escapeHtml(parent.title || "Original post") + "</button>" : "A post that's no longer public"]);
+      }
+      details.innerHTML = rows.map(function (r) { return "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>"; }).join("");
+      var openParent = details.querySelector("[data-open-id]");
+      if (openParent) openParent.addEventListener("click", function () {
+        var target = allItems.find(function (i) { return i.id === openParent.getAttribute("data-open-id"); });
+        if (target) openLightbox(target);
+      });
+    }
+
+    // Action buttons
+    var recreate = document.getElementById("viewerRecreate");
+    if (recreate) recreate.href = studioUrl("image-studio.html", { prompt: item.prompt || "", model: item.model || "" });
+    var animate = document.getElementById("viewerAnimate");
+    var lips = document.getElementById("viewerLipSync");
+    var editStudio = document.getElementById("viewerEditStudio");
+    [animate, lips, editStudio].forEach(function (el) { if (el) el.hidden = isVideo; });
+    if (!isVideo) {
+      if (animate) animate.href = studioUrl("motion-transfer.html", { ref: item.image_url });
+      if (lips) lips.href = studioUrl("lip-sync.html", { ref: item.image_url });
+      if (editStudio) editStudio.href = studioUrl("image-studio.html", { ref: item.image_url });
+    }
+    var dl = document.getElementById("viewerDownload");
+    if (dl) dl.onclick = function () { downloadMedia(item); };
+    var share = document.getElementById("viewerShare");
+    if (share) share.onclick = function () {
+      var link = location.origin + location.pathname + "?post=" + encodeURIComponent(item.id);
+      copyText(link, share, "Link copied");
+    };
+
+    var multi = currentViewItems.length > 1;
+    if (viewerPrev) viewerPrev.hidden = !multi;
+    if (viewerNext) viewerNext.hidden = !multi;
+  }
+
+  function studioUrl(page, params) {
+    var q = Object.keys(params).filter(function (k) { return params[k]; })
+      .map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]); }).join("&");
+    return page + (q ? "?" + q : "");
+  }
+
+  function setPostParam(id) {
+    try {
+      var url = new URL(location.href);
+      if (id) url.searchParams.set("post", id); else url.searchParams.delete("post");
+      history.replaceState(null, "", url.pathname + url.search + url.hash);
+    } catch (e) {}
+  }
+
+  function copyText(text, btn, doneLabel) {
+    var done = function () {
+      if (!btn) return;
+      btn.classList.add("is-done");
+      var old = btn.getAttribute("data-label") || btn.textContent;
+      if (!btn.getAttribute("data-label")) btn.setAttribute("data-label", old);
+      if (btn.textContent.trim()) btn.textContent = doneLabel || "Copied";
+      btn.title = doneLabel || "Copied";
+      setTimeout(function () {
+        btn.classList.remove("is-done");
+        if (btn.textContent.trim()) btn.textContent = btn.getAttribute("data-label");
+        btn.title = "";
+      }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, done);
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      ta.remove(); done();
+    }
+  }
+
+  // Saves the original file. iOS gets the share sheet (Save to Photos);
+  // everything else downloads. Falls back to opening the file in a new tab.
+  async function downloadMedia(item) {
+    var src = item.image_url;
+    var base = (item.title || "airesourcehub-post").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "airesourcehub-post";
+    try {
+      var r = await fetch(src, { mode: "cors" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var blob = await r.blob();
+      var ext = (blob.type.split("/")[1] || (item.media_type === "video" ? "mp4" : "jpg")).replace("jpeg", "jpg").replace("quicktime", "mov");
+      var file = new File([blob], base + "." + ext, { type: blob.type });
+      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      if (isIOS && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = file.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    } catch (e) {
+      window.open(src, "_blank", "noopener");
+    }
   }
 
   function escapeHtml(str) {
