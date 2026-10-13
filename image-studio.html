@@ -5,7 +5,7 @@
 <script>
 (function(){
   try {
-    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "dark";
     var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   } catch(e) {}
@@ -15,8 +15,9 @@
 <title>Image Studio — AI Resource Hub</title>
 <meta name="description" content="Generate and edit images with a choice of local AI models — FLUX.2, Qwen-Image, Krea, HiDream and more — with optional custom LoRAs, running on our own hardware." />
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/studio.css" />
 </head>
-<body>
+<body class="is-studio">
 
 <header class="site-header">
   <nav class="nav">
@@ -36,108 +37,102 @@
   </nav>
 </header>
 
-<main>
-  <div class="page-header">
-    <div class="container">
-      <h1>Image Studio</h1>
-      <p>Pick a model, describe your image, and generate on our own hardware. Some models <strong>create</strong> from a prompt; others <strong>edit</strong> a photo you upload. Where supported, you can stack a <strong>custom LoRA</strong>.</p>
-    </div>
-  </div>
+<main class="studio" id="studio">
 
-  <section>
-    <div class="container">
-      <div id="imgGate" class="info-banner" style="display:none;"></div>
-
-      <div id="imageStudio" style="display:none;">
-        <div class="section-header"><h2>1. Choose a model</h2></div>
-        <div id="modelPicker"></div>
-
-        <div id="imageForm" style="display:none;">
-          <div class="section-header" style="margin-top:34px;"><h2>2. <span id="stepTwoLabel">Describe your image</span></h2></div>
-
-          <div class="field" id="editImageField" style="display:none;">
-            <label for="imgInput">Photo to edit</label>
-            <div class="blend-inputs"><div class="field" style="margin:0;"><input type="file" id="imgInput" accept="image/*" /></div></div>
-          </div>
-
-          <div class="field">
-            <label for="imgPrompt">Prompt</label>
-            <textarea id="imgPrompt" rows="3" placeholder="e.g. a cinematic portrait of a fox in a snowy forest, golden hour, sharp focus&hellip;"></textarea>
-            <div class="blend-prompt-tools">
-              <button type="button" class="btn btn-secondary btn-small" id="imgEnhance">&#10024; Enhance prompt</button>
-              <span class="frame-res" style="margin:0;">Adds tasteful quality &amp; lighting detail to your prompt.</span>
-            </div>
-          </div>
-
-          <div class="field" id="negField">
-            <label for="imgNegative">Negative prompt <span class="frame-res" style="margin:0;">&mdash; things to avoid (optional)</span></label>
-            <textarea id="imgNegative" rows="2" placeholder="e.g. blurry, extra fingers, watermark, low quality"></textarea>
-          </div>
-
-          <div class="field" id="sizeField">
-            <label>Aspect ratio</label>
-            <div class="blend-mode" id="sizePicker">
-              <label class="blend-radio"><input type="radio" name="imgSize" value="1024x1024" checked /> Square <span class="frame-res" style="margin:0;">1024&times;1024</span></label>
-              <label class="blend-radio"><input type="radio" name="imgSize" value="832x1216" /> Portrait <span class="frame-res" style="margin:0;">832&times;1216</span></label>
-              <label class="blend-radio"><input type="radio" name="imgSize" value="1216x832" /> Landscape <span class="frame-res" style="margin:0;">1216&times;832</span></label>
-              <label class="blend-radio"><input type="radio" name="imgSize" value="768x1344" /> Tall 9:16 <span class="frame-res" style="margin:0;">768&times;1344</span></label>
-              <label class="blend-radio"><input type="radio" name="imgSize" value="1344x768" /> Wide 16:9 <span class="frame-res" style="margin:0;">1344&times;768</span></label>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>How many images</label>
-            <div class="blend-mode" id="batchPicker">
-              <label class="blend-radio"><input type="radio" name="imgBatch" value="1" checked /> 1</label>
-              <label class="blend-radio"><input type="radio" name="imgBatch" value="2" /> 2</label>
-              <label class="blend-radio"><input type="radio" name="imgBatch" value="3" /> 3</label>
-              <label class="blend-radio"><input type="radio" name="imgBatch" value="4" /> 4</label>
-            </div>
-          </div>
-
-          <div class="field" id="loraField" style="display:none;">
-            <label>Custom LoRA <span class="frame-res" style="margin:0;">&mdash; optional</span></label>
-            <div class="lora-row">
-              <select id="loraPick" class="lora-select"><option value="">None</option></select>
-              <label class="btn btn-secondary btn-small" for="loraFile" style="margin:0;">Upload .safetensors</label>
-              <input type="file" id="loraFile" accept=".safetensors" style="display:none;" />
-            </div>
-            <div class="lora-row" style="margin-top:10px;">
-              <span class="frame-res" style="margin:0;">Strength <span id="loraStrengthLabel">1.0</span></span>
-              <input type="range" id="loraStrength" class="range-slider" min="0" max="15" step="1" value="10" style="max-width:220px;" />
-            </div>
-            <p class="frame-res" id="loraMsg" style="margin:8px 0 0;">Remember to add your LoRA&rsquo;s <strong>trigger word</strong> to the prompt.</p>
-          </div>
-
-          <div class="output-actions">
-            <button type="button" class="btn btn-primary" id="imgGenerateBtn">Generate</button>
-            <button type="button" class="btn btn-danger" id="imgCancelBtn" style="display:none;">Cancel</button>
-          </div>
-
-          <div class="form-status" id="imgStatus"></div>
-          <div class="blend-progress" id="imgProgress" style="display:none;">
-            <div class="blend-progress-bar"><span id="imgProgressFill"></span></div>
-            <p class="blend-progress-label" id="imgProgressLabel"></p>
-          </div>
-
-          <div class="image-results" id="imgResults" style="display:none;">
-            <h3>Result</h3>
-            <div class="image-grid" id="imgResultGrid"></div>
-          </div>
-        </div>
-
-        <div class="render-archive-wrap" id="imgGalleryWrap" style="display:none;">
-          <div class="section-header" style="margin-top:40px;">
-            <h3>Your recent images</h3>
-            <p>Every image is saved to your account. <a href="image-gallery.html">View all my images &rarr;</a></p>
-          </div>
-          <div class="image-grid" id="imgRecent"></div>
+  <section class="studio-feed" aria-label="Your generations">
+    <div class="studio-feed-inner">
+      <div class="studio-intro" id="studioIntro">
+        <h1>Image Studio</h1>
+        <p>Pick a model, describe the image, and it renders on our own GPUs. Drop in a photo to edit it instead.</p>
+        <div class="studio-starters" id="studioStarters">
+          <button type="button" data-prompt="Cinematic portrait of a jazz saxophonist on a Miami rooftop at golden hour, warm rim light, shallow depth of field">Golden hour portrait</button>
+          <button type="button" data-prompt="Retro 80s synthwave album cover, palm trees, neon sunset grid, chrome lettering that reads NIGHT DRIVE">Album cover with text</button>
+          <button type="button" data-prompt="Product photo of a matte black wireless headphone on wet black stone, studio lighting, water droplets, high detail">Product shot</button>
+          <button type="button" data-prompt="Cozy watercolor illustration of a tiny bookshop on a rainy street at night, warm windows, soft reflections">Watercolor scene</button>
         </div>
       </div>
+      <div id="studioFeed" class="studio-jobs"></div>
+      <div class="studio-more"><button type="button" class="btn btn-secondary" id="studioMore" hidden>Load older images</button></div>
     </div>
   </section>
 
-  <div class="ad-slot"><div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div></div>
+  <form class="composer" id="composer" autocomplete="off" aria-label="Create an image">
+    <div class="composer-box">
+      <div class="composer-main">
+        <div class="ref-slot" id="refSlot">
+          <button type="button" class="ref-add" id="refAdd" aria-label="Add a photo to edit" title="Add a photo (or drag &amp; drop, or paste)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="ref-thumb" id="refThumb" hidden>
+            <img id="refImg" alt="Photo to edit" />
+            <button type="button" class="ref-remove" id="refRemove" aria-label="Remove photo">&times;</button>
+          </div>
+          <input type="file" id="refInput" accept="image/*" hidden />
+        </div>
+        <textarea id="prompt" rows="1" placeholder="Describe the image you want&hellip;" aria-label="Prompt"></textarea>
+        <button type="button" class="composer-icon" id="enhanceBtn" title="Add quality and lighting detail to your prompt" aria-label="Enhance prompt">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>
+        </button>
+      </div>
+
+      <div class="composer-bar">
+        <div class="chips" id="chips">
+          <button type="button" class="chip chip-model" data-pop="popModel" id="chipModel">
+            <span class="chip-thumb" id="chipModelThumb"></span><span id="chipModelName">Model</span><span class="chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="chip" data-pop="popRatio" id="chipRatio">
+            <span class="ratio-icon" id="chipRatioIcon"></span><span id="chipRatioName">1:1</span><span class="chev" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="chip" data-pop="popCount" id="chipCount"><span id="chipCountName">1 image</span><span class="chev" aria-hidden="true"></span></button>
+          <button type="button" class="chip" data-pop="popLora" id="chipLora" hidden><span id="chipLoraName">LoRA</span><span class="chev" aria-hidden="true"></span></button>
+          <button type="button" class="chip" data-pop="popAvoid" id="chipAvoid"><span id="chipAvoidName">Avoid</span><span class="chev" aria-hidden="true"></span></button>
+          <button type="button" class="chip chip-gpu" data-pop="popGpu" id="chipGpu"><span class="gpu-dot" id="gpuDot"></span><span id="chipGpuName">Our GPU</span></button>
+        </div>
+        <button type="submit" class="btn btn-primary composer-go" id="generateBtn">Generate</button>
+      </div>
+      <p class="composer-hint" id="composerHint" role="status" aria-live="polite"></p>
+    </div>
+
+    <!-- Popovers (open above their chip; bottom sheets on phones) -->
+    <div class="pop pop-model" id="popModel" role="dialog" aria-label="Choose a model" hidden>
+      <input type="search" class="pop-search" id="modelSearch" placeholder="Search models" aria-label="Search models" />
+      <div class="model-list" id="modelList"></div>
+    </div>
+    <div class="pop" id="popRatio" role="dialog" aria-label="Aspect ratio" hidden>
+      <p class="pop-title">Aspect ratio</p>
+      <div class="ratio-grid" id="ratioGrid"></div>
+    </div>
+    <div class="pop" id="popCount" role="dialog" aria-label="Number of images" hidden>
+      <p class="pop-title">Images per run</p>
+      <div class="seg" id="countSeg"></div>
+    </div>
+    <div class="pop" id="popLora" role="dialog" aria-label="Custom LoRA" hidden>
+      <p class="pop-title">Custom LoRA</p>
+      <select id="loraPick" class="pop-select" aria-label="LoRA"><option value="">None</option></select>
+      <label class="pop-row">Strength <output id="loraStrengthOut">1.0</output></label>
+      <input type="range" id="loraStrength" class="range-slider" min="0" max="15" step="1" value="10" aria-label="LoRA strength" />
+      <p class="pop-note" id="loraMsg">Add your LoRA&rsquo;s trigger word to the prompt.</p>
+      <label class="btn btn-secondary btn-sm pop-upload" for="loraFile">Upload .safetensors</label>
+      <input type="file" id="loraFile" accept=".safetensors" hidden />
+    </div>
+    <div class="pop" id="popAvoid" role="dialog" aria-label="Negative prompt" hidden>
+      <p class="pop-title">Things to avoid</p>
+      <textarea id="negative" rows="3" placeholder="e.g. blurry, extra fingers, watermark"></textarea>
+      <p class="pop-note">Optional. Some fast models ignore this.</p>
+    </div>
+    <div class="pop pop-gpu" id="popGpu" role="dialog" aria-label="Where it renders" hidden>
+      <p class="pop-title">Where it renders</p>
+      <button type="button" class="compute-opt is-on" aria-pressed="true">
+        <strong>Our GPU</strong><span id="gpuDetail">Checking status&hellip;</span>
+      </button>
+      <button type="button" class="compute-opt" disabled>
+        <strong>Rented cloud GPU</strong><span>Coming soon: skip the queue on a faster card.</span>
+      </button>
+      <a class="pop-link" href="gpu-status.html">Open system status</a>
+    </div>
+  </form>
+
+  <div class="drop-veil" id="dropVeil" hidden><p>Drop a photo to edit it</p></div>
 </main>
 
 <footer class="site-footer">

@@ -5,7 +5,7 @@
 <script>
 (function(){
   try {
-    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "dark";
     var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   } catch(e) {}
@@ -15,6 +15,7 @@
 <title>AI Resource Hub — AI Tools, Resources &amp; Prompt Generators</title>
 <meta name="description" content="AI Resource Hub is a free directory of AI tools plus prompt generators for text, image, and video AI — built to make working with AI easier, faster, and more enjoyable." />
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/home.css" />
 </head>
 <body>
 
@@ -37,17 +38,158 @@
   </nav>
 </header>
 
-<main>
+<main class="home">
 
-  <section class="hero">
-    <div class="container">
-      <span class="eyebrow">Free &amp; growing</span>
-      <h1>Everything you need to get more out of AI, in one place.</h1>
-      <p class="lead">AI Resource Hub curates the best AI tools for writing, images, and video — and gives you free prompt generators to get better results, faster. No experience required.</p>
-      <div class="hero-actions">
-        <a href="prompt-generator.html" class="btn btn-primary">Try the Prompt Generator</a>
-        <a href="resources.html" class="btn btn-secondary">Browse Resources</a>
+  <section class="home-hero">
+    <div class="home-wrap">
+      <div class="home-hero-head">
+        <h1>Make AI images and video on our own GPUs.</h1>
+        <div class="home-hero-side">
+          <p>Lip sync, motion transfer, WAN video and a dozen image models you can run right here, plus free prompt tools and guides to get better results from any AI.</p>
+          <div class="hero-actions">
+            <a href="#studios" class="btn btn-primary">Open the studios</a>
+            <a href="prompt-generator.html" class="btn btn-secondary">Try the Prompt Generator</a>
+          </div>
+        </div>
       </div>
+
+      <div class="rail" aria-label="Featured studios">
+        <div class="rail-track" id="spotlightRail">
+          <!-- js/home.js puts the most-liked community video first, when there is one -->
+          <a class="tile" href="motion-transfer.html">
+            <div class="tile-media"><img src="img/models/hidream.jpg" alt="" /></div>
+            <span class="tile-recipe">Character image + dance video &#8594; your character dancing</span>
+            <div class="tile-body">
+              <h2 class="tile-title">Motion Transfer <span class="htag is-top">Top</span></h2>
+              <p class="tile-desc">WAN 2.2 Animate copies full-body pose and facial expression onto any still character.</p>
+            </div>
+          </a>
+          <a class="tile" href="lip-sync.html">
+            <div class="tile-media"><img src="img/models/qwen_edit.jpg" alt="" /></div>
+            <span class="tile-recipe">Face photo + audio clip &#8594; talking video</span>
+            <div class="tile-body">
+              <h2 class="tile-title">Lip Sync <span class="htag">New</span></h2>
+              <p class="tile-desc">LTX 2 makes a face speak or sing your audio, timed to every word.</p>
+            </div>
+          </a>
+          <a class="tile" href="wan-video.html">
+            <div class="tile-media"><img src="img/models/qwen_edit2509.jpg" alt="" /></div>
+            <span class="tile-recipe">Your trained identities + a prompt &#8594; video</span>
+            <div class="tile-body">
+              <h2 class="tile-title">WAN Video <span class="htag">New</span></h2>
+              <p class="tile-desc">Stack one or more identities you trained and WAN puts them in a scene.</p>
+            </div>
+          </a>
+          <a class="tile" href="image-studio.html">
+            <div class="tile-media"><img src="img/models/zimage.jpg" alt="" /></div>
+            <span class="tile-recipe">Prompt or photo &#8594; new image</span>
+            <div class="tile-body">
+              <h2 class="tile-title">Image Studio</h2>
+              <p class="tile-desc">FLUX.2, Qwen-Image, Krea, HiDream and more, with your own LoRAs stacked on top.</p>
+            </div>
+          </a>
+          <a class="tile" href="train-lora.html">
+            <div class="tile-media"><img src="img/models/krea2.jpg" alt="" /></div>
+            <span class="tile-recipe">15&ndash;30 images + a trigger word &#8594; custom LoRA</span>
+            <div class="tile-body">
+              <h2 class="tile-title">Train LoRA</h2>
+              <p class="tile-desc">Teach a model a person, character or style, then use it in Image Studio or WAN Video.</p>
+            </div>
+          </a>
+        </div>
+        <div class="rail-controls">
+          <button type="button" class="rail-btn" data-rail="spotlightRail" data-dir="-1" aria-label="Scroll back">&#8592;</button>
+          <button type="button" class="rail-btn" data-rail="spotlightRail" data-dir="1" aria-label="Scroll forward">&#8594;</button>
+        </div>
+      </div>
+
+      <nav class="quick" aria-label="Free tools">
+        <a href="prompt-generator.html"><img src="img/models/anima.jpg" alt="" />Prompt Generator <small>free, no signup</small></a>
+        <a href="gallery.html"><img src="img/models/firered.jpg" alt="" />Prompt Gallery <small>prompts behind the posts</small></a>
+        <a href="resources.html"><img src="img/models/flux2.jpg" alt="" />AI tools directory</a>
+        <a href="ai-transitions.html"><img src="img/models/flux2_edit.jpg" alt="" />Frame Extractor <small>for AI transitions</small></a>
+        <a href="gpu-status.html"><img src="img/models/sd35.jpg" alt="" />System status</a>
+      </nav>
+    </div>
+  </section>
+
+  <section class="home-block" id="studios">
+    <div class="home-wrap">
+      <div class="block-head">
+        <div>
+          <h2>Every studio</h2>
+          <p>Studios marked <em>our GPUs</em> render on our own hardware. The rest run in your browser.</p>
+        </div>
+      </div>
+      <div class="studios">
+        <a class="studio" href="motion-transfer.html">
+          <div class="studio-art"><img src="img/models/hidream.jpg" alt="" /><span class="htag is-top">Top</span></div>
+          <div class="studio-body"><h3>Motion Transfer</h3><p>Make a still character perform the motion from any driving video.</p><span class="studio-where">Our GPUs</span></div>
+        </a>
+        <a class="studio" href="lip-sync.html">
+          <div class="studio-art"><img src="img/models/qwen_edit.jpg" alt="" /><span class="htag">New</span></div>
+          <div class="studio-body"><h3>Lip Sync</h3><p>Turn a face photo and an audio clip into a talking, lip-synced video.</p><span class="studio-where">Our GPUs</span></div>
+        </a>
+        <a class="studio" href="wan-video.html">
+          <div class="studio-art"><img src="img/models/qwen_edit2509.jpg" alt="" /><span class="htag">New</span></div>
+          <div class="studio-body"><h3>WAN Video</h3><p>Generate video starring the identities you&rsquo;ve trained.</p><span class="studio-where">Our GPUs</span></div>
+        </a>
+        <a class="studio" href="image-studio.html">
+          <div class="studio-art"><img src="img/models/zimage.jpg" alt="" /></div>
+          <div class="studio-body"><h3>Image Studio</h3><p>Create or edit images with a choice of local models and custom LoRAs.</p><span class="studio-where">Our GPUs</span></div>
+        </a>
+        <a class="studio" href="train-lora.html">
+          <div class="studio-art"><img src="img/models/krea2.jpg" alt="" /></div>
+          <div class="studio-body"><h3>Train LoRA</h3><p>Train a custom LoRA from a handful of images and a trigger word.</p><span class="studio-where">Our GPUs</span></div>
+        </a>
+        <a class="studio" href="prompt-generator.html">
+          <div class="studio-art"><img src="img/models/anima.jpg" alt="" /><span class="htag is-free">Free</span></div>
+          <div class="studio-body"><h3>Prompt Generator</h3><p>Model-specific prompts for ChatGPT, Midjourney, Veo, Kling, Wan and more.</p><span class="studio-where">In your browser</span></div>
+        </a>
+        <a class="studio" href="ai-transitions.html">
+          <div class="studio-art"><img src="img/models/flux2_edit.jpg" alt="" /><span class="htag is-free">Free</span></div>
+          <div class="studio-body"><h3>AI Transitions</h3><p>Grab the exact first and last frames of a clip to use as keyframes.</p><span class="studio-where">In your browser</span></div>
+        </a>
+        <a class="studio" href="gallery.html">
+          <div class="studio-art"><img src="img/models/firered.jpg" alt="" /></div>
+          <div class="studio-body"><h3>Prompt Gallery</h3><p>Post your AI images and videos with the prompts that made them.</p><span class="studio-where">Community</span></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-block" id="community-block">
+    <div class="home-wrap">
+      <div class="block-head">
+        <div>
+          <h2>Made by the community</h2>
+          <p>Hover to play. Open any post in the gallery to see the prompt behind it.</p>
+        </div>
+        <a class="block-link" href="gallery.html">Open the gallery</a>
+      </div>
+      <div class="community" id="communityStrip">
+        <div class="community-empty">Loading the latest posts&hellip;</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-block">
+    <div class="home-wrap">
+      <div class="block-head">
+        <div>
+          <h2>Learn the craft</h2>
+          <p>Short, practical guides to prompting and picking models.</p>
+        </div>
+        <a class="block-link" href="guides.html">All guides</a>
+      </div>
+      <ul class="learn-list">
+        <li><a href="guide-writing-better-image-prompts.html"><strong>How to write better AI image prompts</strong><span>Images</span></a></li>
+        <li><a href="guide-ai-video-prompting.html"><strong>A practical guide to prompting AI video</strong><span>Video</span></a></li>
+        <li><a href="guide-choosing-image-model.html"><strong>How to choose the right AI image model</strong><span>Models</span></a></li>
+        <li><a href="guide-consistent-characters.html"><strong>Getting consistent characters across AI images</strong><span>Characters</span></a></li>
+        <li><a href="guide-negative-prompts.html"><strong>Negative prompts explained</strong><span>Images</span></a></li>
+        <li><a href="guide-comfyui-workflows.html"><strong>ComfyUI workflows for beginners</strong><span>ComfyUI</span></a></li>
+      </ul>
     </div>
   </section>
 
@@ -56,62 +198,13 @@
   </div>
 
   <section>
-    <div class="container">
-      <div class="section-header">
-        <h2>Built for people who use AI every day</h2>
-        <p>Whether you're just starting out or already deep into AI tools, AI Resource Hub helps you find the right tool and write the right prompt.</p>
+    <div class="home-wrap">
+      <div class="home-banner">
+        <img src="img/models/qwen2512.jpg" alt="" />
+        <h2>Start with a better prompt.</h2>
+        <p>The Prompt Generator is free to use right now. No account, no signup.</p>
+        <a href="prompt-generator.html" class="btn btn-primary">Open the Prompt Generator</a>
       </div>
-      <div class="grid grid-3">
-        <div class="card">
-          <div class="icon">🧭</div>
-          <h3>Curated Resource Directory</h3>
-          <p>A hand-picked, categorized list of the best AI chatbots, image generators, video tools, and writing assistants — no digging through ads or outdated lists.</p>
-        </div>
-        <div class="card">
-          <div class="icon">✨</div>
-          <h3>Prompt Generators</h3>
-          <p>Build effective prompts for text, image, and video AI tools using simple guided forms — even if you've never written a prompt before.</p>
-        </div>
-        <div class="card">
-          <div class="icon">📚</div>
-          <h3>Learn as You Go</h3>
-          <p>Short explanations alongside every tool and generator so you understand *why* it works, not just what to click.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="alt-bg">
-    <div class="container">
-      <div class="section-header">
-        <h2>How it works</h2>
-        <p>Three simple steps to a better AI workflow.</p>
-      </div>
-      <div class="grid grid-3">
-        <div class="card">
-          <div class="icon">1</div>
-          <h3>Pick a category</h3>
-          <p>Browse resources by what you're trying to do — write, design, generate video, or learn.</p>
-        </div>
-        <div class="card">
-          <div class="icon">2</div>
-          <h3>Build your prompt</h3>
-          <p>Use the free Prompt Generator to turn a rough idea into a clear, effective prompt.</p>
-        </div>
-        <div class="card">
-          <div class="icon">3</div>
-          <h3>Get better results</h3>
-          <p>Copy your prompt into the AI tool of your choice and get output that actually matches what you wanted.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="container" style="text-align:center;">
-      <h2 style="margin-bottom:12px;">Ready to try it?</h2>
-      <p style="color:var(--color-text-muted); max-width:520px; margin:0 auto 28px;">The Prompt Generator is free to use right now — no account, no signup.</p>
-      <a href="prompt-generator.html" class="btn btn-primary">Open the Prompt Generator</a>
     </div>
   </section>
 
@@ -148,5 +241,6 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
+<script src="js/home.js"></script>
 </body>
 </html>

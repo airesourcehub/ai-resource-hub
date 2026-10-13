@@ -4,7 +4,7 @@
 // button and keeps things in sync if the system preference changes live.
 
 (function () {
-  var STORAGE_KEY = "ai-resource-hub-theme"; // 'light' | 'dark' | 'system'
+  var STORAGE_KEY = "ai-resource-hub-theme"; // "light" | "dark" | "system" (default: dark)
   var ICONS = { light: "☀️", dark: "🌙", system: "🖥️" };
   var LABELS = { light: "Light", dark: "Dark", system: "System" };
 
@@ -31,14 +31,14 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     var btn = document.getElementById("themeToggle");
-    var pref = getStored() || "system";
+    var pref = getStored() || "dark";
     apply(pref);
     updateButton(btn, pref);
 
     if (btn) {
       btn.addEventListener("click", function () {
-        var current = getStored() || "system";
-        var next = current === "system" ? "light" : current === "light" ? "dark" : "system";
+        var current = getStored() || "dark";
+        var next = current === "dark" ? "light" : current === "light" ? "system" : "dark";
         setStored(next);
         apply(next);
         updateButton(btn, next);
@@ -47,7 +47,7 @@
 
     if (window.matchMedia) {
       window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-        var current = getStored() || "system";
+        var current = getStored() || "dark";
         if (current === "system") apply("system");
       });
     }

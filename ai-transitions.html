@@ -5,7 +5,7 @@
 <script>
 (function(){
   try {
-    var pref = localStorage.getItem("ai-resource-hub-theme") || "system";
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "dark";
     var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   } catch(e) {}

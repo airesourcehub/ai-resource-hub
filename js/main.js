@@ -19,6 +19,22 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // "New" / "Top" tags beside nav links. Edit this list to change them
+  // on every page at once: "new" = solid gold tag, "top" = outlined tag.
+  var NAV_BADGES = {
+    "lip-sync.html": "new",
+    "wan-video.html": "new",
+    "motion-transfer.html": "top"
+  };
+  document.querySelectorAll(".nav-links a").forEach(function (link) {
+    var kind = NAV_BADGES[link.getAttribute("href")];
+    if (!kind || link.querySelector(".nav-badge")) return;
+    var tag = document.createElement("span");
+    tag.className = "nav-badge" + (kind === "top" ? " is-top" : "");
+    tag.textContent = kind === "top" ? "Top" : "New";
+    link.appendChild(tag);
+  });
+
   // Set current year in footer
   var yearEl = document.getElementById("year");
   if (yearEl) {
