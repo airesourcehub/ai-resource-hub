@@ -304,6 +304,14 @@ a:hover {
   }
 }
 
+/* Wide screens just above the menu breakpoint: tighten so every link fits */
+@media (min-width: 1641px) and (max-width: 2100px) {
+  .nav { gap: 10px; padding-left: 18px; padding-right: 18px; }
+  .nav-links a { padding: 7px 7px; font-size: 0.84rem; }
+  .nav-links a.nav-cta { padding: 9px 13px; margin-left: 4px; }
+  .nav-auth-email { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+}
+
 /* ---------- Headings ---------- */
 
 h1, h2, h3, h4 {
