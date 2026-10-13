@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<script>
+(function(){
+  try {
+    var pref = localStorage.getItem("ai-resource-hub-theme") || "dark";
+    var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  } catch(e) {}
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Influencer — AI Resource Hub</title>
+<meta name="description" content="Build your own AI influencer: pick the face, body, hair and style, render them on our own GPU, then make them dance, talk or star in new shots." />
+<link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/video.css" />
+<link rel="stylesheet" href="css/influencer.css" />
+</head>
+<body class="is-vs">
+
+<header class="site-header">
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-mark">AI</span>
+      AI Resource Hub
+    </a>
+    <button class="nav-toggle" aria-label="Toggle menu">☰</button>
+    <ul class="nav-links">
+      <li class="nav-sec" data-sec="explore"><a class="nav-sec-link" href="index.html">Explore</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Explore menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega"><div class="mega-col"><p class="mega-label">Discover</p><a class="mega-item" href="index.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg></span><span class="mega-txt"><span class="mega-name">Home</span><span class="mega-desc">What you can make here, all in one place</span></span></a><a class="mega-item" href="gallery.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Gallery</span><span class="mega-desc">Posts with the prompts that made them</span></span></a><a class="mega-item" href="resources.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></span><span class="mega-txt"><span class="mega-name">AI Tools Directory</span><span class="mega-desc">Hand-picked AI tools by category</span></span></a><a class="mega-item" href="guides.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg></span><span class="mega-txt"><span class="mega-name">Guides</span><span class="mega-desc">Short, practical prompting guides</span></span></a><a class="mega-item" href="about.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><span class="mega-txt"><span class="mega-name">About</span><span class="mega-desc">Who runs the hub and why</span></span></a></div></div></li>
+      <li class="nav-sec" data-sec="image"><a class="nav-sec-link" href="image-studio.html">Image</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Image menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega mega-wide"><div class="mega-col"><p class="mega-label">Features</p><a class="mega-item" href="image-studio.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span><span class="mega-txt"><span class="mega-name">Image Studio</span><span class="mega-desc">Create and edit images on our GPUs</span></span></a><a class="mega-item" href="influencer.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7.5" r="3.5"/><path d="M5 21v-1.5a7 7 0 0 1 14 0V21"/><path d="m18 3 .8 1.7L20.5 5.5l-1.7.8L18 8l-.8-1.7L15.5 5.5l1.7-.8z"/></svg></span><span class="mega-txt"><span class="mega-name">AI Influencer<span class="mega-badge">New</span></span><span class="mega-desc">Build a character, then make them move</span></span></a><a class="mega-item" href="train-lora.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></span><span class="mega-txt"><span class="mega-name">Train LoRA</span><span class="mega-desc">Teach a model a face, character or style</span></span></a><a class="mega-item" href="image-gallery.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="mega-txt"><span class="mega-name">My Images</span><span class="mega-desc">Everything you have generated</span></span></a><a class="mega-item" href="prompt-generator.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 11-11"/><path d="M15 4v3M13.5 5.5h3M19 8v2M18 9h2"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Generator<span class="mega-badge">Free</span></span><span class="mega-desc">Model-ready prompts from a quick form</span></span></a></div><div class="mega-col"><p class="mega-label">Models</p><a class="mega-item" href="image-studio.html?model=flux2"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/flux2.jpg),url(img/models/flux2.jpg)"></span><span class="mega-txt"><span class="mega-name">FLUX.2</span><span class="mega-desc">Best all-round quality</span></span></a><a class="mega-item" href="image-studio.html?model=qwen2512"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/qwen2512.jpg),url(img/models/qwen2512.jpg)"></span><span class="mega-txt"><span class="mega-name">Qwen-Image 2512</span><span class="mega-desc">Strong prompt adherence and text</span></span></a><a class="mega-item" href="image-studio.html?model=krea2"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/krea2.jpg),url(img/models/krea2.jpg)"></span><span class="mega-txt"><span class="mega-name">Krea 2 Turbo</span><span class="mega-desc">Fast, stylish</span></span></a><a class="mega-item" href="image-studio.html?model=zimage"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/zimage.jpg),url(img/models/zimage.jpg)"></span><span class="mega-txt"><span class="mega-name">Z-Image Turbo</span><span class="mega-desc">Very fast</span></span></a><a class="mega-item" href="image-studio.html?model=qwen_edit2509"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/qwen_edit2509.jpg),url(img/models/qwen_edit2509.jpg)"></span><span class="mega-txt"><span class="mega-name">Qwen Edit 2509</span><span class="mega-desc">Edit a photo with words</span></span></a><a class="mega-item" href="image-studio.html?model=flux2_edit"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/flux2_edit.jpg),url(img/models/flux2_edit.jpg)"></span><span class="mega-txt"><span class="mega-name">FLUX.2 Image-to-Image</span><span class="mega-desc">Transform a photo with a prompt</span></span></a></div></div></li>
+      <li class="nav-sec" data-sec="video"><a class="nav-sec-link" href="video.html">Video</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Video menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega mega-wide"><div class="mega-col"><p class="mega-label">Features</p><a class="mega-item" href="video.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg></span><span class="mega-txt"><span class="mega-name">Video Home</span><span class="mega-desc">Every video tool in one place</span></span></a><a class="mega-item" href="wan-video.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span><span class="mega-txt"><span class="mega-name">Create Video<span class="mega-badge">New</span></span><span class="mega-desc">Your trained identities in motion</span></span></a><a class="mega-item" href="motion-transfer.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.5"/><path d="m9 21 3-6 3 2v4M7 12l3-3 4 1 3 3M12 15l-1-5"/></svg></span><span class="mega-txt"><span class="mega-name">Motion Transfer<span class="mega-badge is-top">Top</span></span><span class="mega-desc">Copy any dance or move onto a character</span></span></a><a class="mega-item" href="lip-sync.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="mega-txt"><span class="mega-name">Lip Sync<span class="mega-badge">New</span></span><span class="mega-desc">Make a photo speak or sing your audio</span></span></a><a class="mega-item" href="influencer.html?tab=motion"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7.5" r="3.5"/><path d="M5 21v-1.5a7 7 0 0 1 14 0V21"/><path d="m18 3 .8 1.7L20.5 5.5l-1.7.8L18 8l-.8-1.7L15.5 5.5l1.7-.8z"/></svg></span><span class="mega-txt"><span class="mega-name">AI Influencer</span><span class="mega-desc">Make your character dance or talk</span></span></a><a class="mega-item" href="ai-transitions.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a6 6 0 0 0 6 6h6"/><path d="m15 12 3 3-3 3"/><path d="M6 21v-3"/></svg></span><span class="mega-txt"><span class="mega-name">AI Transitions</span><span class="mega-desc">Blend two clips with an AI transition</span></span></a><a class="mega-item" href="ai-transitions.html#frames"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="8" height="12" rx="1.5"/><rect x="13" y="6" width="8" height="12" rx="1.5"/></svg></span><span class="mega-txt"><span class="mega-name">Frame Extractor<span class="mega-badge">Free</span></span><span class="mega-desc">First and last frames of any clip</span></span></a></div><div class="mega-col"><p class="mega-label">Models</p><a class="mega-item" href="motion-transfer.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.5"/><path d="m9 21 3-6 3 2v4M7 12l3-3 4 1 3 3M12 15l-1-5"/></svg></span><span class="mega-txt"><span class="mega-name">WAN 2.2 Animate</span><span class="mega-desc">Full-body pose and face from a driving video</span></span></a><a class="mega-item" href="lip-sync.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="mega-txt"><span class="mega-name">LTX 2</span><span class="mega-desc">Talking, lip-synced video from photo + audio</span></span></a><a class="mega-item" href="wan-video.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span><span class="mega-txt"><span class="mega-name">WAN identities</span><span class="mega-desc">Video starring the LoRAs you trained</span></span></a><p class="mega-label mega-label-gap">My renders</p><div class="mega-links"><a href="motion-archive.html">Motion transfers</a><a href="lip-sync-archive.html">Lip syncs</a><a href="wan-video-archive.html">WAN videos</a><a href="render-archive.html">Transitions</a></div></div></div></li>
+      <li class="nav-sec" data-sec="prompts"><a class="nav-sec-link" href="prompt-generator.html">Prompts</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Prompts menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega"><div class="mega-col"><p class="mega-label">Write better prompts</p><a class="mega-item" href="prompt-generator.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 11-11"/><path d="M15 4v3M13.5 5.5h3M19 8v2M18 9h2"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Generator<span class="mega-badge">Free</span></span><span class="mega-desc">Model-specific prompts for text, image and video</span></span></a><a class="mega-item" href="gallery.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Gallery</span><span class="mega-desc">Steal like an artist from real posts</span></span></a><a class="mega-item" href="guide-writing-better-image-prompts.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg></span><span class="mega-txt"><span class="mega-name">Image prompting guide</span><span class="mega-desc">What makes an image prompt work</span></span></a><a class="mega-item" href="guide-ai-video-prompting.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg></span><span class="mega-txt"><span class="mega-name">Video prompting guide</span><span class="mega-desc">Directing motion, camera and pacing</span></span></a></div></div></li>
+      <li class="nav-plain"><a href="gpu-status.html" class="nav-plain-link"><span class="nav-status-dot" aria-hidden="true"></span>System Status</a></li>
+      <li class="nav-tools"><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li id="navAuthSlot" class="nav-auth-slot"></li>
+      <li class="nav-cta-li"><a href="image-studio.html" class="nav-cta">Start creating</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="vs inf" id="inf">
+  <aside class="vs-panel inf-panel" aria-label="Build your influencer">
+    <div class="inf-brand">
+      <p>Create your own character with</p>
+      <h1>AI Influencer</h1>
+    </div>
+    <div class="inf-seg" role="tablist" aria-label="Mode">
+      <button type="button" role="tab" class="is-on" data-pane="create" aria-selected="true">Create Influencer</button>
+      <button type="button" role="tab" data-pane="motion" aria-selected="false">Motion</button>
+    </div>
+
+    <div class="vs-scroll" id="paneCreate">
+      <label class="vs-drop inf-photo" id="photoDrop">
+        <input type="file" id="photoInput" accept="image/*" />
+        <span class="inf-opt-tag">Optional</span>
+        <span class="vs-drop-ui">
+          <span class="vs-drop-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span>
+          <span class="vs-drop-txt"><strong>Upload your photo</strong><small>Start from a real face. Leave empty to invent one.</small></span>
+        </span>
+        <span class="inf-photo-file" id="photoFile" hidden>
+          <img id="photoPreview" alt="Your photo" />
+          <button type="button" class="vs-drop-replace" id="photoClear">Remove</button>
+        </span>
+      </label>
+
+      <div class="inf-field">
+        <label for="infName">Name <small>(optional)</small></label>
+        <input type="text" id="infName" maxlength="40" placeholder="e.g. Miami Mike" autocomplete="off" />
+      </div>
+
+      <div class="inf-groups" id="groups"></div>
+
+      <div class="inf-field">
+        <label for="infExtra">Anything else? <small>(optional)</small></label>
+        <textarea id="infExtra" rows="2" maxlength="300" placeholder="e.g. holding a microphone, gold chain, neon city behind"></textarea>
+      </div>
+    </div>
+
+    <div class="vs-scroll" id="paneMotion" hidden>
+      <div class="inf-motion-hero">
+        <span class="inf-motion-kicker">Make them move</span>
+        <strong>Pick one of your influencers, then send them to a video tool. Everything renders on our GPU.</strong>
+      </div>
+      <p class="inf-sub">Your influencers</p>
+      <div class="inf-pick" id="motionPick"><p class="inf-note">Create an influencer first. They show up here.</p></div>
+      <div class="inf-motion-tools" id="motionTools">
+        <a class="inf-mtool" data-tool="motion-transfer.html" href="motion-transfer.html">
+          <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.5"/><path d="m9 21 3-6 3 2v4M7 12l3-3 4 1 3 3M12 15l-1-5"/></svg></span>
+          <span><strong>Motion transfer</strong><small>Copy any dance or move from a video (WAN 2.2 Animate)</small></span>
+        </a>
+        <a class="inf-mtool" data-tool="lip-sync.html" href="lip-sync.html">
+          <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+          <span><strong>Lip sync</strong><small>Make them talk or sing your audio (LTX 2)</small></span>
+        </a>
+        <a class="inf-mtool" data-tool="image-studio.html" href="image-studio.html">
+          <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span>
+          <span><strong>New shots</strong><small>Put them in new scenes and outfits (Qwen Edit)</small></span>
+        </a>
+      </div>
+    </div>
+
+    <div class="inf-foot" id="createFoot">
+      <div class="inf-picked" id="pickedWrap" hidden>
+        <div class="inf-picked-head"><span>Picked settings</span><button type="button" id="resetAll">Reset all</button></div>
+        <div class="inf-picked-chips" id="picked"></div>
+      </div>
+      <div class="inf-row">
+        <span class="inf-row-lbl">Shot</span>
+        <div class="inf-seg-sm" id="viewSeg">
+          <button type="button" data-view="full" class="is-on">Full body</button>
+          <button type="button" data-view="portrait">Portrait</button>
+          <button type="button" data-view="sheet">Turnaround</button>
+        </div>
+      </div>
+      <div class="inf-row">
+        <span class="inf-row-lbl">Engine</span>
+        <div class="inf-seg-sm" id="engineSeg">
+          <button type="button" data-engine="zimage" class="is-on" title="Z-Image Turbo — fastest on our RTX 3090">Fast</button>
+          <button type="button" data-engine="flux2" title="FLUX.2 — slower, more detail">Best</button>
+        </div>
+        <span class="inf-row-lbl inf-batch-lbl">Batch</span>
+        <div class="inf-step" aria-label="Batch size">
+          <button type="button" id="batchMinus" aria-label="Fewer">&minus;</button>
+          <output id="batchVal">1</output>
+          <button type="button" id="batchPlus" aria-label="More">+</button>
+        </div>
+      </div>
+      <div class="inf-go">
+        <button type="button" class="inf-shuffle" id="shuffleBtn" title="Random character" aria-label="Random character"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
+        <button type="button" class="btn btn-primary inf-generate" id="generateBtn">Generate <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg></button>
+      </div>
+      <p class="inf-hint" id="hint" role="status"></p>
+    </div>
+  </aside>
+
+  <section class="vs-stage inf-stage">
+    <div class="inf-stage-tabs" role="tablist">
+      <button type="button" role="tab" class="is-on" data-stage="explore" aria-selected="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore</button>
+      <button type="button" role="tab" data-stage="mine" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>My influencers <span class="inf-count" id="mineCount"></span></button>
+      <span class="inf-gpu" id="gpuLine"><span class="gpu-dot" id="gpuDot"></span><span id="gpuText">Our RTX 3090</span></span>
+    </div>
+
+    <div id="stageExplore">
+      <div class="inf-hero">
+        <div class="inf-fan" id="fan" aria-hidden="true"></div>
+        <h2 class="vs-title inf-hero-title">Your influencer,<br />your viral hit</h2>
+        <p>Build your AI influencer with the face, body and style you want. Then make them dance, talk or star in new shots, all rendered on our own GPU.</p>
+      </div>
+      <div class="inf-feed-head">
+        <h3>Start from a preset</h3>
+        <p>Tap <strong>Recreate</strong> to load every setting, then tweak and generate.</p>
+      </div>
+      <div class="inf-wall" id="presetWall"></div>
+    </div>
+
+    <div id="stageMine" hidden>
+      <div class="inf-wall" id="mineWall"></div>
+      <div class="inf-empty" id="mineEmpty" hidden>
+        <h3>No influencers yet</h3>
+        <p>Pick a character type and a few traits on the left, then hit Generate.</p>
+      </div>
+      <p class="inf-note inf-signin" id="mineSignin" hidden><a href="auth.html">Log in</a> to see and save your influencers.</p>
+      <button type="button" class="btn btn-secondary inf-more" id="mineMore" hidden>Load more</button>
+    </div>
+  </section>
+
+  <div class="inf-viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Influencer">
+    <div class="inf-viewer-bg" id="viewerBg"></div>
+    <button type="button" class="inf-viewer-x" id="viewerClose" aria-label="Close">&times;</button>
+    <div class="inf-viewer-body">
+      <div class="inf-viewer-media"><img id="viewerImg" alt="" /></div>
+      <aside class="inf-viewer-side">
+        <h3 id="viewerName"></h3>
+        <p class="inf-viewer-meta" id="viewerMeta"></p>
+        <div class="inf-viewer-chips" id="viewerChips"></div>
+        <div class="inf-viewer-acts">
+          <a class="btn btn-primary" id="actAnimate" href="#">Make them dance</a>
+          <a class="btn btn-secondary" id="actLip" href="#">Make them talk</a>
+          <a class="btn btn-secondary" id="actShots" href="#">New shots</a>
+          <button type="button" class="btn btn-secondary" id="actRecreate">Recreate</button>
+          <a class="btn btn-secondary" id="actDownload" href="#" download>Download</a>
+          <button type="button" class="btn btn-danger" id="actDelete">Delete</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="nav-brand">
+        <span class="logo-mark">AI</span>
+        AI Resource Hub
+      </div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="resources.html">Resources</a></li>
+        <li><a href="prompt-generator.html">Prompt Generator</a></li>
+        <li><a href="gallery.html">Prompt Gallery</a></li> <li><a href="image-studio.html">Image Studio</a></li> <li><a href="train-lora.html">Train LoRA</a></li>
+        <li><a href="ai-transitions.html">AI Transitions</a></li> <li><a href="motion-transfer.html">Motion Transfer</a></li> <li><a href="lip-sync.html">Lip Sync</a></li>
+        <li><a href="guides.html">Guides</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="year"></span> AI Resource Hub. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth-nav.js"></script>
+<script src="js/render-status.js"></script>
+<script src="js/influencer.js"></script>
+</body>
+</html>
