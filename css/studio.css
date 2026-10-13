@@ -793,3 +793,191 @@
   color: var(--color-text);
   font-size: 0.9rem;
 }
+
+/* ===========================
+   Seamless wall (replaces the per-job rows)
+   =========================== */
+
+.studio-jobs.studio-wall {
+  display: block;
+  columns: 5 230px;
+  column-gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .studio-jobs.studio-wall { columns: 2; column-gap: 8px; }
+}
+
+.wtile {
+  position: relative;
+  display: block;
+  break-inside: avoid;
+  margin: 0 0 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-surface-2);
+  cursor: zoom-in;
+  transition: transform 0.15s cubic-bezier(.2,.7,.2,1);
+}
+
+.wtile:active { transform: scale(0.985); }
+.wtile:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+
+.wtile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.4s cubic-bezier(.2,.7,.2,1);
+}
+
+.wtile.is-loaded img { opacity: 1; }
+.wtile:hover img { transform: scale(1.02); }
+
+.wtile-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.72) 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.wtile-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.wtile-btn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.38);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  cursor: pointer;
+}
+
+.wtile-btn:hover { background: rgba(0,0,0,0.65); }
+
+.wtile-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.wtile-prompt {
+  margin: 0 0 3px;
+  color: #fff;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wtile-sub { color: rgba(255,255,255,0.7); font-size: 0.72rem; }
+
+.wtile:hover .wtile-shade, .wtile:hover .wtile-actions, .wtile:hover .wtile-meta,
+.wtile:focus-within .wtile-shade, .wtile:focus-within .wtile-actions, .wtile:focus-within .wtile-meta { opacity: 1; }
+
+@media (hover: none) {
+  .wtile-actions { opacity: 1; }
+  .wtile-shade { opacity: 0.6; }
+}
+
+/* In-progress tiles */
+.wtile.is-pending {
+  cursor: default;
+  background:
+    linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%) 0 0 / 220% 100%,
+    var(--color-surface-2);
+  animation: studio-shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) { .wtile.is-pending { animation: none; } }
+
+.wtile-pending {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wtile-pending-prompt {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wtile .job-progress-track { width: 100%; flex: none; }
+
+.wtile-pending-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+}
+
+.wtile-cancel {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* Failed render */
+.wtile.is-error {
+  cursor: default;
+  padding: 14px;
+  border: 1px dashed var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.wtile.is-error strong { color: var(--color-text); }
+.wtile.is-error p { margin: 6px 0; }
+.wtile-err-prompt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Image whose file can't be loaded (GPU server offline) */
+.wtile.is-missing { cursor: default; border: 1px dashed var(--color-border); background: var(--color-surface); min-height: 180px; }
+.wtile.is-missing img, .wtile.is-missing .wtile-actions, .wtile.is-missing .wtile-shade { display: none; }
+.wtile.is-missing .wtile-meta { opacity: 1; position: static; padding: 0 14px 14px; }
+.wtile.is-missing .wtile-prompt { color: var(--color-text-muted); }
+.wtile.is-missing .wtile-sub { color: var(--color-text-muted); }
+.wtile.is-missing { aspect-ratio: auto !important; }
+.wtile.is-missing .shot-missing { position: static; padding: 18px 14px 10px; }
+.wtile.is-missing { display: flex; flex-direction: column; }
+.wtile.is-missing .shot-missing { order: -1; text-align: left; align-items: flex-start; padding-bottom: 6px; }

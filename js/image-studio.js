@@ -616,95 +616,108 @@
     var host = $("studioFeed");
     $("studio").classList.toggle("has-jobs", state.jobs.length > 0);
     host.innerHTML = "";
-    state.jobs.forEach(function (job) { host.appendChild(jobEl(job)); });
+    host.classList.add("studio-wall");
+    state.jobs.forEach(function (job) {
+      jobTiles(job).forEach(function (t) { host.appendChild(t); });
+    });
   }
 
-  function jobEl(job) {
+  // One seamless masonry wall (Higgsfield-style): every image is its own tile
+  // at its real shape; prompt, model and actions appear on hover.
+  function jobTiles(job) {
     var m = byId(job.model);
-    var wrap = document.createElement("article");
-    wrap.className = "job";
-    wrap.setAttribute("data-job", job.id);
-    var size = job.width && job.height ? closestRatio(job.width, job.height) : "";
-    wrap.innerHTML =
-      '<div class="job-head"><p class="job-prompt"></p><div class="job-meta">' +
-        '<span class="pill">' + esc(m ? m.name : job.model) + "</span>" +
-        (size ? "<span>" + size + "</span>" : "") +
-        "<span>" + esc(when(job.created_at)) + "</span>" +
-        (job.pending ? "" : '<button type="button" class="job-reuse">Reuse prompt</button>') +
-      "</div></div>";
-    wrap.querySelector(".job-prompt").textContent = job.prompt || "";
-    var reuse = wrap.querySelector(".job-reuse");
-    if (reuse) reuse.addEventListener("click", function () { reuseJob(job); });
+    var modelName = m ? m.name : (job.model || "");
+    var ratio = job.width && job.height ? closestRatio(job.width, job.height) : "";
+    var guessAR = job.width && job.height ? job.width / job.height : 1;
+    var tiles = [];
 
     if (job.pending) {
-      var row = document.createElement("div");
-      row.className = "job-images";
-      var ar = (job.width && job.height) ? job.width / job.height : 1;
       for (var i = 0; i < (job.batch || 1); i++) {
         var ph = document.createElement("div");
-        ph.className = "shot is-pending";
-        ph.style.aspectRatio = String(ar);
-        row.appendChild(ph);
+        ph.className = "wtile is-pending";
+        ph.setAttribute("data-job", job.id);
+        ph.style.aspectRatio = String(guessAR);
+        ph.innerHTML =
+          '<div class="wtile-pending">' +
+            '<p class="wtile-pending-prompt"></p>' +
+            '<div class="job-progress-track"><span></span></div>' +
+            '<div class="wtile-pending-row"><span class="job-stage"></span>' +
+            (i === 0 ? '<button type="button" class="wtile-cancel">Cancel</button>' : "") + "</div>" +
+          "</div>";
+        ph.querySelector(".wtile-pending-prompt").textContent = job.prompt || "";
+        var c = ph.querySelector(".wtile-cancel");
+        if (c) c.addEventListener("click", function () { cancelJob(job); });
+        paintProgress(ph, job);
+        tiles.push(ph);
       }
-      wrap.appendChild(row);
-      var prog = document.createElement("div");
-      prog.className = "job-progress";
-      prog.innerHTML = '<div class="job-progress-track"><span></span></div><span class="job-stage"></span>' +
-        '<button type="button" class="job-reuse job-cancel">Cancel</button>';
-      prog.querySelector(".job-cancel").addEventListener("click", function () { cancelJob(job); });
-      wrap.appendChild(prog);
-      paintProgress(wrap, job);
-      return wrap;
+      return tiles;
     }
 
     if (job.status === "error") {
       var err = document.createElement("div");
-      err.className = "job-error";
-      err.textContent = "This one didn't render: " + (job.error || "unknown error") + " Use Reuse prompt to try again.";
-      wrap.appendChild(err);
-      return wrap;
+      err.className = "wtile is-error";
+      err.innerHTML = '<strong>Didn&rsquo;t render</strong><p class="wtile-err-msg"></p><p class="wtile-err-prompt"></p>' +
+        '<button type="button" class="wtile-cancel">Try again</button>';
+      err.querySelector(".wtile-err-msg").textContent = job.error || "Unknown error.";
+      err.querySelector(".wtile-err-prompt").textContent = job.prompt || "";
+      err.querySelector("button").addEventListener("click", function () { reuseJob(job); });
+      tiles.push(err);
+      return tiles;
     }
 
-    var imgs = document.createElement("div");
-    imgs.className = "job-images";
     (job.urls || []).forEach(function (u, idx) {
       var src = absUrl(u);
-      var shot = document.createElement("div");
-      shot.className = "shot";
-      if (job.width && job.height) shot.style.aspectRatio = String(job.width / job.height);
-      shot.innerHTML = '<img loading="lazy" alt="" />' +
-        '<div class="shot-actions">' +
-          '<button type="button" class="shot-btn" data-act="edit">Edit this</button>' +
-          '<button type="button" class="shot-btn" data-act="dl">Download</button>' +
-        "</div>";
-      var img = shot.querySelector("img");
-      img.src = src;
+      var t = document.createElement("div");
+      t.className = "wtile";
+      t.setAttribute("tabindex", "0");
+      t.style.aspectRatio = String(guessAR); // placeholder until the real image size is known
+      t.innerHTML =
+        '<img loading="lazy" alt="" />' +
+        '<div class="wtile-shade" aria-hidden="true"></div>' +
+        '<div class="wtile-actions">' +
+          '<button type="button" class="wtile-btn" data-act="edit" title="Edit this image" aria-label="Edit this image"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>' +
+          '<button type="button" class="wtile-btn" data-act="reuse" title="Reuse prompt" aria-label="Reuse prompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>' +
+          '<button type="button" class="wtile-btn" data-act="dl" title="Download" aria-label="Download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg></button>' +
+        "</div>" +
+        '<div class="wtile-meta"><p class="wtile-prompt"></p><span class="wtile-sub"></span></div>';
+      t.querySelector(".wtile-prompt").textContent = job.prompt || "";
+      t.querySelector(".wtile-sub").textContent = [modelName, ratio, when(job.created_at)].filter(Boolean).join(" · ");
+      var img = t.querySelector("img");
       img.alt = "Generated image " + (idx + 1) + ": " + (job.prompt || "");
-      img.addEventListener("load", function () { if (!job.width) shot.style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight; });
+      img.addEventListener("load", function () {
+        if (img.naturalWidth && img.naturalHeight) t.style.aspectRatio = img.naturalWidth + " / " + img.naturalHeight;
+        t.classList.add("is-loaded");
+      });
       img.addEventListener("error", function () {
         // Images live on the GPU server; when it's offline, show a calm placeholder instead of a broken icon.
-        shot.classList.add("is-missing");
-        if (!shot.style.aspectRatio) shot.style.aspectRatio = "1 / 1";
+        t.classList.add("is-missing");
         img.removeAttribute("alt");
-        if (!shot.querySelector(".shot-missing")) {
+        if (!t.querySelector(".shot-missing")) {
           var note = document.createElement("div");
           note.className = "shot-missing";
           note.innerHTML = "<strong>Image unavailable</strong><span>It's stored on the GPU server, which isn't reachable right now. It will show again once the server is back.</span>";
-          shot.appendChild(note);
+          t.appendChild(note);
         }
       });
-      img.addEventListener("click", function () { openLightbox(src); });
-      shot.querySelector('[data-act="dl"]').addEventListener("click", function () { download(src, job); });
-      shot.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(src); });
-      imgs.appendChild(shot);
+      img.src = src;
+      t.addEventListener("click", function (e) {
+        if (e.target.closest(".wtile-btn") || t.classList.contains("is-missing")) return;
+        openLightbox(src);
+      });
+      t.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target === t) { e.preventDefault(); openLightbox(src); }
+      });
+      t.querySelector('[data-act="dl"]').addEventListener("click", function () { download(src, job); });
+      t.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(src); });
+      t.querySelector('[data-act="reuse"]').addEventListener("click", function () { reuseJob(job); });
+      tiles.push(t);
     });
-    wrap.appendChild(imgs);
-    return wrap;
+    return tiles;
   }
 
   function updatePending(job) {
-    var el = document.querySelector('[data-job="' + cssEsc(String(job.id)) + '"]');
-    if (el) paintProgress(el, job);
+    var els = document.querySelectorAll('[data-job="' + cssEsc(String(job.id)) + '"]');
+    Array.prototype.forEach.call(els, function (el) { paintProgress(el, job); });
   }
 
   function paintProgress(el, job) {
