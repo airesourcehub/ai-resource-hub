@@ -9,7 +9,7 @@
 // (LoRA models), image (edit models, ONE photo).
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var POLL_MS = 3000;
   var STATUS_MS = 20000;
   var PAGE = 20;
@@ -448,7 +448,7 @@
     var msg = "Add your LoRA's trigger word to the prompt.";
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/loras", { headers: { Authorization: "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT() + "/loras", { headers: { Authorization: "Bearer " + token } });
       var d = await r.json();
       if ((d.loras || []).length) {
         opts += '<optgroup label="Installed and uploaded">';
@@ -472,7 +472,7 @@
     var fd = new FormData(); fd.append("file", f);
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/loras", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var r = await fetch(RENDER_ENDPOINT() + "/loras", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
       var d = await r.json();
       if (!r.ok) throw new Error(d.detail || "upload failed");
       await loadLoras();
@@ -528,7 +528,7 @@
     hint("");
 
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var r = await fetch(RENDER_ENDPOINT() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
       var data = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(data.detail || ("HTTP " + r.status));
       job.id = data.job_id;
@@ -550,7 +550,7 @@
       if (!job.pending) return;
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + job.id, { headers: { Authorization: "Bearer " + token } });
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + job.id, { headers: { Authorization: "Bearer " + token } });
         if (r.status === 404) { finish(job, "error", null, "This job stopped running, probably because the GPU server restarted."); return; }
         if (!r.ok) throw new Error("HTTP " + r.status);
         var j = await r.json();
@@ -590,7 +590,7 @@
     updatePending(job);
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + job.id + "/cancel", { method: "POST", headers: { Authorization: "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + job.id + "/cancel", { method: "POST", headers: { Authorization: "Bearer " + token } });
     } catch (e) {}
   }
 
@@ -872,9 +872,15 @@
   // --------------------------------------------------------- GPU status
   async function refreshStatus() {
     if (!state.user) return;
+    var cur = window.AIRH_GPU ? window.AIRH_GPU.current() : null;
+    if ($("gpuPopName") && cur) $("gpuPopName").textContent = cur.kind === "none" ? "Your GPU" : cur.name;
+    if (cur && cur.kind === "none") {
+      paintGpu("down", cur.offlinePc ? "Your PC is offline. Open Start in the GPU Connector folder." : "No GPU connected yet. Connect your PC on the My GPU page.");
+      return;
+    }
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/status", { headers: { Authorization: "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT() + "/status", { headers: { Authorization: "Bearer " + token } });
       if (!r.ok) throw new Error();
       var d = await r.json();
       var waiting = (d.queue || []).length;
@@ -886,10 +892,12 @@
     }
   }
 
+  window.addEventListener("airh-gpu-change", function () { refreshStatus(); });
+
   function paintGpu(kind, detail) {
     var dot = $("gpuDot");
     dot.className = "gpu-dot" + (kind === "up" ? " is-up" : kind === "busy" ? " is-busy" : kind === "down" ? " is-down" : "");
-    $("chipGpuName").textContent = kind === "up" ? "GPU ready" : kind === "busy" ? "GPU busy" : kind === "down" ? "GPU offline" : "Our GPU";
+    $("chipGpuName").textContent = kind === "up" ? "GPU ready" : kind === "busy" ? "GPU busy" : kind === "down" ? "GPU offline" : "Your GPU";
     $("gpuDetail").textContent = detail;
   }
 
@@ -928,7 +936,7 @@
   function truncate(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function cssEsc(s) { return window.CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, "\\$&"); }
-  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u; }
+  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u; }
   function fmtDur(s) { s = Math.max(0, Math.round(s)); var m = Math.floor(s / 60), sec = s % 60; return m ? m + " min" : sec + "s"; }
   function prefersReduced() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
 

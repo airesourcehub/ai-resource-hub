@@ -10,7 +10,7 @@
 
 (function () {
   // Cloudflare Tunnel hostname that points at the desktop render service.
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var MAX_BYTES = 250 * 1024 * 1024; // 250 MB per clip
   var POLL_MS = 4000;
 
@@ -246,7 +246,7 @@
 
     var jobId;
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/jobs", {
+      var r = await fetch(RENDER_ENDPOINT() + "/jobs", {
         method: "POST",
         headers: { "Authorization": "Bearer " + token },
         body: fd
@@ -275,7 +275,7 @@
       try {
         // Refresh the token every poll so long renders don't expire mid-way.
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, {
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + jobId, {
           headers: { "Authorization": "Bearer " + token }
         });
         if (r.status === 404) { setStatus("This render is no longer running (the service may have restarted).", "error"); reset(); return; }
@@ -340,7 +340,7 @@
     var ok = false;
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId, {
+      var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId, {
         method: "DELETE",
         headers: { "Authorization": "Bearer " + token }
       });
@@ -363,7 +363,7 @@
   function absUrl(u) {
     if (!u) return u;
     if (/^https?:\/\//i.test(u)) return u;
-    return RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u;
+    return RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u;
   }
 
   function showProgress(pct, label) {
@@ -385,7 +385,7 @@
     cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
       setStatus("Cancelling the render…");
     } catch (e) {
       cancelBtn.disabled = false; cancelBtn.textContent = "Cancel render";

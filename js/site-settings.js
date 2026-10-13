@@ -92,7 +92,7 @@
   if (cached) applyColors(cached);
 
   window.AIRH_SITE = {
-    defaults: { accent: "#ff6a1f", accentLight: "", navOrder: DEFAULT_NAV.slice(), nav: {}, cta: { label: "Start creating", href: "image-studio.html", visible: true }, showStatus: true },
+    defaults: { accent: "#ff6a1f", accentLight: "", navOrder: DEFAULT_NAV.slice(), nav: {}, cta: { label: "Start creating", href: "image-studio.html", visible: true }, showStatus: true, signupsOpen: false, hostGpuName: "" },
     apply: function (s) { applyColors(s); applyNav(s); },
     colorCss: colorCss
   };

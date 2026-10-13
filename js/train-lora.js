@@ -2,7 +2,7 @@
 // Seat-gated like the video tools (training monopolizes the GPU).
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var POLL_MS = 5000;
 
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
@@ -121,7 +121,7 @@
   function uploadTraining(fd, token, imgCount) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open("POST", RENDER_ENDPOINT + "/training-jobs");
+      xhr.open("POST", RENDER_ENDPOINT() + "/training-jobs");
       xhr.setRequestHeader("Authorization", "Bearer " + token);
       xhr.upload.onprogress = function (e) {
         if (!e.lengthComputable) return;
@@ -146,7 +146,7 @@
     pollTimer = setTimeout(async function () {
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
         if (r.status === 404) { setStatus("This training job is no longer running (the service may have restarted).", "error"); reset(); return; }
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;
@@ -190,7 +190,7 @@
     cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
       setStatus("Cancelling…");
     } catch (e) { cancelBtn.disabled = false; cancelBtn.textContent = "Cancel"; }
   }
@@ -225,7 +225,7 @@
     var ok = false;
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/my-loras/" + id, {
+      var r = await fetch(RENDER_ENDPOINT() + "/my-loras/" + id, {
         method: "DELETE", headers: { "Authorization": "Bearer " + token } });
       ok = r.ok;
     } catch (e) { ok = false; }

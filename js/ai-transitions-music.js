@@ -5,7 +5,7 @@
 // Lives inside the seat-gated #blendForm, so it's only visible to the seat holder.
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var MAX_BYTES = 250 * 1024 * 1024;
   var POLL_MS = 4000;
 
@@ -99,7 +99,7 @@
 
     var jobId;
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/jobs", {
+      var r = await fetch(RENDER_ENDPOINT() + "/jobs", {
         method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd
       });
       if (r.status === 423 || r.status === 403) { setStatus("The GPU is reserved by the admin for another user right now.", "error"); reset(); return; }
@@ -124,7 +124,7 @@
     pollTimer = setTimeout(async function () {
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;
         var j = await r.json();
@@ -163,7 +163,7 @@
     var ok = false;
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
       ok = r.ok;
     } catch (e) { ok = false; }
     if (ok) {
@@ -179,7 +179,7 @@
   function absUrl(u) {
     if (!u) return u;
     if (/^https?:\/\//i.test(u)) return u;
-    return RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u;
+    return RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u;
   }
   function showProgress(pct, label) { progress.style.display = ""; progressFill.style.width = pct + "%"; progressLabel.textContent = label || ""; }
   function reset() { genBtn.disabled = false; progress.style.display = "none"; clearTimeout(pollTimer); }

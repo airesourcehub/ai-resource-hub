@@ -5,7 +5,7 @@
 // running job on load, so leaving the tool page never loses the status.
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var POLL_MS = 5000;
   var IDLE_RESCAN_MS = 15000;
 
@@ -79,7 +79,7 @@
       if (!activeJobId) return;
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + activeJobId, { headers: { "Authorization": "Bearer " + token } });
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + activeJobId, { headers: { "Authorization": "Bearer " + token } });
         if (r.status === 404) { hide(); finishTracking(); return; } // job gone (service restarted)
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;

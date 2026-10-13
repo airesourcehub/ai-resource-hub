@@ -4,7 +4,23 @@
 // Windows, copyable prompts, model strip, tool list and FAQ.
 
 (function () {
-  var MCP_URL = "https://render.airesourcehub.vip/mcp";
+  // Members: one router address that sends each request to the member's own PC
+  // (GPU Connector) or, if the admin approved them, to the admin's GPU.
+  // The admin keeps his direct address to his own GPU.
+  var HOST_MCP = "https://render.airesourcehub.vip/mcp";
+  var MEMBER_MCP = "https://flzhhgfkpdmszucoljpu.supabase.co/functions/v1/gpu-mcp";
+  var MCP_URL = MEMBER_MCP;
+  function pickUrl() {
+    var st = window.AIRH_GPU ? window.AIRH_GPU.state() : {};
+    var next = st && st.isAdmin ? HOST_MCP : MEMBER_MCP;
+    if (next !== MCP_URL) {
+      MCP_URL = next;
+      var span = document.querySelector("#heroUrl span");
+      if (span) span.textContent = MCP_URL;
+      if (typeof renderAgent === "function") renderAgent();
+    }
+  }
+  window.addEventListener("airh-gpu-change", pickUrl);
   var KEY_PH = "YOUR_KEY";
   var $ = function (id) { return document.getElementById(id); };
   if (!$("mcpPage")) return;
@@ -119,16 +135,17 @@
     ["cancel_job", "Stop a render you no longer need."],
     ["list_influencers", "Your saved characters with images."],
     ["recent_results", "Your latest images and videos."],
-    ["gpu_status", "Is the RTX 3090 free, and how long is the line."],
+    ["gpu_status", "Is your GPU free, and how long is the line."],
     ["list_image_models", "Which models are available."],
     ["list_loras", "Styles and identities installed on the GPU."]
   ];
 
   var FAQ = [
-    ["What is MCP?", "Model Context Protocol is the open standard AI apps use to plug in tools. Connect once and your AI can render on our GPU whenever you ask."],
+    ["What is MCP?", "Model Context Protocol is the open standard AI apps use to plug in tools. Connect once and your AI can render on your GPU whenever you ask."],
     ["Which apps work?", "Claude (web, desktop and Claude Code), ChatGPT with Developer mode, Cursor, VS Code with Copilot, Windsurf, Gemini CLI, Codex CLI, and any other app that supports remote MCP servers."],
     ["Where do my renders go?", "Everything shows up on the site too: images in Image Studio and My Images, characters in AI Influencer, videos in your render archives."],
-    ["Why does it take a moment?", "Every job runs on one RTX 3090, one at a time. Your AI waits for it and shares the link. You can have up to 3 jobs waiting at once."],
+    ["Why does it take a moment?", "Jobs run on your GPU one at a time. Your AI waits for each one and shares the link when it is done."],
+    ["Which GPU does my AI use?", "Your own. Connect your PC once on the My GPU page (airesourcehub.vip/gpu) and keep the GPU Connector open while your AI works. If the admin has approved you for his GPU, your AI uses that whenever your PC is offline."],
     ["Is my key safe?", "We only store a scrambled copy of it. Anyone with the key can render as you, so don't share it. Revoke a key here any time and it stops working within a minute."],
     ["Mac or Windows?", "Both. Pick your computer above the setup steps and the file paths and commands change to match."]
   ];
@@ -313,6 +330,8 @@
 
   function setUser(u) {
     state.user = u;
+    pickUrl();
+    if (window.AIRH_GPU) window.AIRH_GPU.refresh().then(pickUrl).catch(function () {});
     $("keySignedOut").hidden = !!u;
     $("keySignedIn").hidden = !u;
     if (u) loadKeys();

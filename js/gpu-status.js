@@ -4,7 +4,7 @@
 // times, and live CPU/GPU stats. Admins see emails; members see "another member".
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var POLL_MS = 3000;
 
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
@@ -68,7 +68,7 @@
     var token = await freshToken();
     if (!token) return;
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/status", { headers: { "Authorization": "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT() + "/status", { headers: { "Authorization": "Bearer " + token } });
       if (!r.ok) throw new Error("HTTP " + r.status);
       var d = await r.json();
       paintChips(true, d.comfy_up, d.busy);
@@ -202,7 +202,7 @@
     cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + curJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + curJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
       document.getElementById("jobMsg").textContent = "Cancel sent — the job is stopping.";
       document.getElementById("jobMsg").className = "form-status success";
     } catch (e) {

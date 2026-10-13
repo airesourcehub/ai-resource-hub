@@ -72,6 +72,12 @@
 
     document.getElementById("profEditBtn").style.display = isOwn ? "" : "none";
     document.getElementById("profActivityBtn").style.display = isOwn ? "" : "none";
+    var gb = document.getElementById("profGpuBtn");
+    if (gb) {
+      gb.style.display = isOwn ? "" : "none";
+      var gs = window.AIRH_GPU ? window.AIRH_GPU.state() : {};
+      if (gs.isAdmin) gb.textContent = "GPU & access";
+    }
     // Messaging is disabled for now — keep the button hidden.
     document.getElementById("profMessageBtn").style.display = "none";
   }

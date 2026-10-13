@@ -1,6 +1,6 @@
 // AI Resource Hub — My Images (full gallery for the Image Studio).
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
   var host = document.getElementById("imageGalleryList");
   if (!host) return;
@@ -52,7 +52,7 @@
     if (!window.confirm("Delete this image (and its batch) permanently?")) return;
     try {
       var token = (await client.auth.getSession()).data.session.access_token;
-      await fetch(RENDER_ENDPOINT + "/jobs/" + jobId + "?table=image_jobs", { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + jobId + "?table=image_jobs", { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
     } catch (e) {}
     // Fallback: remove the row directly (RLS lets users delete their own).
     try { await client.from("image_jobs").delete().eq("id", jobId); } catch (e) {}
@@ -72,5 +72,5 @@
     lb.style.display = "flex";
   }
 
-  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u; }
+  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u; }
 })();

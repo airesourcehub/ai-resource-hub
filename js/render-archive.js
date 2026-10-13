@@ -6,7 +6,7 @@
 //              inside a wrapper <div class="render-archive-wrap">
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var RECENT_LIMIT = 10;
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
 
@@ -216,14 +216,14 @@
     try {
       var token = await getToken();
       if (!token) return false;
-      var r = await fetch(RENDER_ENDPOINT + "/jobs/" + id, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + id, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
       return r.ok;
     } catch (e) { return false; }
   }
 
   function abs(u) {
     if (!u) return u;
-    return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u;
+    return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u;
   }
   function setMsg(msg) {
     var t = fullList || strip;

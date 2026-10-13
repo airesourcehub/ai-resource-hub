@@ -2,7 +2,7 @@
 // Same single render seat as the other video tools (one GPU, one user).
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var MAX_IMG = 250 * 1024 * 1024;
   var MAX_AUDIO = 60 * 1024 * 1024;
   var POLL_MS = 4000;
@@ -100,7 +100,7 @@
 
     var jobId;
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/lipsync-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
+      var r = await fetch(RENDER_ENDPOINT() + "/lipsync-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
       if (r.status === 423 || r.status === 403) { setStatus("The GPU is reserved by the admin for another user right now.", "error"); reset(); return; }
       if (r.status === 409) { setStatus("The generator is busy with another job. Please try again shortly.", "error"); reset(); return; }
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -122,7 +122,7 @@
     pollTimer = setTimeout(async function () {
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
         if (r.status === 404) { setStatus("This render is no longer running (the service may have restarted).", "error"); reset(); return; }
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;
@@ -165,7 +165,7 @@
     cancelBtn.disabled = true; cancelBtn.textContent = "Cancelling…";
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
       setStatus("Cancelling the render…");
     } catch (e) {
       cancelBtn.disabled = false; cancelBtn.textContent = "Cancel";
@@ -180,7 +180,7 @@
     var ok = false;
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
+      var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId, { method: "DELETE", headers: { "Authorization": "Bearer " + token } });
       ok = r.ok;
     } catch (e) { ok = false; }
     if (ok) {
@@ -193,7 +193,7 @@
     }
   }
 
-  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u; }
+  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u; }
   function showProgress(pct, label) { progress.style.display = ""; progressFill.style.width = pct + "%"; progressLabel.textContent = label || ""; }
   function reset() { genBtn.disabled = false; if (cancelBtn) cancelBtn.style.display = "none"; progress.style.display = "none"; clearTimeout(pollTimer); }
   function fmtDur(s) { s = Math.max(0, Math.round(s)); var m = Math.floor(s / 60), sec = s % 60; return m ? m + "m" : sec + "s"; }

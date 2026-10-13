@@ -1,6 +1,6 @@
 // AI Resource Hub — AI Influencer builder (Higgsfield-style).
 // Pick a character type + traits -> we write a detailed prompt -> the image
-// job runs on our own GPU through the same render service as Image Studio
+// job runs on your GPU (js/gpu.js) through the same render service as Image Studio
 // (POST /image-jobs). Saved characters live in the Supabase "influencers"
 // table (traits JSON + the image job id) so Recreate and history work.
 //
@@ -9,7 +9,7 @@
 // 4 steps) at a set output size.
 
 (function () {
-  var RENDER = "https://render.airesourcehub.vip";
+  var RENDER = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var POLL_MS = 3000;
   var PAGE = 24;
   var PREFS_KEY = "airh-influencer";
@@ -126,7 +126,7 @@
   var ENGINES = { zimage: "Z-Image Turbo", flux2: "FLUX.2", qwen_edit2509: "Qwen Edit 2509" };
   var NEGATIVE = "blurry, deformed, extra limbs, extra fingers, bad anatomy, watermark, text, logo, cropped head, child, minor, nsfw";
 
-  // Presets for the Explore wall (images rendered on our GPU, in img/influencer/).
+  // Presets for the Explore wall (images rendered on the 3090, in img/influencer/).
   var PRESETS = [
     { id: "miami-mc", name: "Miami Night MC", tier: "normal", t: { gender: ["male"], build: ["athletic"], hair: ["braids"], haircolor: ["black"], style: ["street"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["stubble"], distinctive: ["grill"], accessories: ["jewelry"] } },
     { id: "goth-queen", name: "Goth Queen", tier: "normal", t: { gender: ["female"], build: ["slim"], hair: ["long"], haircolor: ["black"], style: ["goth"], ethnicity: ["european"], age: ["adult"], skin: ["porcelain"], eyecolor: ["iceblue"], distinctive: ["piercing", "lashes"], accessories: ["jewelry"] } },
@@ -401,7 +401,7 @@
     hint("");
 
     try {
-      var r = await fetch(RENDER + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
       var d = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
       card.job_id = d.job_id;
@@ -429,7 +429,7 @@
       if (!card.pending) return;
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER + "/jobs/" + card.job_id, { headers: { Authorization: "Bearer " + token } });
+        var r = await fetch(RENDER() + "/jobs/" + card.job_id, { headers: { Authorization: "Bearer " + token } });
         if (r.status === 404) return done(card, "error", null, "This render stopped, probably because the GPU server restarted.");
         if (!r.ok) throw new Error("HTTP " + r.status);
         var j = await r.json();
@@ -696,7 +696,7 @@
     $("photoFile").hidden = false;
     $("photoDrop").classList.add("has-file");
     $("photoInput").disabled = true;
-    hint("Using your photo: the character keeps this face (Qwen Edit on our GPU).");
+    hint("Using your photo: the character keeps this face (Qwen Edit).");
   }
 
   function clearPhoto() {
@@ -751,13 +751,13 @@
     if (!state.user) return;
     try {
       var token = await freshToken();
-      var r = await fetch(RENDER + "/status", { headers: { Authorization: "Bearer " + token } });
+      var r = await fetch(RENDER() + "/status", { headers: { Authorization: "Bearer " + token } });
       if (!r.ok) throw new Error();
       var d = await r.json();
       var waiting = (d.queue || []).length;
       if (!d.comfy_up) paintGpu("down", "GPU engine starting");
       else if (d.busy || waiting) paintGpu("busy", "GPU busy" + (waiting ? " · " + waiting + " waiting" : ""));
-      else paintGpu("up", "RTX 3090 ready");
+      else paintGpu("up", ((window.AIRH_GPU && AIRH_GPU.current().name) || "GPU") + " ready");
     } catch (e) { paintGpu("down", "GPU offline"); }
   }
   function paintGpu(kind, text) {
@@ -781,7 +781,7 @@
     return [s, t.human ? (g || "Influencer") : t.label].filter(Boolean).join(" ");
   }
   function hint(msg, err) { var h = $("hint"); h.textContent = msg || ""; h.classList.toggle("is-err", !!err); }
-  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER + (u.charAt(0) === "/" ? "" : "/") + u; }
+  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER() + (u.charAt(0) === "/" ? "" : "/") + u; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function cssEsc(s) { return window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/"/g, '\\"'); }
   function clamp(n, a, b) { n = Number(n) || a; return Math.max(a, Math.min(b, n)); }

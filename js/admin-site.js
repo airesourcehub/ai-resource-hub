@@ -17,7 +17,7 @@
     ["#ef4444", "Red"], ["#a855f7", "Purple"], ["#3b82f6", "Blue"], ["#06b6d4", "Cyan"], ["#22c55e", "Green"], ["#f5f5f5", "White"]
   ];
   var DEF = window.AIRH_SITE ? JSON.parse(JSON.stringify(window.AIRH_SITE.defaults)) :
-    { accent: "#ff6a1f", accentLight: "", navOrder: SECTIONS.map(function (s) { return s[0]; }), nav: {}, cta: { label: "Start creating", href: "image-studio.html", visible: true }, showStatus: true };
+    { accent: "#ff6a1f", accentLight: "", navOrder: SECTIONS.map(function (s) { return s[0]; }), nav: {}, cta: { label: "Start creating", href: "image-studio.html", visible: true }, showStatus: true, signupsOpen: false, hostGpuName: "" };
   var cur = JSON.parse(JSON.stringify(DEF));
 
   load();
@@ -53,6 +53,8 @@
     $("ssCtaHref").value = (cur.cta && cur.cta.href) || DEF.cta.href;
     $("ssCtaShow").checked = !(cur.cta && cur.cta.visible === false);
     $("ssStatusShow").checked = cur.showStatus !== false;
+    $("ssSignups").checked = cur.signupsOpen === true;
+    $("ssHostName").value = cur.hostGpuName || "";
     preview();
   }
 
@@ -70,6 +72,8 @@
     cur.accentLight = $("ssLightAuto").checked ? "" : $("ssAccentLight").value;
     cur.cta = { label: $("ssCtaLabel").value.trim() || DEF.cta.label, href: $("ssCtaHref").value.trim() || DEF.cta.href, visible: $("ssCtaShow").checked };
     cur.showStatus = $("ssStatusShow").checked;
+    cur.signupsOpen = $("ssSignups").checked;
+    cur.hostGpuName = $("ssHostName").value.trim().slice(0, 40);
     return cur;
   }
 
@@ -104,6 +108,7 @@
 
   $("ssSave").addEventListener("click", async function () {
     var v = collect();
+    if (v.signupsOpen && !window.confirm("Open sign-ups? Anyone will be able to create an account (they still use their own PC unless you approve them for your GPU).")) return;
     status("Saving…");
     var u = await client.auth.getUser();
     var r = await client.from("site_settings").upsert({ key: "site", value: v, updated_at: new Date().toISOString(), updated_by: u.data && u.data.user ? u.data.user.id : null });

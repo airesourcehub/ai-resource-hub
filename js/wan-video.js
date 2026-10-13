@@ -4,7 +4,7 @@
 // one-at-a-time on the GPU (same model as Image Studio).
 
 (function () {
-  var RENDER_ENDPOINT = "https://render.airesourcehub.vip";
+  var RENDER_ENDPOINT = function () { return window.AIRH_GPU ? window.AIRH_GPU.base() : "https://render.airesourcehub.vip"; };  // your GPU (see js/gpu.js)
   var POLL_MS = 3000;
 
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
@@ -140,7 +140,7 @@
 
     var jobId;
     try {
-      var r = await fetch(RENDER_ENDPOINT + "/wan-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
+      var r = await fetch(RENDER_ENDPOINT() + "/wan-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
       var data = await r.json().catch(function () { return {}; });
       if (r.status === 409) { setStatus("The GPU is busy with another job. It’ll start as soon as it’s free — or try again shortly.", "error"); setBusy(false); return; }
       if (!r.ok) throw new Error(data.detail || ("HTTP " + r.status));
@@ -159,7 +159,7 @@
     pollTimer = setTimeout(async function () {
       try {
         var token = await freshToken();
-        var r = await fetch(RENDER_ENDPOINT + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
+        var r = await fetch(RENDER_ENDPOINT() + "/jobs/" + jobId, { headers: { "Authorization": "Bearer " + token } });
         if (r.status === 404) { setStatus("This job is no longer running (service may have restarted).", "error"); setBusy(false); return; }
         if (!r.ok) throw new Error("HTTP " + r.status);
         pollFails = 0;
@@ -198,7 +198,7 @@
     if (!lastJobId) return;
     try {
       var token = await freshToken();
-      await fetch(RENDER_ENDPOINT + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
+      await fetch(RENDER_ENDPOINT() + "/jobs/" + lastJobId + "/cancel", { method: "POST", headers: { "Authorization": "Bearer " + token } });
       setStatus("Cancelling…");
     } catch (e) {}
   }
@@ -220,7 +220,7 @@
     document.getElementById("wanCancelBtn").style.display = b ? "" : "none";
     if (!b) document.getElementById("wanProgress").style.display = "none";
   }
-  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT + (u.charAt(0) === "/" ? "" : "/") + u; }
+  function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER_ENDPOINT() + (u.charAt(0) === "/" ? "" : "/") + u; }
   function fmtDur(s) { s = Math.max(0, Math.round(s)); var m = Math.floor(s / 60), sec = s % 60; return m ? m + "m" : sec + "s"; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 })();

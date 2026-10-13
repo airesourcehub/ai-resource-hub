@@ -2440,7 +2440,7 @@ video.upload-preview {
 
 /* Right-hand sections open toward the left so their menus stay on screen */
 @media (min-width: 1241px) {
-  .nav-sec[data-sec="mcp"] > .mega { left: -240px; right: auto; }
+  .nav-sec[data-sec="mcp"] > .mega { left: -560px; right: auto; }
   .nav-sec[data-sec="prompts"] > .mega { left: auto; right: -8px; }
 }
 @media (min-width: 1241px) and (max-width: 1340px) {
@@ -2481,3 +2481,14 @@ video.upload-preview {
   .ss-nav-row .ss-badge-in, .ss-nav-row .ss-def { grid-column: span 3; }
   .ss-grid2 { grid-template-columns: 1fr; }
 }
+
+/* ---------- GPU state (js/gpu.js) ---------- */
+.nav-status-dot.is-off { background: var(--color-text-muted); box-shadow: 0 0 0 3px rgba(154, 154, 163, 0.16); }
+.gpu-banner {
+  position: relative; z-index: 5;
+  margin: 12px auto 0; width: min(1180px, calc(100% - 32px));
+  padding: 12px 16px; border-radius: 14px;
+  border: 1px solid var(--color-accent); background: var(--color-accent-soft);
+  color: var(--color-text); font-size: 0.9rem; line-height: 1.45;
+}
+.gpu-banner a { margin-left: 6px; font-weight: 700; color: var(--color-accent); white-space: nowrap; }

@@ -170,3 +170,21 @@ document.addEventListener("DOMContentLoaded", function () {
     el.className = "form-status show" + (type ? " " + type : "");
   }
 });
+
+// ---------- Sign-ups open/closed (Admin → Site Settings) ----------
+(function () {
+  function apply(open) {
+    var note = document.getElementById("signupModeNote");
+    var card = document.getElementById("accessReqCard");
+    var openNote = document.getElementById("signupOpenNote");
+    if (note) note.textContent = open ? "Sign-ups are open" : "Sign-ups are invite-only";
+    if (card) card.style.display = open ? "none" : "";
+    if (openNote) openNote.style.display = open ? "" : "none";
+  }
+  try { var c = JSON.parse(localStorage.getItem("airh-site-settings") || "null"); if (c) apply(c.signupsOpen === true); } catch (e) {}
+  if (typeof SUPABASE_URL === "undefined") return;
+  fetch(SUPABASE_URL + "/rest/v1/site_settings?key=eq.site&select=value", { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (rows) { apply(!!(rows[0] && rows[0].value && rows[0].value.signupsOpen === true)); })
+    .catch(function () {});
+})();
