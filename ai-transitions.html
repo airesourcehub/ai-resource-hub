@@ -15,8 +15,9 @@
 <title>AI Transitions — First & Last Frame Extractor — AI Resource Hub</title>
 <meta name="description" content="Upload a video clip and instantly download its first and last frames at native resolution, as JPEG or PNG — perfect for building AI video transitions. Runs entirely in your browser; nothing is uploaded." />
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/video.css" />
 </head>
-<body>
+<body class="is-vs">
 
 <header class="site-header">
   <nav class="nav">
@@ -26,183 +27,147 @@
     </a>
     <button class="nav-toggle" aria-label="Toggle menu">&#9776;</button>
     <ul class="nav-links">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="prompt-generator.html">Prompt Generator</a></li>
-      <li><a href="gallery.html">Prompt Gallery</a></li> <li><a href="image-studio.html">Image Studio</a></li> <li><a href="train-lora.html">Train LoRA</a></li>
-      <li><a href="ai-transitions.html">AI Transitions</a></li> <li><a href="motion-transfer.html">Motion Transfer</a></li> <li><a href="lip-sync.html">Lip Sync</a></li> <li><a href="wan-video.html">WAN Video</a></li> <li><a href="gpu-status.html">System Status</a></li>
-      <li><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
+      <li class="nav-sec" data-sec="explore"><a class="nav-sec-link" href="index.html">Explore</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Explore menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega"><div class="mega-col"><p class="mega-label">Discover</p><a class="mega-item" href="index.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg></span><span class="mega-txt"><span class="mega-name">Home</span><span class="mega-desc">What you can make here, all in one place</span></span></a><a class="mega-item" href="gallery.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Gallery</span><span class="mega-desc">Posts with the prompts that made them</span></span></a><a class="mega-item" href="resources.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></span><span class="mega-txt"><span class="mega-name">AI Tools Directory</span><span class="mega-desc">Hand-picked AI tools by category</span></span></a><a class="mega-item" href="guides.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg></span><span class="mega-txt"><span class="mega-name">Guides</span><span class="mega-desc">Short, practical prompting guides</span></span></a><a class="mega-item" href="about.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><span class="mega-txt"><span class="mega-name">About</span><span class="mega-desc">Who runs the hub and why</span></span></a></div></div></li>
+      <li class="nav-sec" data-sec="image"><a class="nav-sec-link" href="image-studio.html">Image</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Image menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega mega-wide"><div class="mega-col"><p class="mega-label">Features</p><a class="mega-item" href="image-studio.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span><span class="mega-txt"><span class="mega-name">Image Studio</span><span class="mega-desc">Create and edit images on our GPUs</span></span></a><a class="mega-item" href="train-lora.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></span><span class="mega-txt"><span class="mega-name">Train LoRA</span><span class="mega-desc">Teach a model a face, character or style</span></span></a><a class="mega-item" href="image-gallery.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="mega-txt"><span class="mega-name">My Images</span><span class="mega-desc">Everything you have generated</span></span></a><a class="mega-item" href="prompt-generator.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 11-11"/><path d="M15 4v3M13.5 5.5h3M19 8v2M18 9h2"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Generator<span class="mega-badge">Free</span></span><span class="mega-desc">Model-ready prompts from a quick form</span></span></a></div><div class="mega-col"><p class="mega-label">Models</p><a class="mega-item" href="image-studio.html?model=flux2"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/flux2.jpg),url(img/models/flux2.jpg)"></span><span class="mega-txt"><span class="mega-name">FLUX.2</span><span class="mega-desc">Best all-round quality</span></span></a><a class="mega-item" href="image-studio.html?model=qwen2512"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/qwen2512.jpg),url(img/models/qwen2512.jpg)"></span><span class="mega-txt"><span class="mega-name">Qwen-Image 2512</span><span class="mega-desc">Strong prompt adherence and text</span></span></a><a class="mega-item" href="image-studio.html?model=krea2"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/krea2.jpg),url(img/models/krea2.jpg)"></span><span class="mega-txt"><span class="mega-name">Krea 2 Turbo</span><span class="mega-desc">Fast, stylish</span></span></a><a class="mega-item" href="image-studio.html?model=zimage"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/zimage.jpg),url(img/models/zimage.jpg)"></span><span class="mega-txt"><span class="mega-name">Z-Image Turbo</span><span class="mega-desc">Very fast</span></span></a><a class="mega-item" href="image-studio.html?model=qwen_edit2509"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/qwen_edit2509.jpg),url(img/models/qwen_edit2509.jpg)"></span><span class="mega-txt"><span class="mega-name">Qwen Edit 2509</span><span class="mega-desc">Edit a photo with words</span></span></a><a class="mega-item" href="image-studio.html?model=flux2_edit"><span class="mega-ic mega-thumb" style="background-image:url(https://flzhhgfkpdmszucoljpu.supabase.co/storage/v1/object/public/model-thumbnails/flux2_edit.jpg),url(img/models/flux2_edit.jpg)"></span><span class="mega-txt"><span class="mega-name">FLUX.2 Image-to-Image</span><span class="mega-desc">Transform a photo with a prompt</span></span></a></div></div></li>
+      <li class="nav-sec" data-sec="video"><a class="nav-sec-link" href="video.html">Video</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Video menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega mega-wide"><div class="mega-col"><p class="mega-label">Features</p><a class="mega-item" href="video.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg></span><span class="mega-txt"><span class="mega-name">Video Home</span><span class="mega-desc">Every video tool in one place</span></span></a><a class="mega-item" href="wan-video.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span><span class="mega-txt"><span class="mega-name">Create Video<span class="mega-badge">New</span></span><span class="mega-desc">Your trained identities in motion</span></span></a><a class="mega-item" href="motion-transfer.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.5"/><path d="m9 21 3-6 3 2v4M7 12l3-3 4 1 3 3M12 15l-1-5"/></svg></span><span class="mega-txt"><span class="mega-name">Motion Transfer<span class="mega-badge is-top">Top</span></span><span class="mega-desc">Copy any dance or move onto a character</span></span></a><a class="mega-item" href="lip-sync.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="mega-txt"><span class="mega-name">Lip Sync<span class="mega-badge">New</span></span><span class="mega-desc">Make a photo speak or sing your audio</span></span></a><a class="mega-item" href="ai-transitions.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v6a6 6 0 0 0 6 6h6"/><path d="m15 12 3 3-3 3"/><path d="M6 21v-3"/></svg></span><span class="mega-txt"><span class="mega-name">AI Transitions</span><span class="mega-desc">Blend two clips with an AI transition</span></span></a><a class="mega-item" href="ai-transitions.html#frames"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="8" height="12" rx="1.5"/><rect x="13" y="6" width="8" height="12" rx="1.5"/></svg></span><span class="mega-txt"><span class="mega-name">Frame Extractor<span class="mega-badge">Free</span></span><span class="mega-desc">First and last frames of any clip</span></span></a></div><div class="mega-col"><p class="mega-label">Models</p><a class="mega-item" href="motion-transfer.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.5"/><path d="m9 21 3-6 3 2v4M7 12l3-3 4 1 3 3M12 15l-1-5"/></svg></span><span class="mega-txt"><span class="mega-name">WAN 2.2 Animate</span><span class="mega-desc">Full-body pose and face from a driving video</span></span></a><a class="mega-item" href="lip-sync.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="mega-txt"><span class="mega-name">LTX 2</span><span class="mega-desc">Talking, lip-synced video from photo + audio</span></span></a><a class="mega-item" href="wan-video.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span><span class="mega-txt"><span class="mega-name">WAN identities</span><span class="mega-desc">Video starring the LoRAs you trained</span></span></a><p class="mega-label mega-label-gap">My renders</p><div class="mega-links"><a href="motion-archive.html">Motion transfers</a><a href="lip-sync-archive.html">Lip syncs</a><a href="wan-video-archive.html">WAN videos</a><a href="render-archive.html">Transitions</a></div></div></div></li>
+      <li class="nav-sec" data-sec="prompts"><a class="nav-sec-link" href="prompt-generator.html">Prompts</a><button type="button" class="nav-sec-caret" aria-expanded="false" aria-label="Show Prompts menu"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="mega"><div class="mega-col"><p class="mega-label">Write better prompts</p><a class="mega-item" href="prompt-generator.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 11-11"/><path d="M15 4v3M13.5 5.5h3M19 8v2M18 9h2"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Generator<span class="mega-badge">Free</span></span><span class="mega-desc">Model-specific prompts for text, image and video</span></span></a><a class="mega-item" href="gallery.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="mega-txt"><span class="mega-name">Prompt Gallery</span><span class="mega-desc">Steal like an artist from real posts</span></span></a><a class="mega-item" href="guide-writing-better-image-prompts.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg></span><span class="mega-txt"><span class="mega-name">Image prompting guide</span><span class="mega-desc">What makes an image prompt work</span></span></a><a class="mega-item" href="guide-ai-video-prompting.html"><span class="mega-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg></span><span class="mega-txt"><span class="mega-name">Video prompting guide</span><span class="mega-desc">Directing motion, camera and pacing</span></span></a></div></div></li>
+      <li class="nav-plain"><a href="gpu-status.html" class="nav-plain-link"><span class="nav-status-dot" aria-hidden="true"></span>System Status</a></li>
+      <li class="nav-tools"><button type="button" id="themeToggle" class="theme-toggle" aria-label="Toggle color theme"></button></li>
       <li id="navAuthSlot" class="nav-auth-slot"></li>
-      <li><a href="prompt-generator.html" class="nav-cta">Try the Generator</a></li>
+      <li class="nav-cta-li"><a href="image-studio.html" class="nav-cta">Start creating</a></li>
     </ul>
   </nav>
 </header>
 
-<main>
+<main class="vs" data-vs-tool="transitions">
+  <aside class="vs-panel" aria-label="AI Transitions settings">
+    <nav class="vs-tabs" aria-label="Video tools"><a href="wan-video.html">Create</a><a href="motion-transfer.html">Motion</a><a href="lip-sync.html">Lip Sync</a><a href="ai-transitions.html" class="is-on" aria-current="page">Transitions</a><a href="video.html" class="vs-tabs-all" title="All video tools" aria-label="All video tools"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></a></nav>
+    <div class="vs-scroll">
+      <a class="vs-toolcard" href="video.html" style="background-image:url(img/models/flux2_edit.jpg)"><span class="vs-toolcard-kicker">AI Transitions</span><strong>Blend two clips</strong><span class="vs-toolcard-change">Change</span></a>
+      <div class="info-banner" id="blendGate" style="display:none;"></div>
+      <div id="blendForm" style="display:none;">
+<div class="mode-switch" id="blendModeSwitch">
+<button class="mode-btn active" data-tmode="transition" type="button">AI Transition</button>
+<button class="mode-btn" data-tmode="music" type="button">AI Music Sync Transition</button>
+<button class="mode-btn" data-tmode="transform" type="button">Transform &amp; Stay</button>
+</div>
+<p class="blend-note" id="musicNote" style="display:none;">🎵  Both clips must be synced to the <strong>exact same audio.</strong> We detect that shared beat, cut each clip on the nearest beat to its middle, and time the transition to land on the beat.</p>
+<p class="blend-note" id="transformNote" style="display:none;">🎬  Upload the <strong>same performance in two different scenes</strong> — clip A and clip B, both singing the <strong>same lyrics</strong>. At the midpoint we jump from scene A to scene B and stay on time. Pick a <strong>prompt-driven AI morph</strong> for a magical scene change (describe it in the prompt), or a clean crossfade. <em>Tip: use Highest quality below so the morph follows your prompt, and run it when training isn’t using the GPU.</em></p>
+<div class="field" id="transformControls" style="display:none;">
+<label>Middle style</label>
+<div class="blend-mode">
+<label class="blend-radio"><input checked="" name="tfStyle" type="radio" value="morph"/> Prompt AI morph <span class="frame-res" style="margin:0;">(scene A morphs into scene B, follows your prompt)</span></label>
+<label class="blend-radio"><input name="tfStyle" type="radio" value="crossfade"/> Crossfade <span class="frame-res" style="margin:0;">(clean dissolve, no AI, instant)</span></label>
+</div>
+<label style="margin-top:10px;display:block;">Overlap length</label>
+<div class="blend-mode">
+<label class="blend-radio"><input checked="" name="tfOverlap" type="radio" value="1"/> 1 second</label>
+<label class="blend-radio"><input name="tfOverlap" type="radio" value="1.5"/> 1.5 seconds</label>
+<label class="blend-radio"><input name="tfOverlap" type="radio" value="2"/> 2 seconds</label>
+</div>
+</div>
+<div class="blend-inputs">
+<div class="field">
+<span class="vs-label">First clip</span><label class="vs-drop" data-kind="video"><input accept="video/*" id="blendVideoA" type="file"/><span class="vs-drop-ui"><span class="vs-drop-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg></span><span class="vs-drop-txt"><strong>Upload video</strong><small>Click or drop a file</small><span class="frame-res" id="hintA" style="margin:0;">— blends from its last frame</span></span></span><span class="vs-drop-file" aria-live="polite"></span></label>
+</div>
+<div class="field">
+<span class="vs-label">Second clip</span><label class="vs-drop" data-kind="video"><input accept="video/*" id="blendVideoB" type="file"/><span class="vs-drop-ui"><span class="vs-drop-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg></span><span class="vs-drop-txt"><strong>Upload video</strong><small>Click or drop a file</small><span class="frame-res" id="hintB" style="margin:0;">— blends into its first frame</span></span></span><span class="vs-drop-file" aria-live="polite"></span></label>
+</div>
+</div>
+<div class="field">
+<label for="blendPrompt">Describe the transition</label>
+<textarea id="blendPrompt" placeholder="e.g. a smooth liquid morph, camera pushing through a burst of light…" rows="3"></textarea>
+<div class="blend-prompt-tools">
+<button class="btn btn-secondary btn-small" id="blendIdentityLock" type="button">🔒 Identity Lock</button>
+<span class="frame-res" style="margin:0;">Adds wording to keep every person &amp; character looking the same across the blend.</span>
+</div>
+</div>
+<div class="field">
+<label>Resolution</label>
+<div class="blend-mode">
+<label class="blend-radio"><input checked="" name="blendOrient" type="radio" value="landscape"/> Landscape <span class="frame-res" style="margin:0;">(1280 × 720)</span></label>
+<label class="blend-radio"><input name="blendOrient" type="radio" value="portrait"/> Portrait <span class="frame-res" style="margin:0;">(720 × 1280)</span></label>
+</div>
+</div>
+<div class="field">
+<label>Speed &amp; quality</label>
+<div class="blend-mode">
+<label class="blend-radio"><input checked="" name="blendSpeed" type="radio" value="quality"/> Highest quality <span class="frame-res" style="margin:0;">(20 steps — best, slower)</span></label>
+<label class="blend-radio"><input name="blendSpeed" type="radio" value="fast"/> Fast <span class="frame-res" style="margin:0;">(4-step LoRA — much quicker)</span></label>
+</div>
+</div>
+<div class="field" id="blendOutputField">
+<label>Output</label>
+<div class="blend-mode">
+<label class="blend-radio"><input checked="" name="blendMode" type="radio" value="stitched"/> Full sequence <span class="frame-res" style="margin:0;">(clip A + transition + clip B)</span></label>
+<label class="blend-radio"><input name="blendMode" type="radio" value="transition_only"/> Transition clip only</label>
+</div>
+</div>
+<div class="output-actions">
+<button class="btn btn-primary" id="blendGenerateBtn" type="button">Generate transition</button>
+<button class="btn btn-danger" id="blendCancelBtn" style="display:none;" type="button">Cancel render</button>
+<button class="btn btn-danger" id="blendDeleteBtn" style="display:none;" type="button">Delete this render</button>
+</div>
 
-  <div class="page-header">
-    <div class="container">
-      <h1>AI Transitions — Frame Extractor</h1>
-      <p>Building an AI transition between two clips? Grab the exact <strong>first</strong> and <strong>last</strong> frame of any video, at its native resolution, to use as your start and end keyframes. Everything runs right here in your browser &mdash; your video is never uploaded anywhere.</p>
+
+
+</div>
     </div>
-  </div>
-
-  <section>
-    <div class="container">
-      <div class="transitions-tool">
-
-        <div class="field">
-          <label for="videoInput">Upload a video clip (max 250&nbsp;MB)</label>
-          <input type="file" id="videoInput" accept="video/*" />
-          <p class="cover-frame-hint">Processed entirely in your browser &mdash; nothing leaves your device. We extract the first and last frames at the video's exact native resolution, whatever it is.</p>
-        </div>
-
-        <div class="form-status" id="transitionsStatus"></div>
-
-        <div class="transitions-results" id="transitionsResults" style="display:none;">
-          <div class="frame-card">
-            <h3>First frame</h3>
-            <div class="frame-preview"><img id="firstFrameImg" alt="First frame of the video" /></div>
-            <p class="frame-res" id="firstFrameRes"></p>
-            <div class="output-actions">
-              <button type="button" class="btn btn-primary" id="firstJpgBtn">Download JPEG</button>
-              <button type="button" class="btn btn-secondary" id="firstPngBtn">Download PNG</button>
-            </div>
-          </div>
-
-          <div class="frame-card">
-            <h3>Last frame</h3>
-            <div class="frame-preview"><img id="lastFrameImg" alt="Last frame of the video" /></div>
-            <p class="frame-res" id="lastFrameRes"></p>
-            <div class="output-actions">
-              <button type="button" class="btn btn-primary" id="lastJpgBtn">Download JPEG</button>
-              <button type="button" class="btn btn-secondary" id="lastPngBtn">Download PNG</button>
-            </div>
-          </div>
-        </div>
-
-        <video id="transitionsVideo" muted playsinline preload="auto" crossorigin="anonymous" style="display:none;"></video>
-      </div>
-    </div>
+  </aside>
+  <section class="vs-stage">
+    <header class="vs-stage-head"><div><h1 class="vs-title">AI Transitions</h1><p>Join two clips with an AI-generated transition, a beat-synced music cut, or a transform that jumps between scenes.</p></div></header>
+    <div class="vs-empty" id="vsEmpty"><h2 class="vh-title">Blend any two clips with AI</h2><div class="vs-steps"><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/flux2_edit.jpg)"><span>1</span></div><h3>Add two clips</h3><p>The last frame of A blends into the first of B.</p></div><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/qwen_edit2511.jpg)"><span>2</span></div><h3>Describe the move</h3><p>A morph, a light burst, a camera push.</p></div><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/firered.jpg)"><span>3</span></div><h3>Get the sequence</h3><p>The full cut or just the transition clip.</p></div></div></div>
+    <div class="vs-output"><div class="form-status" id="blendStatus"></div><div class="blend-progress" id="blendProgress" style="display:none;">
+<div class="blend-progress-bar"><span id="blendProgressFill"></span></div>
+<p class="blend-progress-label" id="blendProgressLabel"></p>
+</div><div class="blend-result" id="blendResult" style="display:none;">
+<h3>Result</h3>
+<video class="blend-video" controls="" id="blendResultVideo" playsinline="" preload="auto"></video>
+<div class="output-actions">
+<button class="btn btn-secondary" id="blendExpandBtn" type="button">⤢ Expand view</button>
+<a class="btn btn-primary" download="" id="blendDownloadMp4">Download MP4</a>
+<a class="btn btn-secondary" download="" id="blendDownloadMov">Download MOV</a>
+</div>
+</div></div>
+    <section class="vs-card vs-frames" id="frames"><div class="vs-card-head"><div><h2 class="vs-card-title">Frame extractor</h2><p>Grab the exact first and last frame of any clip at native resolution, to use as keyframes. Runs in your browser; nothing is uploaded.</p></div><span class="vs-chip">Free</span></div>
+<div class="field">
+<span class="vs-label">Upload a video clip (max 250 MB)</span><label class="vs-drop" data-kind="video"><input accept="video/*" id="videoInput" type="file"/><span class="vs-drop-ui"><span class="vs-drop-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg></span><span class="vs-drop-txt"><strong>Upload video</strong><small>Click or drop a file</small></span></span><span class="vs-drop-file" aria-live="polite"></span></label>
+<p class="cover-frame-hint">Processed entirely in your browser — nothing leaves your device. We extract the first and last frames at the video's exact native resolution, whatever it is.</p>
+</div>
+<div class="form-status" id="transitionsStatus"></div>
+<div class="transitions-results" id="transitionsResults" style="display:none;">
+<div class="frame-card">
+<h3>First frame</h3>
+<div class="frame-preview"><img alt="First frame of the video" id="firstFrameImg"/></div>
+<p class="frame-res" id="firstFrameRes"></p>
+<div class="output-actions">
+<button class="btn btn-primary" id="firstJpgBtn" type="button">Download JPEG</button>
+<button class="btn btn-secondary" id="firstPngBtn" type="button">Download PNG</button>
+</div>
+</div>
+<div class="frame-card">
+<h3>Last frame</h3>
+<div class="frame-preview"><img alt="Last frame of the video" id="lastFrameImg"/></div>
+<p class="frame-res" id="lastFrameRes"></p>
+<div class="output-actions">
+<button class="btn btn-primary" id="lastJpgBtn" type="button">Download JPEG</button>
+<button class="btn btn-secondary" id="lastPngBtn" type="button">Download PNG</button>
+</div>
+</div>
+</div>
+<video crossorigin="anonymous" id="transitionsVideo" muted="" playsinline="" preload="auto" style="display:none;"></video>
+</section>
+    <div class="render-archive-wrap" id="blendArchiveWrap" style="display:none;">
+<div class="section-header" style="margin-top:40px;">
+<h3>Your recent AI transition renders</h3>
+<p>Every finished transition is saved to your account. <a href="render-archive.html">View all my AI transition renders →</a></p>
+</div>
+<div class="archive-grid render-archive-strip" data-render-type="ai_transition" data-tool="ai_transition" id="blendArchive"></div>
+</div>
+    <div class="ad-slot">
+<div class="ad-placeholder">Ad space — displays once Google AdSense is approved and connected</div>
+</div>
   </section>
-
-  <section class="alt-bg">
-    <div class="container">
-      <div class="blend-divider"><span>or</span></div>
-
-      <div class="blend-tool" id="blendTool">
-        <div class="section-header">
-          <h2>Blend two clips with AI</h2>
-          <p>Load the two clips you want to join and describe the transition. We take the <strong>last frame of the first clip</strong> and the <strong>first frame of the second</strong>, generate an AI blend between them on our own hardware, and give you a scrubable preview plus a downloadable file.</p>
-        </div>
-
-        <div id="blendGate" class="info-banner" style="display:none;"></div>
-
-        <div id="blendForm" style="display:none;">
-          <div class="mode-switch" id="blendModeSwitch">
-            <button type="button" class="mode-btn active" data-tmode="transition">AI Transition</button>
-            <button type="button" class="mode-btn" data-tmode="music">AI Music Sync Transition</button>
-            <button type="button" class="mode-btn" data-tmode="transform">Transform &amp; Stay</button>
-          </div>
-          <p class="blend-note" id="musicNote" style="display:none;">&#127925;&nbsp; Both clips must be synced to the <strong>exact same audio.</strong> We detect that shared beat, cut each clip on the nearest beat to its middle, and time the transition to land on the beat.</p>
-          <p class="blend-note" id="transformNote" style="display:none;">&#127916;&nbsp; Upload the <strong>same performance in two different scenes</strong> &mdash; clip&nbsp;A and clip&nbsp;B, both singing the <strong>same lyrics</strong>. At the midpoint we jump from scene&nbsp;A to scene&nbsp;B and stay on time. Pick a <strong>prompt-driven AI morph</strong> for a magical scene change (describe it in the prompt), or a clean crossfade. <em>Tip: use Highest quality below so the morph follows your prompt, and run it when training isn&rsquo;t using the GPU.</em></p>
-
-          <div class="field" id="transformControls" style="display:none;">
-            <label>Middle style</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="tfStyle" value="morph" checked /> Prompt AI morph <span class="frame-res" style="margin:0;">(scene A morphs into scene B, follows your prompt)</span></label>
-              <label class="blend-radio"><input type="radio" name="tfStyle" value="crossfade" /> Crossfade <span class="frame-res" style="margin:0;">(clean dissolve, no AI, instant)</span></label>
-            </div>
-            <label style="margin-top:10px;display:block;">Overlap length</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="tfOverlap" value="1" checked /> 1 second</label>
-              <label class="blend-radio"><input type="radio" name="tfOverlap" value="1.5" /> 1.5 seconds</label>
-              <label class="blend-radio"><input type="radio" name="tfOverlap" value="2" /> 2 seconds</label>
-            </div>
-          </div>
-
-          <div class="blend-inputs">
-            <div class="field">
-              <label for="blendVideoA">First clip <span class="frame-res" id="hintA" style="margin:0;">&mdash; blends from its last frame</span></label>
-              <input type="file" id="blendVideoA" accept="video/*" />
-            </div>
-            <div class="field">
-              <label for="blendVideoB">Second clip <span class="frame-res" id="hintB" style="margin:0;">&mdash; blends into its first frame</span></label>
-              <input type="file" id="blendVideoB" accept="video/*" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="blendPrompt">Describe the transition</label>
-            <textarea id="blendPrompt" rows="3" placeholder="e.g. a smooth liquid morph, camera pushing through a burst of light&hellip;"></textarea>
-            <div class="blend-prompt-tools">
-              <button type="button" class="btn btn-secondary btn-small" id="blendIdentityLock">🔒 Identity Lock</button>
-              <span class="frame-res" style="margin:0;">Adds wording to keep every person &amp; character looking the same across the blend.</span>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Resolution</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="blendOrient" value="landscape" checked /> Landscape <span class="frame-res" style="margin:0;">(1280 &times; 720)</span></label>
-              <label class="blend-radio"><input type="radio" name="blendOrient" value="portrait" /> Portrait <span class="frame-res" style="margin:0;">(720 &times; 1280)</span></label>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Speed &amp; quality</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="blendSpeed" value="quality" checked /> Highest quality <span class="frame-res" style="margin:0;">(20 steps &mdash; best, slower)</span></label>
-              <label class="blend-radio"><input type="radio" name="blendSpeed" value="fast" /> Fast <span class="frame-res" style="margin:0;">(4-step LoRA &mdash; much quicker)</span></label>
-            </div>
-          </div>
-
-          <div class="field" id="blendOutputField">
-            <label>Output</label>
-            <div class="blend-mode">
-              <label class="blend-radio"><input type="radio" name="blendMode" value="stitched" checked /> Full sequence <span class="frame-res" style="margin:0;">(clip A + transition + clip B)</span></label>
-              <label class="blend-radio"><input type="radio" name="blendMode" value="transition_only" /> Transition clip only</label>
-            </div>
-          </div>
-
-          <div class="output-actions">
-            <button type="button" class="btn btn-primary" id="blendGenerateBtn">Generate transition</button>
-            <button type="button" class="btn btn-danger" id="blendCancelBtn" style="display:none;">Cancel render</button>
-            <button type="button" class="btn btn-danger" id="blendDeleteBtn" style="display:none;">Delete this render</button>
-          </div>
-
-          <div class="form-status" id="blendStatus"></div>
-
-          <div class="blend-progress" id="blendProgress" style="display:none;">
-            <div class="blend-progress-bar"><span id="blendProgressFill"></span></div>
-            <p class="blend-progress-label" id="blendProgressLabel"></p>
-          </div>
-
-          <div class="blend-result" id="blendResult" style="display:none;">
-            <h3>Result</h3>
-            <video id="blendResultVideo" controls playsinline preload="auto" class="blend-video"></video>
-            <div class="output-actions">
-              <button type="button" class="btn btn-secondary" id="blendExpandBtn">&#10530; Expand view</button>
-              <a class="btn btn-primary" id="blendDownloadMp4" download>Download MP4</a>
-              <a class="btn btn-secondary" id="blendDownloadMov" download>Download MOV</a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="render-archive-wrap" id="blendArchiveWrap" style="display:none;">
-        <div class="section-header" style="margin-top:40px;">
-          <h3>Your recent AI transition renders</h3>
-          <p>Every finished transition is saved to your account. <a href="render-archive.html">View all my AI transition renders &rarr;</a></p>
-        </div>
-        <div class="archive-grid render-archive-strip" id="blendArchive" data-render-type="ai_transition" data-tool="ai_transition"></div>
-      </div>
-    </div>
-  </section>
-
-  <div class="ad-slot">
-    <div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div>
-  </div>
-
 </main>
 
 <footer class="site-footer">
@@ -234,6 +199,7 @@
 <script src="js/analytics.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/main.js"></script>
+<script src="js/vs.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/ai-transitions.js"></script>

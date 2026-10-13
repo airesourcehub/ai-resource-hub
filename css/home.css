@@ -28,10 +28,9 @@
 }
 
 .home-hero h1 {
-  font-size: clamp(2.7rem, 7.4vw, 6.2rem);
-  font-weight: 850;
-  font-stretch: 72%;
-  line-height: 0.92;
+  font-size: clamp(2.3rem, 5.4vw, 4.7rem);
+  font-weight: 700;
+  line-height: 0.98;
   letter-spacing: -0.025em;
   margin: 0;
   text-wrap: balance;
@@ -137,10 +136,9 @@
   align-items: center;
   gap: 10px;
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 2.4vw, 2.1rem);
-  font-weight: 850;
-  font-stretch: 72%;
-  line-height: 1;
+  font-size: clamp(1.15rem, 1.7vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.02;
   letter-spacing: -0.02em;
   margin: 0 0 8px;
 }
@@ -278,10 +276,9 @@
 }
 
 .block-head h2 {
-  font-size: clamp(1.9rem, 3.6vw, 3rem);
-  font-weight: 850;
-  font-stretch: 72%;
-  line-height: 0.95;
+  font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1;
   margin: 0;
 }
 
@@ -492,10 +489,9 @@
 }
 
 .home-banner h2 {
-  font-size: clamp(2rem, 5vw, 4rem);
-  font-weight: 850;
-  font-stretch: 72%;
-  line-height: 0.95;
+  font-size: clamp(1.8rem, 3.8vw, 3.1rem);
+  font-weight: 700;
+  line-height: 1;
   margin: 0 0 14px;
   max-width: 14ch;
 }

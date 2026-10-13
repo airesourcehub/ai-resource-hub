@@ -26,10 +26,9 @@
 
 .g-head h1 {
   margin: 0 0 6px;
-  font-size: clamp(2.2rem, 4.6vw, 3.6rem);
-  font-weight: 850;
-  font-stretch: 72%;
-  line-height: 0.95;
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  font-weight: 700;
+  line-height: 1;
   color: var(--color-text);
 }
 
@@ -316,11 +315,11 @@ body.viewer-open { overflow: hidden; }
   --color-border: rgba(255,255,255,0.09);
   --color-text: #f3f3f1;
   --color-text-muted: #9a9aa3;
-  --color-accent: #ffd21f;
-  --color-accent-hover: #ffdd52;
-  --color-accent-soft: rgba(255,210,31,0.12);
+  --color-accent: #ff6a1f;
+  --color-accent-hover: #ff8a4c;
+  --color-accent-soft: rgba(255,106,31,0.12);
   --color-on-accent: #121214;
-  --color-primary: #ffd21f;
+  --color-primary: #ff6a1f;
   color: var(--color-text);
   padding: 0;
   align-items: stretch;

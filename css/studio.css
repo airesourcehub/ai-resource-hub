@@ -37,10 +37,9 @@
 }
 
 .studio-intro h1 {
-  font-size: clamp(2.6rem, 6vw, 4.6rem);
-  font-weight: 850;
-  font-stretch: 72%;
-  line-height: 0.95;
+  font-size: clamp(2.1rem, 4.6vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1;
   margin: 0 0 14px;
   color: var(--color-text);
 }
@@ -400,7 +399,7 @@
 
 .chip:disabled { opacity: 0.55; cursor: default; }
 
-.chip.is-set { border-color: rgba(255, 210, 31, 0.5); }
+.chip.is-set { border-color: rgba(255, 106, 31, 0.5); }
 
 .chev {
   width: 7px;
@@ -436,7 +435,7 @@
 }
 
 .gpu-dot.is-up { background: var(--color-success); box-shadow: 0 0 0 3px rgba(61, 220, 115, 0.18); }
-.gpu-dot.is-busy { background: var(--color-gold); box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.18); }
+.gpu-dot.is-busy { background: var(--color-gold); box-shadow: 0 0 0 3px rgba(255, 106, 31, 0.18); }
 .gpu-dot.is-down { background: var(--color-red); }
 
 .composer-go {
@@ -547,7 +546,7 @@
 }
 
 .model-opt:hover { background: var(--color-surface-2); }
-.model-opt.is-on { border-color: rgba(255, 210, 31, 0.55); background: var(--color-surface-2); }
+.model-opt.is-on { border-color: rgba(255, 106, 31, 0.55); background: var(--color-surface-2); }
 
 .model-opt-thumb {
   width: 48px;
