@@ -2437,3 +2437,11 @@ video.upload-preview {
   .nav-sec[data-sec] > .mega { left: -8px; right: auto; }
 }
 .nav-links .mega .mega-links a { width: auto; }
+
+/* AI Influencer top tab: keep its two-column menu on screen on smaller laptops */
+@media (min-width: 1041px) and (max-width: 1240px) {
+  .nav-sec[data-sec="influencer"] .mega { left: -140px; }
+}
+@media (min-width: 1041px) and (max-width: 1180px) {
+  .nav-cta-li { display: none; }
+}
