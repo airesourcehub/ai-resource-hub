@@ -4,7 +4,8 @@
 // /status). Jobs still queue one at a time on the desktop GPU.
 //
 // Server contract (unchanged): multipart form with model, mode (create|edit),
-// prompt, negative, batch, width+height (create only), lora + lora_strength
+// prompt, negative, batch, width+height, size=custom (edits at a set size;
+// without it edits keep the photo's size), lora + lora_strength
 // (LoRA models), image (edit models, ONE photo).
 
 (function () {
@@ -59,6 +60,7 @@
     user: null,
     model: byId(prefs.model) || MODELS[0],
     ratio: ratioById(prefs.ratio) || RATIOS[0],
+    editRatio: (prefs.editRatio && (prefs.editRatio === "photo" || ratioById(prefs.editRatio))) ? prefs.editRatio : "photo", // edits: "photo" = keep the photo's size
     batch: clamp(Number(prefs.batch) || 1, 1, 4),
     lastEdit: prefs.lastEdit || DEFAULT_EDIT,
     ref: null,            // { blob, url }
@@ -346,7 +348,7 @@
     savePrefs();
     buildModelList($("modelSearch").value);
     if (m.lora) loadLoras(); else $("loraPick").value = "";
-    syncChips(); syncGenerate();
+    buildRatios(); syncChips(); syncGenerate();
   }
 
   // --------------------------------------------------------- ratio/count
@@ -355,15 +357,31 @@
     return '<span class="ratio-icon" style="width:' + Math.round(r.w * s) + "px;height:" + Math.round(r.h * s) + 'px"></span>';
   }
 
+  // The size the next run will use: a RATIOS entry, or null = keep the photo's size (edits only).
+  function outRatio() {
+    if (state.model.type !== "edit") return state.ratio;
+    return state.editRatio === "photo" ? null : ratioById(state.editRatio);
+  }
+
   function buildRatios() {
-    $("ratioGrid").innerHTML = RATIOS.map(function (r) {
-      return '<button type="button" class="ratio-opt' + (r.id === state.ratio.id ? " is-on" : "") + '" data-id="' + r.id + '">' +
+    var isEdit = state.model.type === "edit";
+    var cur = outRatio();
+    var html = isEdit
+      ? '<button type="button" class="ratio-opt ratio-photo' + (cur ? "" : " is-on") + '" data-id="photo">' +
+        '<span class="ratio-box"><span class="ratio-icon ratio-icon-photo" aria-hidden="true"></span></span>Photo<small>Keep its size</small></button>'
+      : "";
+    html += RATIOS.map(function (r) {
+      return '<button type="button" class="ratio-opt' + (cur && r.id === cur.id ? " is-on" : "") + '" data-id="' + r.id + '">' +
         '<span class="ratio-box">' + ratioBox(r, 28) + "</span>" + r.id + "<small>" + r.w + "&times;" + r.h + "</small></button>";
     }).join("");
+    $("ratioGrid").innerHTML = html;
     $("ratioGrid").style.gridTemplateColumns = "repeat(4, 1fr)";
+    $("ratioNote").hidden = !isEdit;
     Array.prototype.forEach.call($("ratioGrid").querySelectorAll(".ratio-opt"), function (b) {
       b.addEventListener("click", function () {
-        state.ratio = ratioById(b.getAttribute("data-id"));
+        var id = b.getAttribute("data-id");
+        if (state.model.type === "edit") state.editRatio = id;
+        else state.ratio = ratioById(id);
         savePrefs(); buildRatios(); syncChips(); closePops();
       });
     });
@@ -385,12 +403,13 @@
     var m = state.model;
     $("chipModelThumb").setAttribute("style", thumbCss(m.id));
     $("chipModelName").textContent = m.name;
-    var isEdit = m.type === "edit";
-    $("chipRatio").disabled = isEdit;
-    $("chipRatio").title = isEdit ? "Edits keep the size of your photo" : "";
-    $("chipRatioName").textContent = isEdit ? "Matches photo" : state.ratio.id;
-    $("chipRatioIcon").outerHTML = '<span class="ratio-icon" id="chipRatioIcon" style="' +
-      (isEdit ? "display:none" : ratioBox(state.ratio, 14).match(/style="([^"]+)"/)[1]) + '"></span>';
+    var r = outRatio();
+    $("chipRatio").disabled = false;
+    $("chipRatio").title = r ? r.w + " × " + r.h : "Same size as your photo";
+    $("chipRatioName").textContent = r ? r.id : "Photo size";
+    $("chipRatioIcon").outerHTML = r
+      ? '<span class="ratio-icon" id="chipRatioIcon" style="' + ratioBox(r, 14).match(/style="([^"]+)"/)[1] + '"></span>'
+      : '<span class="ratio-icon ratio-icon-photo" id="chipRatioIcon"></span>';
     $("chipCountName").textContent = state.batch + (state.batch === 1 ? " image" : " images");
     $("chipLora").hidden = !m.lora;
     var lora = $("loraPick");
@@ -484,7 +503,9 @@
     var negative = $("negative").value.trim();
     fd.append("negative", negative);
     fd.append("batch", String(state.batch));
-    if (m.type === "create") { fd.append("width", String(state.ratio.w)); fd.append("height", String(state.ratio.h)); }
+    var out = outRatio();
+    if (out) { fd.append("width", String(out.w)); fd.append("height", String(out.h)); }
+    if (m.type === "edit" && out) fd.append("size", "custom");
     if (m.lora) {
       fd.append("lora", $("loraPick").value || "");
       fd.append("lora_strength", ($("loraStrength").value / 10).toFixed(2));
@@ -498,7 +519,7 @@
     var refAspect = await aspectOf(state.ref && state.ref.url);
     var job = {
       id: tempId, model: m.id, prompt: prompt, negative: negative, status: "queued",
-      width: m.type === "create" ? state.ratio.w : refAspect.w, height: m.type === "create" ? state.ratio.h : refAspect.h,
+      width: out ? out.w : refAspect.w, height: out ? out.h : refAspect.h,
       batch: state.batch, created_at: new Date().toISOString(), pending: true, progress: 2, stage: "Sending to the GPU…"
     };
     state.jobs.unshift(job);
@@ -732,9 +753,11 @@
     if (m) selectModel(m.id, true);
     $("prompt").value = job.prompt || "";
     $("negative").value = job.negative || "";
-    if (job.width && job.height && m && m.type === "create") {
+    if (job.width && job.height && m) {
       var r = RATIOS.filter(function (x) { return x.w === job.width && x.h === job.height; })[0];
-      if (r) { state.ratio = r; buildRatios(); }
+      if (m.type === "create" && r) state.ratio = r;
+      if (m.type === "edit") state.editRatio = r ? r.id : "photo";
+      buildRatios();
     }
     if (job.batch) { state.batch = clamp(job.batch, 1, 4); buildCount(); }
     savePrefs(); autosize(); syncChips(); syncGenerate();
@@ -921,7 +944,7 @@
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (e) { return {}; } }
   function savePrefs() {
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ model: state.model.id, ratio: state.ratio.id, batch: state.batch, lastEdit: state.lastEdit }));
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ model: state.model.id, ratio: state.ratio.id, editRatio: state.editRatio, batch: state.batch, lastEdit: state.lastEdit }));
     } catch (e) {}
   }
 })();

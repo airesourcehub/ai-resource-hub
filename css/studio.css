@@ -980,3 +980,17 @@
 .wtile.is-missing .shot-missing { position: static; padding: 18px 14px 10px; }
 .wtile.is-missing { display: flex; flex-direction: column; }
 .wtile.is-missing .shot-missing { order: -1; text-align: left; align-items: flex-start; padding-bottom: 6px; }
+
+/* "Photo size" choice for edit models: a small picture icon instead of a ratio box */
+.ratio-icon.ratio-icon-photo {
+  width: 16px; height: 13px;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 70% 32%, currentColor 0 1.6px, transparent 2.2px),
+    linear-gradient(135deg, transparent 52%, currentColor 53% 100%);
+  opacity: 0.85;
+}
+.ratio-opt .ratio-icon.ratio-icon-photo { width: 24px; height: 19px; }
+#ratioNote { margin: 10px 2px 0; max-width: 300px; }
+@media (min-width: 641px) { #popRatio { width: 380px; } }
+#popRatio .ratio-opt { min-width: 0; }
