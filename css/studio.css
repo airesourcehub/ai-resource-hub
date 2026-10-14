@@ -1255,3 +1255,6 @@ body.lib-open { overflow: hidden; }
 }
 .studio-jobs.studio-wall.tiles-s .job-stage { display: none; }
 .studio-jobs.studio-wall.tiles-s .wtile-pending { padding: 10px; }
+
+/* 4K upscale button on image tiles */
+.wtile-4k { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; line-height: 1; }

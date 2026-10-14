@@ -124,6 +124,17 @@
     sheet: { w: 1344, h: 768, lead: "Character turnaround reference sheet of", tail: "shown four times side by side as the exact same character: front view, three-quarter view, side profile and back view, all full body, identical outfit and features" }
   };
   var ENGINES = { zimage: "Z-Image Turbo", flux2: "FLUX.2", qwen_edit2509: "Qwen Edit 2509" };
+  // Style presets for Motion (ids match the render server's studio_extras.STYLE_PRESETS).
+  var STYLES = [
+    ["anime", "Anime"], ["animated3d", "3D Animated"], ["clay", "Claymation"], ["comic", "Comic Ink"],
+    ["watercolor", "Watercolor"], ["oil", "Oil Painting"], ["cyberpunk", "Neon City"], ["noir", "Film Noir"],
+    ["retro", "70s Film"], ["sketch", "Pencil Sketch"], ["pixel", "Pixel Art"], ["statue", "Marble Statue"],
+    ["plush", "Plush Toy"], ["photoreal", "Photoreal"]
+  ];
+  var MODE_COPY = {
+    motion: { note: "Your influencer copies every move from the video, in their own setting.", hint: "The moves to copy" },
+    swap: { note: "Your influencer replaces someone in the video. The scene, camera and lighting stay the same.", hint: "The video to put them into" }
+  };
   var NEGATIVE = "blurry, deformed, extra limbs, extra fingers, bad anatomy, watermark, text, logo, cropped head, child, minor, nsfw";
 
   // Presets for the Explore wall (images rendered on the 3090, in img/influencer/).
@@ -159,7 +170,17 @@
     mine: [],            // influencer rows + job data
     offset: 0,
     motionPick: null,
-    viewing: null
+    viewing: null,
+    m: {
+      mode: prefs.mMode === "swap" ? "swap" : "motion",
+      res: prefs.mRes === "480p" ? "480p" : "720p",
+      len: prefs.mLen === 10 ? 10 : 5,
+      video: null,        // { blob, url, w, h, dur }
+      char: null,         // { url, name, infId } or { blob, url, name }
+      style: "", styleCustom: "", styleImg: null, styleTab: "presets",
+      usePrompt: false
+    },
+    vids: [], vidOffset: 0, vViewing: null
   };
 
   // ------------------------------------------------------------ boot
@@ -171,6 +192,7 @@
   syncSeg("viewSeg", "data-view", state.view);
   syncSeg("engineSeg", "data-engine", state.engine);
   $("batchVal").textContent = state.batch;
+  wireMotion();
   applyLinkParams();
 
   if (client) {
@@ -185,9 +207,10 @@
     state.user = u;
     state.mine = []; state.offset = 0;
     $("mineSignin").hidden = !!u;
-    syncGenerate();
-    if (u) { loadMine(); refreshGpu(); setInterval(refreshGpu, 25000); }
-    else { renderMine(); renderMotionPick(); }
+    syncGenerate(); syncMotionGo();
+    state.vids = []; state.vidOffset = 0;
+    if (u) { loadMine(); loadVideos(); refreshGpu(); setInterval(refreshGpu, 25000); }
+    else { renderMine(); renderMotionPick(); renderVideos(); }
   }
 
   // ------------------------------------------------------------ panel UI
@@ -506,11 +529,13 @@
       img.src = absUrl(url);
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(c.name || "Influencer") + "</strong><span>" + esc(tierOf(c.tier).label) + "</span></div>" +
-        '<div class="inf-tile-acts"><button type="button" class="inf-recreate" data-act="recreate">Recreate</button></div>' +
+        '<div class="inf-tile-acts"><button type="button" class="inf-tomotion" data-act="motion"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Turn to motion</button>' +
+        '<button type="button" class="inf-recreate" data-act="recreate">Recreate</button></div>' +
         '<div class="inf-missing-note">Image unavailable while the GPU machine is offline</div>');
       t.tabIndex = 0;
       t.addEventListener("click", function (e) {
         if (e.target.closest("[data-act=recreate]")) { e.stopPropagation(); loadRecipe(c.tier, c.traits, c.name); return; }
+        if (e.target.closest("[data-act=motion]")) { e.stopPropagation(); toMotion(c, url); return; }
         openViewer(c, url);
       });
       t.addEventListener("keydown", function (e) { if (e.key === "Enter") openViewer(c, url); });
@@ -570,8 +595,10 @@
       syncMotionLinks(); return;
     }
     if (!state.motionPick || !ready.some(function (r) { return r.u === state.motionPick; })) state.motionPick = ready[0].u;
-    box.innerHTML = ready.slice(0, 24).map(function (r) {
-      return '<button type="button" class="inf-pick-item' + (r.u === state.motionPick ? " is-on" : "") + '" data-u="' + esc(r.u) + '" title="' + esc(r.c.name || "") + '"><img src="' + esc(absUrl(r.u)) + '" alt="' + esc(r.c.name || "Influencer") + '" loading="lazy" /></button>';
+    if (!state.m.char) { var first = ready.filter(function (r) { return r.u === state.motionPick; })[0] || ready[0]; setChar({ url: first.u, name: first.c.name, infId: realId(first.c.id) }, true); }
+    box.innerHTML = ready.slice(0, 36).map(function (r) {
+      var on = !!state.m.char && state.m.char.url === r.u;
+      return '<button type="button" class="inf-pick-item' + (on ? " is-on" : "") + '" data-u="' + esc(r.u) + '" data-id="' + esc(r.c.id) + '" title="' + esc(r.c.name || "") + '"><img src="' + esc(absUrl(r.u)) + '" alt="' + esc(r.c.name || "Influencer") + '" loading="lazy" /></button>';
     }).join("");
     syncMotionLinks();
   }
@@ -597,7 +624,6 @@
     GROUPS.forEach(function (g) { ((c.traits || {})[g.id] || []).forEach(function (o) { chips.push('<span class="inf-chip">' + esc(labelOf(g, o)) + "</span>"); }); });
     $("viewerChips").innerHTML = chips.join("");
     var ref = encodeURIComponent(full);
-    $("actAnimate").href = "motion-transfer.html?ref=" + ref;
     $("actLip").href = "lip-sync.html?ref=" + ref;
     $("actShots").href = "image-studio.html?model=qwen_edit2509&ref=" + ref;
     $("actDownload").href = full;
@@ -661,7 +687,10 @@
       var b = e.target.closest(".inf-pick-item");
       if (!b) return;
       state.motionPick = b.getAttribute("data-u");
+      var c = state.mine.filter(function (x) { return String(x.id) === b.getAttribute("data-id"); })[0];
+      setChar({ url: state.motionPick, name: c ? c.name : "Influencer", infId: c ? realId(c.id) : null });
       Array.prototype.forEach.call(this.querySelectorAll(".inf-pick-item"), function (x) { x.classList.toggle("is-on", x === b); });
+      $("mPicker").hidden = true;
       syncMotionLinks();
     });
     Array.prototype.forEach.call(document.querySelectorAll(".inf-mtool"), function (a) {
@@ -683,7 +712,13 @@
     // viewer
     $("viewerClose").addEventListener("click", closeViewer);
     $("viewerBg").addEventListener("click", closeViewer);
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("viewer").hidden) closeViewer(); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      if (!$("styleModal").hidden) closeStyle();
+      else if (!$("vViewer").hidden) closeVideo();
+      else if (!$("viewer").hidden) closeViewer();
+    });
+    $("actAnimate").addEventListener("click", function () { var v = state.viewing; closeViewer(); if (v) toMotion(v.c, v.url); });
     $("actRecreate").addEventListener("click", function () { var v = state.viewing; closeViewer(); if (v) loadRecipe(v.c.tier, v.c.traits, v.c.name); });
     $("actDelete").addEventListener("click", deleteViewing);
   }
@@ -716,7 +751,9 @@
     $("paneCreate").hidden = p !== "create";
     $("paneMotion").hidden = p !== "motion";
     $("createFoot").hidden = p !== "create";
-    if (p === "motion") renderMotionPick();
+    $("motionFoot").hidden = p !== "motion";
+    if (p === "motion") { renderMotionPick(); if (state.user) setStage("videos"); }
+    else if (!$("stageVideos").hidden) setStage("mine");
   }
 
   function setStage(s) {
@@ -725,6 +762,8 @@
     });
     $("stageExplore").hidden = s !== "explore";
     $("stageMine").hidden = s !== "mine";
+    $("stageVideos").hidden = s !== "videos";
+    if (s === "videos") renderVideos();
   }
 
   function setBatch(n) { state.batch = clamp(n, 1, 4); $("batchVal").textContent = state.batch; savePrefs(); }
@@ -743,8 +782,391 @@
     var p = q.get("preset");
     if (p) { var pr = PRESETS.filter(function (x) { return x.id === p; })[0]; if (pr) loadRecipe(pr.tier, pr.t, pr.name); }
     if (q.get("tab") === "mine") setStage("mine");
+    if (q.get("tab") === "videos") setStage("videos");
     if (q.get("tab") === "motion") setPane("motion");
   }
+
+  // ------------------------------------------------------------ motion: transfer / swap / style
+  function toMotion(c, url) {
+    setChar({ url: url, name: c.name || "Influencer", infId: realId(c.id) });
+    state.motionPick = url;
+    setPane("motion");
+    $("paneMotion").scrollTop = 0;
+    if (window.matchMedia("(max-width: 960px)").matches) root.scrollIntoView({ behavior: "smooth" });
+    mHint(state.m.video ? "Ready. Pick a style if you like, then Generate." : "Now add a reference video.");
+  }
+
+  function setChar(ch, quiet) {
+    var old = state.m.char;
+    if (old && old.blob && old.url && (!ch || ch.url !== old.url)) URL.revokeObjectURL(old.url);
+    state.m.char = ch;
+    var img = $("mCharImg");
+    if (ch) { img.src = ch.blob ? ch.url : absUrl(ch.url); img.alt = ch.name || "Character"; }
+    img.hidden = !ch;
+    $("mCharSlot").classList.toggle("has-file", !!ch);
+    $("mCharTag").hidden = !ch;
+    $("mCharTag").textContent = ch ? (ch.name || "Character") : "";
+    if (!quiet) syncMotionGo();
+  }
+
+  function setVideo(f) {
+    if (!/^video\//.test(f.type)) { mHint("That file isn't a video.", true); return; }
+    if (f.size > 300 * 1024 * 1024) { mHint("That video is over 300 MB. Trim it first.", true); return; }
+    clearVideo(true);
+    var url = URL.createObjectURL(f);
+    var v = $("mVideoPrev");
+    state.m.video = { blob: f, url: url, w: 0, h: 0, dur: 0 };
+    v.onloadedmetadata = function () {
+      if (!state.m.video || state.m.video.url !== url) return;
+      state.m.video.w = v.videoWidth; state.m.video.h = v.videoHeight; state.m.video.dur = v.duration || 0;
+      paintVideoTag();
+      v.play().catch(function () {});
+    };
+    v.src = url; v.hidden = false;
+    $("mVideoDrop").classList.add("has-file");
+    $("mVideoClear").hidden = false;
+    $("mVideoInput").disabled = true;
+    syncMotionGo();
+    mHint("");
+  }
+
+  function clearVideo(quiet) {
+    var v = $("mVideoPrev");
+    if (state.m.video) URL.revokeObjectURL(state.m.video.url);
+    state.m.video = null;
+    v.pause(); v.removeAttribute("src"); v.load(); v.hidden = true;
+    $("mVideoDrop").classList.remove("has-file");
+    $("mVideoClear").hidden = true; $("mVideoTag").hidden = true;
+    $("mVideoInput").disabled = false; $("mVideoInput").value = "";
+    if (!quiet) syncMotionGo();
+  }
+
+  function paintVideoTag() {
+    var v = state.m.video, tag = $("mVideoTag");
+    if (!v || !v.dur) { tag.hidden = true; return; }
+    tag.textContent = fmtClock(v.dur) + (v.dur > state.m.len + 0.5 ? " · uses first " + state.m.len + " s" : "") + (v.w ? " · " + (v.h > v.w ? "vertical" : "horizontal") : "");
+    tag.hidden = false;
+  }
+
+  function setMode(mode) {
+    state.m.mode = mode;
+    syncSeg("mModeSeg", "data-mode", mode);
+    $("mModeNote").textContent = MODE_COPY[mode].note;
+    $("mVideoHint").textContent = MODE_COPY[mode].hint;
+    $("mTargetField").hidden = mode !== "swap";
+    savePrefs(); syncMotionGo();
+  }
+
+  function syncMotionGo() {
+    var b = $("mGenerateBtn"), m = state.m;
+    var label = !state.user ? "Log in to generate " : m.mode === "swap" ? "Swap character " : "Generate motion ";
+    b.firstChild.nodeValue = label;
+    b.classList.toggle("is-dim", !!state.user && !(m.video && m.char));
+  }
+
+  function styleLabel() {
+    var m = state.m;
+    if (m.style === "custom") return m.styleImg ? "Custom (image)" : "Custom";
+    var s = STYLES.filter(function (x) { return x[0] === m.style; })[0];
+    return s ? s[1] : "Original";
+  }
+
+  function paintStyleBtn() {
+    var m = state.m, th = $("mStyleThumb");
+    $("mStyleName").textContent = styleLabel();
+    if (m.style && m.style !== "custom") th.style.backgroundImage = "url(img/styles/" + m.style + ".jpg)";
+    else if (m.style === "custom" && m.styleImg) th.style.backgroundImage = "url(" + JSON.stringify(m.styleImg.url) + ")";
+    else th.style.backgroundImage = "";
+    th.classList.toggle("is-custom", m.style === "custom" && !m.styleImg);
+    $("mStyleBtn").classList.toggle("is-set", !!m.style);
+  }
+
+  function openStyle() {
+    var m = state.m;
+    $("styleGrid").innerHTML = '<button type="button" class="m-style-tile' + (!m.style ? " is-on" : "") + '" data-style=""><span class="m-style-img is-none"><span>Aa</span></span><span class="m-style-name">Original</span></button>' +
+      STYLES.map(function (s) {
+        return '<button type="button" class="m-style-tile' + (m.style === s[0] ? " is-on" : "") + '" data-style="' + s[0] + '"><span class="m-style-img" style="background-image:url(img/styles/' + s[0] + '.jpg)"></span><span class="m-style-name">' + esc(s[1]) + "</span></button>";
+      }).join("");
+    $("styleText").value = m.styleCustom || "";
+    setStyleTab(m.style === "custom" ? "custom" : "presets");
+    $("styleModal").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeStyle() { $("styleModal").hidden = true; document.body.style.overflow = ""; }
+  function setStyleTab(t) {
+    state.m.styleTab = t;
+    syncSeg("styleTabs", "data-tab", t);
+    $("styleGrid").hidden = t !== "presets";
+    $("styleCustom").hidden = t !== "custom";
+  }
+  function setStyleImg(f) {
+    if (!/^image\//.test(f.type)) return;
+    if (state.m.styleImg) URL.revokeObjectURL(state.m.styleImg.url);
+    state.m.styleImg = { blob: f, url: URL.createObjectURL(f) };
+    $("styleImgPrev").src = state.m.styleImg.url; $("styleImgPrev").hidden = false;
+    $("styleImgDrop").classList.add("has-file");
+  }
+
+  async function onMotionGenerate() {
+    var m = state.m;
+    if (!state.user) { window.location.href = "auth.html"; return; }
+    if (!m.video) { mHint("Add a reference video first.", true); return; }
+    if (!m.char) { mHint("Pick the character first.", true); $("mPicker").hidden = false; renderMotionPick(); return; }
+    if (m.mode === "swap" && !$("mTarget").value.trim()) { mHint("Say what to replace, e.g. person.", true); return; }
+    var token = await freshToken();
+    if (!token) { mHint("Your session expired. Log in again.", true); return; }
+    var btn = $("mGenerateBtn");
+    btn.disabled = true;
+    mHint("Uploading…");
+    var vid = null;
+    try {
+      var charBlob = m.char.blob;
+      if (!charBlob) {
+        var cr = await fetch(absUrl(m.char.url));
+        if (!cr.ok) throw new Error("Couldn't load that character image from the GPU server.");
+        charBlob = await cr.blob();
+      }
+      var prompt = m.usePrompt ? $("mPrompt").value.trim() : "";
+      var fd = new FormData();
+      fd.append("image", charBlob, "character.png");
+      fd.append("video", m.video.blob, m.video.blob.name || "reference.mp4");
+      fd.append("mode", m.mode);
+      fd.append("prompt", prompt);
+      fd.append("length", String(m.len));
+      fd.append("res", m.res);
+      fd.append("orientation", m.video.h > m.video.w ? "portrait" : "landscape");
+      fd.append("steps", "4");
+      fd.append("fps", "16");
+      if (m.mode === "swap") fd.append("target", $("mTarget").value.trim());
+      if (m.style) {
+        fd.append("style", m.style);
+        if (m.style === "custom") {
+          fd.append("style_custom", m.styleCustom || "");
+          if (m.styleImg) fd.append("style_image", m.styleImg.blob, "style.png");
+        }
+      }
+      if (m.char.infId) fd.append("influencer_id", m.char.infId);
+
+      vid = { id: "tmp-" + Date.now(), mode: m.mode === "swap" ? "character_swap" : "motion_transfer", prompt: prompt, status: "queued",
+        pending: true, progress: 2, stage: "Uploading to the GPU…", created_at: new Date().toISOString(),
+        meta: { res: m.res, style: m.style, length_secs: m.len }, thumb: m.char.blob ? m.char.url : absUrl(m.char.url), portrait: m.video.h > m.video.w };
+      state.vids.unshift(vid);
+      setStage("videos");
+
+      var r = await fetch(RENDER() + "/motion-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var d = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
+      vid.id = d.job_id; vid.stage = "Queued";
+      renderVideos();
+      pollVideo(vid, 0);
+      mHint("Sent. Your video shows up on the right when it's done.");
+    } catch (e) {
+      if (vid) { state.vids = state.vids.filter(function (x) { return x !== vid; }); renderVideos(); }
+      mHint(/Failed to fetch|NetworkError|HTTP 5/.test(e.message) ? "The GPU server isn't reachable right now. Check System status, then try again." : e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function pollVideo(v, fails) {
+    setTimeout(async function () {
+      if (!v.pending) return;
+      try {
+        var token = await freshToken();
+        var r = await fetch(RENDER() + "/jobs/" + v.id, { headers: { Authorization: "Bearer " + token } });
+        if (r.status === 404) return vidDone(v, "error", null, "This render stopped, probably because the GPU server restarted.");
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        var j = await r.json();
+        if (j.status === "done") return vidDone(v, "done", j);
+        if (j.status === "cancelled") return vidDone(v, "cancelled");
+        if (j.status === "error") return vidDone(v, "error", null, j.error || "The render failed.");
+        v.progress = Math.max(2, Math.min(99, j.progress || 0));
+        v.stage = (j.stage || (j.status === "queued" ? "Waiting in the queue" : "Rendering")) + (j.eta_seconds > 0 ? " · about " + fmtDur(j.eta_seconds) + " left" : "");
+        paintVid(v);
+        pollVideo(v, 0);
+      } catch (e) {
+        if (fails + 1 >= 8) { v.stage = "Lost touch with the GPU server. It may still finish; refresh in a minute."; paintVid(v); return; }
+        pollVideo(v, fails + 1);
+      }
+    }, 4000);
+  }
+
+  function vidDone(v, status, j, err) {
+    v.pending = false; v.status = status;
+    if (j) { v.result_url = j.result_url; v.result_mov_url = j.result_mov_url; }
+    if (err) v.error = err;
+    if (status === "cancelled") state.vids = state.vids.filter(function (x) { return x !== v; });
+    renderVideos(); refreshGpu();
+  }
+
+  async function loadVideos() {
+    if (!client || !state.user) return;
+    var res = await client.from("render_jobs").select("id, status, mode, prompt, progress, result_url, result_mov_url, error, created_at, influencer_id, meta")
+      .eq("user_id", state.user.id).eq("render_type", "motion_transfer").order("created_at", { ascending: false })
+      .range(state.vidOffset, state.vidOffset + 11);
+    var rows = res.data || [];
+    rows.forEach(function (r) {
+      if (state.vids.some(function (x) { return x.id === r.id; })) return;
+      if (r.status === "processing" || r.status === "queued") { r.pending = true; r.progress = r.progress || 5; r.stage = "Reconnecting…"; pollVideo(r, 0); }
+      state.vids.push(r);
+    });
+    state.vidOffset += rows.length;
+    $("vidMore").hidden = rows.length < 12;
+    renderVideos();
+  }
+
+  function vidTitle(v) {
+    var meta = v.meta || {};
+    var st = meta.style ? (STYLES.filter(function (s) { return s[0] === meta.style; })[0] || [0, "Custom style"])[1] : "";
+    return [v.mode === "character_swap" ? "Character swap" : "Motion transfer", st].filter(Boolean).join(" · ");
+  }
+
+  function renderVideos() {
+    var wall = $("vidWall");
+    if (!wall) return;
+    $("vidCount").textContent = state.vids.length ? String(state.vids.length) : "";
+    $("vidEmpty").hidden = !(state.user && !state.vids.length);
+    wall.innerHTML = "";
+    state.vids.forEach(function (v) {
+      var t = document.createElement("div");
+      t.className = "inf-vtile" + (v.pending ? " is-pending" : "") + (v.status === "error" ? " is-error" : "") + (v.portrait ? " is-portrait" : "");
+      t.setAttribute("data-vid", v.id);
+      var meta = v.meta || {};
+      var sub = [meta.res, meta.length_secs ? meta.length_secs + " s" : "", when(v.created_at)].filter(Boolean).join(" · ");
+      if (v.pending) {
+        t.innerHTML = (v.thumb ? '<img class="inf-vthumb" alt="" src="' + esc(v.thumb) + '" />' : "") +
+          '<div class="inf-pend"><span class="inf-spin"></span><strong>' + esc(vidTitle(v)) + '</strong><span class="inf-pend-stage">' + esc(v.stage || "Working…") +
+          '</span><span class="inf-bar"><span style="width:' + (v.progress || 2) + '%"></span></span>' +
+          (String(v.id).indexOf("tmp-") ? '<button type="button" class="inf-vcancel">Cancel</button>' : "") + "</div>";
+        var cb = t.querySelector(".inf-vcancel");
+        if (cb) cb.addEventListener("click", function () { cancelVideo(v); });
+      } else if (v.status === "done" && v.result_url) {
+        t.innerHTML = '<video muted loop playsinline preload="metadata"></video><div class="inf-tile-shade"></div>' +
+          '<span class="inf-vplay" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' +
+          '<div class="inf-tile-meta"><strong>' + esc(vidTitle(v)) + "</strong><span>" + esc(sub) + "</span></div>" +
+          '<div class="inf-missing-note">Video unavailable while the GPU machine is offline</div>';
+        var vel = t.querySelector("video");
+        vel.addEventListener("loadedmetadata", function () {
+          if (vel.videoWidth) t.style.aspectRatio = vel.videoWidth + " / " + vel.videoHeight;
+          t.classList.add("is-loaded");
+        });
+        vel.addEventListener("error", function () { t.classList.add("is-missing"); });
+        vel.src = absUrl(v.result_url) + "#t=0.1";
+        t.addEventListener("mouseenter", function () { vel.play().catch(function () {}); });
+        t.addEventListener("mouseleave", function () { vel.pause(); });
+        t.tabIndex = 0;
+        t.addEventListener("click", function () { openVideo(v); });
+        t.addEventListener("keydown", function (e) { if (e.key === "Enter") openVideo(v); });
+      } else {
+        t.innerHTML = '<div class="inf-pend"><strong>' + esc(vidTitle(v)) + "</strong><span>" + esc(v.error || "This video didn't finish.") + '</span><button type="button" class="inf-vcancel">Remove</button></div>';
+        t.querySelector(".inf-vcancel").addEventListener("click", function () { deleteVideo(v, true); });
+      }
+      wall.appendChild(t);
+    });
+  }
+
+  function paintVid(v) {
+    var t = $("vidWall").querySelector('[data-vid="' + cssEsc(String(v.id)) + '"]');
+    if (!t) { renderVideos(); return; }
+    var st = t.querySelector(".inf-pend-stage"), bar = t.querySelector(".inf-bar span");
+    if (st) st.textContent = v.stage || "Working…";
+    if (bar) bar.style.width = (v.progress || 2) + "%";
+  }
+
+  async function cancelVideo(v) {
+    v.stage = "Cancelling…"; paintVid(v);
+    try { var token = await freshToken(); await fetch(RENDER() + "/jobs/" + v.id + "/cancel", { method: "POST", headers: { Authorization: "Bearer " + token } }); } catch (e) {}
+  }
+
+  function openVideo(v) {
+    state.vViewing = v;
+    var src = absUrl(v.result_url);
+    $("vViewerVid").src = src;
+    $("vViewerTitle").textContent = vidTitle(v);
+    var meta = v.meta || {};
+    $("vViewerMeta").textContent = [meta.res, meta.length_secs ? meta.length_secs + " s" : "", when(v.created_at)].filter(Boolean).join(" · ");
+    $("vViewerPrompt").textContent = v.prompt || "";
+    $("vDl").href = src; $("vDl").setAttribute("download", "motion-" + String(v.id).slice(0, 8) + ".mp4");
+    $("vDlMov").hidden = !v.result_mov_url;
+    if (v.result_mov_url) { $("vDlMov").href = absUrl(v.result_mov_url); $("vDlMov").setAttribute("download", "motion-" + String(v.id).slice(0, 8) + ".mov"); }
+    $("vViewer").hidden = false;
+    document.body.style.overflow = "hidden";
+    $("vViewerVid").play().catch(function () {});
+  }
+  function closeVideo() { var vv = $("vViewerVid"); vv.pause(); vv.removeAttribute("src"); vv.load(); $("vViewer").hidden = true; document.body.style.overflow = ""; state.vViewing = null; }
+
+  async function deleteVideo(v, quiet) {
+    if (!v) return;
+    if (!quiet && !window.confirm("Delete this video? It is removed from the GPU and your list.")) return;
+    try {
+      var token = await freshToken();
+      if (String(v.id).indexOf("tmp-")) await fetch(RENDER() + "/jobs/" + v.id + "?table=render_jobs", { method: "DELETE", headers: { Authorization: "Bearer " + token } });
+    } catch (e) {}
+    state.vids = state.vids.filter(function (x) { return x !== v; });
+    if (state.vViewing === v) closeVideo();
+    renderVideos();
+  }
+
+  function wireMotion() {
+    segWire("mModeSeg", "data-mode", setMode);
+    segWire("mLenSeg", "data-len", function (v) { state.m.len = Number(v); savePrefs(); paintVideoTag(); });
+    segWire("mResSeg", "data-res", function (v) { state.m.res = v; savePrefs(); });
+    syncSeg("mLenSeg", "data-len", String(state.m.len));
+    syncSeg("mResSeg", "data-res", state.m.res);
+    setMode(state.m.mode);
+
+    var vin = $("mVideoInput"), vdrop = $("mVideoDrop");
+    vin.addEventListener("change", function () { if (vin.files && vin.files[0]) setVideo(vin.files[0]); });
+    ["dragenter", "dragover"].forEach(function (ev) { vdrop.addEventListener(ev, function (e) { e.preventDefault(); vdrop.classList.add("is-over"); }); });
+    ["dragleave", "drop"].forEach(function (ev) { vdrop.addEventListener(ev, function () { vdrop.classList.remove("is-over"); }); });
+    vdrop.addEventListener("drop", function (e) { e.preventDefault(); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) setVideo(f); });
+    $("mVideoClear").addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); clearVideo(); });
+
+    $("mCharSlot").addEventListener("click", function () { $("mPicker").hidden = !$("mPicker").hidden; renderMotionPick(); });
+    $("mCharInput").addEventListener("change", function () {
+      var f = this.files && this.files[0];
+      if (!f || !/^image\//.test(f.type)) return;
+      setChar({ blob: f, url: URL.createObjectURL(f), name: "Your photo", infId: null });
+      Array.prototype.forEach.call(document.querySelectorAll("#motionPick .inf-pick-item"), function (x) { x.classList.remove("is-on"); });
+      $("mPicker").hidden = true;
+      this.value = "";
+    });
+
+    $("mStyleBtn").addEventListener("click", openStyle);
+    Array.prototype.forEach.call(document.querySelectorAll("#styleModal [data-close]"), function (b) { b.addEventListener("click", closeStyle); });
+    segWire("styleTabs", "data-tab", setStyleTab);
+    $("styleGrid").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-style]");
+      if (!b) return;
+      state.m.style = b.getAttribute("data-style");
+      paintStyleBtn(); closeStyle();
+    });
+    $("styleImgInput").addEventListener("change", function () { if (this.files && this.files[0]) setStyleImg(this.files[0]); });
+    $("styleApply").addEventListener("click", function () {
+      var txt = $("styleText").value.trim();
+      if (!txt && !state.m.styleImg) { $("styleText").focus(); return; }
+      state.m.style = "custom"; state.m.styleCustom = txt;
+      paintStyleBtn(); closeStyle();
+    });
+
+    $("mPromptToggle").addEventListener("click", function () {
+      state.m.usePrompt = !state.m.usePrompt;
+      this.setAttribute("aria-checked", state.m.usePrompt);
+      this.classList.toggle("is-on", state.m.usePrompt);
+      $("mPrompt").hidden = !state.m.usePrompt;
+      if (state.m.usePrompt) $("mPrompt").focus();
+    });
+
+    $("mGenerateBtn").addEventListener("click", onMotionGenerate);
+    $("vidMore").addEventListener("click", loadVideos);
+    Array.prototype.forEach.call(document.querySelectorAll("#vViewer [data-vclose]"), function (b) { b.addEventListener("click", closeVideo); });
+    $("vDelete").addEventListener("click", function () { deleteVideo(state.vViewing); });
+    paintStyleBtn();
+    syncMotionGo();
+  }
+
+  function mHint(msg, err) { var h = $("mHint"); h.textContent = msg || ""; h.classList.toggle("is-err", !!err); }
+  function fmtClock(s) { s = Math.round(s); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
 
   // ------------------------------------------------------------ GPU line
   async function refreshGpu() {
@@ -797,5 +1219,6 @@
     return d.toLocaleDateString();
   }
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (e) { return {}; } }
-  function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ view: state.view, engine: state.engine, batch: state.batch })); } catch (e) {} }
+  function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ view: state.view, engine: state.engine, batch: state.batch, mMode: state.m.mode, mRes: state.m.res, mLen: state.m.len })); } catch (e) {} }
+  function realId(id) { return id && String(id).indexOf("tmp-") !== 0 ? String(id) : null; }
 })();

@@ -54,7 +54,7 @@
   var RESOLUTIONS = [
     { id: "1k", name: "1K", note: "About 1024px. Fastest.", long: 0 },
     { id: "2k", name: "2K", note: "2048px. Sharper, takes longer.", long: 2048 },
-    { id: "4k", name: "4K", note: "4096px. Coming soon.", long: 4096, soon: true }
+    { id: "4k", name: "Upscale to 4K", chip: "4K", note: "Renders at 2K, then SeedVR2 upscales to 4096px. About 20 s more per image.", long: 2048, upscale: true }
   ];
   var TILE_SIZES = ["s", "m", "l"];
   var CHECK = '<svg class="opt-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
@@ -77,7 +77,7 @@
     ratio: (prefs.ratio === "auto" || ratioById(prefs.ratio)) ? prefs.ratio : "auto",            // "auto" = square
     editRatio: (prefs.editRatio === "auto" || ratioById(prefs.editRatio)) ? prefs.editRatio : "auto", // edits: "auto" = keep the photo's size
     quality: QUALITIES.some(function (q) { return q.id === prefs.quality; }) ? prefs.quality : "medium",
-    res: prefs.res === "2k" ? "2k" : "1k",
+    res: prefs.res === "2k" || prefs.res === "4k" ? prefs.res : "1k",
     tile: TILE_SIZES.indexOf(prefs.tile) !== -1 ? prefs.tile : "m",
     lib: { tab: "generations", offset: 0, uploads: [] },
     batch: clamp(Number(prefs.batch) || 1, 1, 4),
@@ -478,7 +478,7 @@
       : '<span class="ratio-icon" id="chipRatioIcon" style="' + ratioBox(ratioById(choice), 14).match(/style="([^"]+)"/)[1] + '"></span>';
     $("chipQualityName").textContent = (QUALITIES.filter(function (q) { return q.id === state.quality; })[0] || QUALITIES[1]).name;
     var keepsPhoto = !r;
-    $("chipResName").textContent = keepsPhoto ? "Photo" : resById(state.res).name;
+    $("chipResName").textContent = keepsPhoto ? "Photo" : (resById(state.res).chip || resById(state.res).name);
     $("chipLora").hidden = !m.lora;
     var lora = $("loraPick");
     var loraLabel = lora.value ? (lora.options[lora.selectedIndex] || {}).text : "";
@@ -488,7 +488,7 @@
     $("chipAvoidName").textContent = neg ? "Avoid: " + truncate(neg, 16) : "Avoid";
     $("chipAvoid").classList.toggle("is-set", !!neg);
     var sub = state.batch + (state.batch === 1 ? " image" : " images");
-    sub += r ? " · " + (state.res === "2k" ? "2K" : "1K") : " · photo size";
+    sub += r ? " · " + (resById(state.res).chip || resById(state.res).name) : " · photo size";
     $("goSub").textContent = sub;
   }
 
@@ -729,6 +729,7 @@
     var out = outRatio();
     if (out) { fd.append("width", String(out.w)); fd.append("height", String(out.h)); }
     if (m.type === "edit" && out) fd.append("size", "custom");
+    if (out && state.res === "4k") fd.append("res", "4k");
     if (m.lora) {
       fd.append("lora", $("loraPick").value || "");
       fd.append("lora_strength", ($("loraStrength").value / 10).toFixed(2));
@@ -874,7 +875,7 @@
   // at its real shape; prompt, model and actions appear on hover.
   function jobTiles(job) {
     var m = byId(job.model);
-    var modelName = m ? m.name : (job.model || "");
+    var modelName = job.model === "seedvr2" ? "4K upscale" : m ? m.name : (job.model || "");
     var ratio = job.width && job.height ? closestRatio(job.width, job.height) : "";
     var guessAR = job.width && job.height ? job.width / job.height : 1;
     var tiles = [];
@@ -924,6 +925,7 @@
         '<div class="wtile-shade" aria-hidden="true"></div>' +
         '<div class="wtile-actions">' +
           '<button type="button" class="wtile-btn" data-act="edit" title="Edit this image" aria-label="Edit this image"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>' +
+          '<button type="button" class="wtile-btn" data-act="up" title="Upscale to 4K" aria-label="Upscale to 4K"><span class="wtile-4k">4K</span></button>' +
           '<button type="button" class="wtile-btn" data-act="reuse" title="Reuse prompt" aria-label="Reuse prompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>' +
           '<button type="button" class="wtile-btn" data-act="dl" title="Download" aria-label="Download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg></button>' +
         "</div>" +
@@ -958,9 +960,46 @@
       t.querySelector('[data-act="dl"]').addEventListener("click", function () { download(src, job); });
       t.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(src); });
       t.querySelector('[data-act="reuse"]').addEventListener("click", function () { reuseJob(job); });
+      var upBtn = t.querySelector('[data-act="up"]');
+      if (Math.max(job.width || 0, job.height || 0) >= 3000) upBtn.remove();
+      else upBtn.addEventListener("click", function () { upscale(u, job); });
       tiles.push(t);
     });
     return tiles;
+  }
+
+  // Send one finished image to SeedVR2 for a 4K version (new tile in the feed).
+  async function upscale(u, src) {
+    if (!state.user) { window.location.href = "auth.html"; return; }
+    var token = await freshToken();
+    if (!token) { hint("Your session expired. Log in again.", true); return; }
+    var w = (src && src.width) || 1024, h = (src && src.height) || 1024, k = 4096 / Math.max(w, h);
+    var job = { id: "tmp-" + Date.now(), model: "seedvr2", prompt: (src && src.prompt) || "Upscaled to 4K", status: "queued",
+      width: Math.round(w * k), height: Math.round(h * k), batch: 1, created_at: new Date().toISOString(), pending: true, progress: 2, stage: "Sending to the upscaler…" };
+    state.jobs.unshift(job);
+    renderFeed();
+    window.scrollTo({ top: 0, behavior: prefersReduced() ? "auto" : "smooth" });
+    try {
+      var rel = String(u).replace(/^https?:\/\/[^/]+/, "");
+      var fd = new FormData();
+      fd.append("source", rel);
+      fd.append("prompt", job.prompt);
+      var r = await fetch(RENDER_ENDPOINT() + "/upscale-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      if (r.status === 404 || r.status === 400) {      // not on this GPU any more: send the pixels instead
+        var blob = await (await fetch(absUrl(u))).blob();
+        fd = new FormData(); fd.append("image", blob, "image.png"); fd.append("prompt", job.prompt);
+        r = await fetch(RENDER_ENDPOINT() + "/upscale-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      }
+      var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(data.detail || ("HTTP " + r.status));
+      job.id = data.job_id; job.stage = "Queued";
+      renderFeed();
+      poll(job);
+    } catch (e) {
+      job.pending = false; job.status = "error";
+      job.error = /Failed to fetch|NetworkError|HTTP 5/.test(e.message) ? "The GPU server isn't reachable right now. Check System status, then try again." : e.message;
+      renderFeed();
+    }
   }
 
   function updatePending(job) {
@@ -985,7 +1024,8 @@
       var r = ratioById(rid);
       if (m.type === "create") state.ratio = r ? r.id : "auto";
       if (m.type === "edit") state.editRatio = r ? r.id : "auto";
-      state.res = Math.max(job.width, job.height) > 1600 ? "2k" : "1k";
+      var longSide = Math.max(job.width, job.height);
+      state.res = longSide > 3000 ? "4k" : longSide > 1600 ? "2k" : "1k";
       buildRatios(); buildRes();
     }
     if (job.batch) { state.batch = clamp(job.batch, 1, 4); buildCount(); }
@@ -1039,7 +1079,7 @@
     var out = [];
     state.jobs.forEach(function (j) {
       if (j.pending || j.status !== "done") return;
-      (j.urls || []).forEach(function (u) { out.push({ src: absUrl(u), job: j }); });
+      (j.urls || []).forEach(function (u) { out.push({ src: absUrl(u), raw: u, job: j }); });
     });
     return out;
   }
@@ -1059,7 +1099,8 @@
         '<p class="lb-prompt"></p><p class="lb-meta"></p>' +
         '<button type="button" class="btn btn-primary" data-act="dl">Download</button>' +
         '<button type="button" class="btn btn-secondary" data-act="edit">Edit this image</button>' +
-        '<button type="button" class="btn btn-secondary" data-act="reuse">Reuse prompt</button></aside>';
+        '<button type="button" class="btn btn-secondary" data-act="reuse">Reuse prompt</button>' +
+        '<button type="button" class="btn btn-secondary" data-act="up">Upscale to 4K</button></aside>';
       document.body.appendChild(lb);
       lb.querySelector(".lb-close").addEventListener("click", closeLightbox);
       lb.querySelector(".lb-prev").addEventListener("click", function () { stepLightbox(-1); });
@@ -1068,6 +1109,7 @@
       lb.querySelector('[data-act="dl"]').addEventListener("click", function () { var s = lbList[lbIdx]; download(s.src, s.job); });
       lb.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(lbList[lbIdx].src); });
       lb.querySelector('[data-act="reuse"]').addEventListener("click", function () { var s = lbList[lbIdx]; closeLightbox(); reuseJob(s.job); });
+      lb.querySelector('[data-act="up"]').addEventListener("click", function () { var s = lbList[lbIdx]; closeLightbox(); upscale(s.raw || s.src, s.job); });
       document.addEventListener("keydown", function (e) {
         if (!lb || lb.hidden) return;
         if (e.key === "ArrowLeft") stepLightbox(-1);

@@ -84,26 +84,93 @@
     </div>
 
     <div class="vs-scroll" id="paneMotion" hidden>
-      <div class="inf-motion-hero">
-        <span class="inf-motion-kicker">Make them move</span>
-        <strong>Pick one of your influencers, then send them to a video tool. Everything renders on your GPU.</strong>
+      <div class="inf-seg-sm inf-mode" id="mModeSeg" role="radiogroup" aria-label="Motion mode">
+        <button type="button" data-mode="motion" class="is-on">Motion transfer</button>
+        <button type="button" data-mode="swap">Swap character</button>
       </div>
-      <p class="inf-sub">Your influencers</p>
-      <div class="inf-pick" id="motionPick"><p class="inf-note">Create an influencer first. They show up here.</p></div>
-      <div class="inf-motion-tools" id="motionTools">
-        <a class="inf-mtool" data-tool="motion-transfer.html" href="motion-transfer.html">
-          <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="4.5" r="1.5"/><path d="m9 21 3-6 3 2v4M7 12l3-3 4 1 3 3M12 15l-1-5"/></svg></span>
-          <span><strong>Motion transfer</strong><small>Copy any dance or move from a video (WAN 2.2 Animate)</small></span>
-        </a>
-        <a class="inf-mtool" data-tool="lip-sync.html" href="lip-sync.html">
-          <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
-          <span><strong>Lip sync</strong><small>Make them talk or sing your audio (LTX 2)</small></span>
-        </a>
-        <a class="inf-mtool" data-tool="image-studio.html" href="image-studio.html">
-          <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span>
-          <span><strong>New shots</strong><small>Put them in new scenes and outfits (Qwen Edit)</small></span>
-        </a>
+      <p class="inf-mode-note" id="mModeNote">Your influencer copies every move from the video, in their own setting.</p>
+
+      <div class="m-slots">
+        <label class="m-slot m-slot-video" id="mVideoDrop">
+          <input type="file" id="mVideoInput" accept="video/*" />
+          <span class="m-slot-empty">
+            <span class="m-slot-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg></span>
+            <strong>Reference video</strong>
+            <small id="mVideoHint">The moves to copy</small>
+          </span>
+          <video id="mVideoPrev" muted loop playsinline hidden></video>
+          <span class="m-slot-tag" id="mVideoTag" hidden></span>
+          <button type="button" class="m-slot-x" id="mVideoClear" aria-label="Remove video" hidden>&times;</button>
+        </label>
+        <button type="button" class="m-slot m-slot-char" id="mCharSlot" aria-haspopup="dialog">
+          <span class="m-slot-empty">
+            <span class="m-slot-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+            <strong>Character</strong>
+            <small>Pick an influencer</small>
+          </span>
+          <img id="mCharImg" alt="" hidden />
+          <span class="m-slot-tag" id="mCharTag" hidden></span>
+        </button>
       </div>
+
+      <div class="m-picker" id="mPicker" hidden>
+        <div class="m-picker-head"><span>Choose a character</span>
+          <label class="m-upload">Upload photo<input type="file" id="mCharInput" accept="image/*" hidden /></label>
+        </div>
+        <div class="inf-pick" id="motionPick"><p class="inf-note">Create an influencer first. They show up here.</p></div>
+      </div>
+
+      <div class="inf-field" id="mTargetField" hidden>
+        <label for="mTarget">What to replace in the video</label>
+        <input type="text" id="mTarget" maxlength="80" value="person" autocomplete="off" />
+        <small class="inf-field-note">A word or two, e.g. person, man on the left, dog, car.</small>
+      </div>
+
+      <button type="button" class="m-row-btn" id="mStyleBtn" aria-haspopup="dialog">
+        <span class="m-style-thumb" id="mStyleThumb"></span>
+        <span class="m-row-txt"><small>Style</small><strong id="mStyleName">Original</strong></span>
+        <svg class="m-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+
+      <div class="m-toggle-row">
+        <span>Prompt <small>(optional)</small></span>
+        <button type="button" class="m-switch" id="mPromptToggle" role="switch" aria-checked="false" aria-label="Add a prompt"><span></span></button>
+      </div>
+      <textarea id="mPrompt" rows="3" maxlength="600" hidden placeholder="Describe the scene, e.g. dancing in a neon-lit club, cinematic lighting"></textarea>
+
+      <div class="inf-row">
+        <span class="inf-row-lbl">Length</span>
+        <div class="inf-seg-sm" id="mLenSeg">
+          <button type="button" data-len="5" class="is-on">5 s</button>
+          <button type="button" data-len="10">10 s</button>
+        </div>
+      </div>
+      <div class="inf-row">
+        <span class="inf-row-lbl">Quality</span>
+        <div class="inf-seg-sm" id="mResSeg">
+          <button type="button" data-res="480p">480p</button>
+          <button type="button" data-res="720p" class="is-on">720p</button>
+        </div>
+      </div>
+
+      <details class="m-more">
+        <summary>More video tools</summary>
+        <div class="inf-motion-tools" id="motionTools">
+          <a class="inf-mtool" data-tool="lip-sync.html" href="lip-sync.html">
+            <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+            <span><strong>Lip sync</strong><small>Make them talk or sing your audio (LTX 2)</small></span>
+          </a>
+          <a class="inf-mtool" data-tool="image-studio.html" href="image-studio.html">
+            <span class="inf-mtool-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span>
+            <span><strong>New shots</strong><small>Put them in new scenes and outfits (Qwen Edit)</small></span>
+          </a>
+        </div>
+      </details>
+    </div>
+
+    <div class="inf-foot" id="motionFoot" hidden>
+      <button type="button" class="btn btn-primary inf-generate" id="mGenerateBtn">Generate <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg></button>
+      <p class="inf-hint" id="mHint" role="status"></p>
     </div>
 
     <div class="inf-foot" id="createFoot">
@@ -144,6 +211,7 @@
     <div class="inf-stage-tabs" role="tablist">
       <button type="button" role="tab" class="is-on" data-stage="explore" aria-selected="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore</button>
       <button type="button" role="tab" data-stage="mine" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>My influencers <span class="inf-count" id="mineCount"></span></button>
+      <button type="button" role="tab" data-stage="videos" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Videos <span class="inf-count" id="vidCount"></span></button>
       <span class="inf-gpu" id="gpuLine"><span class="gpu-dot" id="gpuDot"></span><span id="gpuText">Your GPU</span></span>
     </div>
 
@@ -169,6 +237,15 @@
       <p class="inf-note inf-signin" id="mineSignin" hidden><a href="auth.html">Log in</a> to see and save your influencers.</p>
       <button type="button" class="btn btn-secondary inf-more" id="mineMore" hidden>Load more</button>
     </div>
+
+    <div id="stageVideos" hidden>
+      <div class="inf-vwall" id="vidWall"></div>
+      <div class="inf-empty" id="vidEmpty" hidden>
+        <h3>No videos yet</h3>
+        <p>Open the Motion tab, add a reference video and a character, then hit Generate.</p>
+      </div>
+      <button type="button" class="btn btn-secondary inf-more" id="vidMore" hidden>Load more</button>
+    </div>
   </section>
 
   <div class="inf-viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Influencer">
@@ -181,12 +258,55 @@
         <p class="inf-viewer-meta" id="viewerMeta"></p>
         <div class="inf-viewer-chips" id="viewerChips"></div>
         <div class="inf-viewer-acts">
-          <a class="btn btn-primary" id="actAnimate" href="#">Make them dance</a>
+          <button type="button" class="btn btn-primary" id="actAnimate">Turn to motion</button>
           <a class="btn btn-secondary" id="actLip" href="#">Make them talk</a>
           <a class="btn btn-secondary" id="actShots" href="#">New shots</a>
           <button type="button" class="btn btn-secondary" id="actRecreate">Recreate</button>
           <a class="btn btn-secondary" id="actDownload" href="#" download>Download</a>
           <button type="button" class="btn btn-danger" id="actDelete">Delete</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="m-modal" id="styleModal" hidden role="dialog" aria-modal="true" aria-labelledby="styleTitle">
+    <div class="m-modal-bg" data-close></div>
+    <div class="m-modal-panel">
+      <div class="m-modal-head">
+        <h2 id="styleTitle">Choose a style</h2>
+        <div class="inf-seg-sm" id="styleTabs">
+          <button type="button" data-tab="presets" class="is-on">Presets</button>
+          <button type="button" data-tab="custom">Custom</button>
+        </div>
+        <button type="button" class="m-modal-x" data-close aria-label="Close">&times;</button>
+      </div>
+      <div class="m-style-grid" id="styleGrid"></div>
+      <div class="m-style-custom" id="styleCustom" hidden>
+        <label for="styleText">Describe the look</label>
+        <textarea id="styleText" rows="3" maxlength="500" placeholder="e.g. glossy chrome robot, gold accents, studio lighting"></textarea>
+        <label class="m-style-upload" id="styleImgDrop">
+          <input type="file" id="styleImgInput" accept="image/*" />
+          <img id="styleImgPrev" alt="" hidden />
+          <span id="styleImgTxt"><strong>Style image</strong> <small>(optional) copy the look of a picture</small></span>
+        </label>
+        <button type="button" class="btn btn-primary" id="styleApply">Use this style</button>
+      </div>
+      <p class="m-modal-note">The style repaints your character before the video renders (Qwen Edit, about 15 s more).</p>
+    </div>
+  </div>
+
+  <div class="inf-viewer" id="vViewer" hidden role="dialog" aria-modal="true" aria-label="Video">
+    <div class="inf-viewer-bg" data-vclose></div>
+    <button type="button" class="inf-viewer-x" data-vclose aria-label="Close">&times;</button>
+    <div class="inf-viewer-body">
+      <div class="inf-viewer-media"><video id="vViewerVid" controls playsinline loop></video></div>
+      <aside class="inf-viewer-side">
+        <h3 id="vViewerTitle"></h3>
+        <p class="inf-viewer-meta" id="vViewerMeta"></p>
+        <p class="inf-viewer-prompt" id="vViewerPrompt"></p>
+        <div class="inf-viewer-acts">
+          <a class="btn btn-primary" id="vDl" href="#" download>Download MP4</a>
+          <a class="btn btn-secondary" id="vDlMov" href="#" download>Download MOV</a>
+          <button type="button" class="btn btn-danger" id="vDelete">Delete</button>
         </div>
       </aside>
     </div>
