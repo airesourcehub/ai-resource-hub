@@ -51,7 +51,8 @@
         { t: "Add a custom MCP server", d: "Click Add (top right) → Add custom MCP server. Name it AI Resource Hub." },
         { t: "Paste your link", d: "Under Connection keep Server URL selected and paste this link. Your key is inside it, so keep it private:", code: keyUrl() },
         { t: "No authentication, then create", d: "Set Authentication to No authentication, tick I understand and want to continue, then click Create as a plugin." },
-        { t: "Use it in a chat", d: "Start a new chat, type @ and pick AI Resource Hub, then ask for an image, an influencer or a video." }
+        { t: "Use it in a chat", d: "Start a new chat, type @ and pick AI Resource Hub, then ask for an image, an influencer or a video." },
+        { t: "Using the ChatGPT desktop app?", d: "Open Settings → Plugins → MCPs tab → Add and pick the custom MCP option. Name it AI Resource Hub, switch Type from STDIO to Streamable HTTP, paste the same link into URL, leave Bearer token and Headers empty, then click Save." }
       ]; } },
     { id: "claude-code", name: "Claude Code", ic: "CC", color: "#d97757", cli: true, top: true,
       prompt: function () { return "Set up AI Resource Hub for me so I can generate images and videos from here.\n1. Run: claude mcp add --transport http --scope user airh " + MCP_URL + ' --header "Authorization: ' + bearer() + '"\n2. Check it shows up in /mcp.\nThen tell me when it\'s ready.'; },
