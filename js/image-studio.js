@@ -35,15 +35,30 @@
     { key: "edit", label: "Edit a photo" },
     { key: "i2i", label: "Image to image" }
   ];
+  // 1K sizes (about one megapixel). 2K scales the long side to 2048.
   var RATIOS = [
     { id: "1:1", w: 1024, h: 1024 },
-    { id: "3:4", w: 896, h: 1152 },
-    { id: "4:3", w: 1152, h: 896 },
-    { id: "2:3", w: 832, h: 1216 },
     { id: "3:2", w: 1216, h: 832 },
+    { id: "2:3", w: 832, h: 1216 },
+    { id: "16:9", w: 1344, h: 768 },
     { id: "9:16", w: 768, h: 1344 },
-    { id: "16:9", w: 1344, h: 768 }
+    { id: "4:3", w: 1152, h: 896 },
+    { id: "3:4", w: 896, h: 1152 },
+    { id: "21:9", w: 1536, h: 640 }
   ];
+  var QUALITIES = [
+    { id: "low", name: "Low", note: "Fastest. Fewer render steps." },
+    { id: "medium", name: "Medium", note: "Balanced. Each model's standard setting." },
+    { id: "high", name: "High", note: "Best detail. About 50% slower." }
+  ];
+  var RESOLUTIONS = [
+    { id: "1k", name: "1K", note: "About 1024px. Fastest.", long: 0 },
+    { id: "2k", name: "2K", note: "2048px. Sharper, takes longer.", long: 2048 },
+    { id: "4k", name: "4K", note: "4096px. Coming soon.", long: 4096, soon: true }
+  ];
+  var TILE_SIZES = ["s", "m", "l"];
+  var CHECK = '<svg class="opt-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
+  var AUTO_ICON = '<span class="ratio-auto" aria-hidden="true"></span>';
   var DEFAULT_EDIT = "qwen_edit2509";
   var ENHANCERS = ["highly detailed", "sharp focus", "professional lighting", "rich color", "8k, crisp"];
 
@@ -59,8 +74,12 @@
   var state = {
     user: null,
     model: byId(prefs.model) || MODELS[0],
-    ratio: ratioById(prefs.ratio) || RATIOS[0],
-    editRatio: (prefs.editRatio && (prefs.editRatio === "photo" || ratioById(prefs.editRatio))) ? prefs.editRatio : "photo", // edits: "photo" = keep the photo's size
+    ratio: (prefs.ratio === "auto" || ratioById(prefs.ratio)) ? prefs.ratio : "auto",            // "auto" = square
+    editRatio: (prefs.editRatio === "auto" || ratioById(prefs.editRatio)) ? prefs.editRatio : "auto", // edits: "auto" = keep the photo's size
+    quality: QUALITIES.some(function (q) { return q.id === prefs.quality; }) ? prefs.quality : "medium",
+    res: prefs.res === "2k" ? "2k" : "1k",
+    tile: TILE_SIZES.indexOf(prefs.tile) !== -1 ? prefs.tile : "m",
+    lib: { tab: "generations", offset: 0, uploads: [] },
     batch: clamp(Number(prefs.batch) || 1, 1, 4),
     lastEdit: prefs.lastEdit || DEFAULT_EDIT,
     ref: null,            // { blob, url }
@@ -72,7 +91,11 @@
   // ---------------------------------------------------------------- init
   buildModelList();
   buildRatios();
+  buildQuality();
+  buildRes();
   buildCount();
+  wireTileSize();
+  wireLibrary();
   wireComposer();
   wirePopovers();
   wireDragDrop();
@@ -119,7 +142,10 @@
     });
     $("composer").addEventListener("submit", function (e) { e.preventDefault(); onGenerate(); });
     $("enhanceBtn").addEventListener("click", enhancePrompt);
-    $("refAdd").addEventListener("click", function () { $("refInput").click(); });
+    $("refAdd").addEventListener("click", function (e) { e.stopPropagation(); closePops(); openLibrary("uploads"); });
+    $("libBtn").addEventListener("click", function (e) { e.stopPropagation(); closePops(); openLibrary("generations"); });
+    $("countDown").addEventListener("click", function () { setBatch(state.batch - 1); });
+    $("countUp").addEventListener("click", function () { setBatch(state.batch + 1); });
     $("refInput").addEventListener("change", function () {
       var f = this.files && this.files[0];
       if (f) setRef(f);
@@ -174,11 +200,11 @@
   function syncGenerate() {
     var btn = $("generateBtn");
     if (!state.user) {
-      btn.textContent = "Log in to generate";
+      $("goLabel").textContent = "Log in";
       btn.disabled = false;
       return;
     }
-    btn.textContent = state.model.type === "edit" ? "Generate edit" : "Generate";
+    $("goLabel").textContent = state.model.type === "edit" ? "Generate edit" : "Generate";
     var needsRef = state.model.type === "edit" && !state.ref;
     btn.disabled = !$("prompt").value.trim() || needsRef;
     if (needsRef) hint(state.model.name + " edits a photo. Add one with + (or drag it in), or pick a text-to-image model.");
@@ -204,7 +230,7 @@
     state.ref = { blob: fileOrBlob, url: url, ownUrl: own };
     $("refImg").src = url;
     $("refThumb").hidden = false;
-    $("refAdd").hidden = true;
+    rememberUpload(fileOrBlob, url, own);
     if (state.model.type === "create") {
       var m = byId(state.lastEdit) || byId(DEFAULT_EDIT);
       selectModel(m.id, true);
@@ -220,7 +246,6 @@
     if (state.ref && state.ref.ownUrl) URL.revokeObjectURL(state.ref.url);
     state.ref = null;
     $("refThumb").hidden = true;
-    $("refAdd").hidden = false;
     $("refImg").removeAttribute("src");
     syncChips(); syncGenerate();
   }
@@ -348,69 +373,112 @@
     savePrefs();
     buildModelList($("modelSearch").value);
     if (m.lora) loadLoras(); else $("loraPick").value = "";
-    buildRatios(); syncChips(); syncGenerate();
+    buildRatios(); buildRes(); syncChips(); syncGenerate();
   }
 
-  // --------------------------------------------------------- ratio/count
+  // ------------------------------------------- ratio / quality / size / count
   function ratioBox(r, max) {
     var s = max / Math.max(r.w, r.h);
     return '<span class="ratio-icon" style="width:' + Math.round(r.w * s) + "px;height:" + Math.round(r.h * s) + 'px"></span>';
   }
 
-  // The size the next run will use: a RATIOS entry, or null = keep the photo's size (edits only).
+
+  function ratioChoice() { return state.model.type === "edit" ? state.editRatio : state.ratio; }
+
+  // The size the next run will use: { id, w, h }, or null = keep the photo's size (edits on Auto).
   function outRatio() {
-    if (state.model.type !== "edit") return state.ratio;
-    return state.editRatio === "photo" ? null : ratioById(state.editRatio);
+    var choice = ratioChoice();
+    var r;
+    if (choice === "auto") {
+      if (state.model.type === "edit") return null;
+      r = RATIOS[0];
+    } else {
+      r = ratioById(choice) || RATIOS[0];
+    }
+    return sized(r);
+  }
+
+  function sized(r) {
+    var res = resById(state.res);
+    if (!res || !res.long || res.soon) return { id: r.id, w: r.w, h: r.h };
+    var k = res.long / Math.max(r.w, r.h);
+    return { id: r.id, w: Math.round(r.w * k / 16) * 16, h: Math.round(r.h * k / 16) * 16 };
   }
 
   function buildRatios() {
     var isEdit = state.model.type === "edit";
-    var cur = outRatio();
-    var html = isEdit
-      ? '<button type="button" class="ratio-opt ratio-photo' + (cur ? "" : " is-on") + '" data-id="photo">' +
-        '<span class="ratio-box"><span class="ratio-icon ratio-icon-photo" aria-hidden="true"></span></span>Photo<small>Keep its size</small></button>'
-      : "";
+    var cur = ratioChoice();
+    var html = '<button type="button" class="opt' + (cur === "auto" ? " is-on" : "") + '" data-id="auto">' +
+      '<span class="opt-ic">' + AUTO_ICON + '</span><span class="opt-txt"><span class="opt-name">Auto</span>' +
+      '<span class="opt-note">' + (isEdit ? "Keep your photo's shape" : "Square") + "</span></span>" + CHECK + "</button>";
     html += RATIOS.map(function (r) {
-      return '<button type="button" class="ratio-opt' + (cur && r.id === cur.id ? " is-on" : "") + '" data-id="' + r.id + '">' +
-        '<span class="ratio-box">' + ratioBox(r, 28) + "</span>" + r.id + "<small>" + r.w + "&times;" + r.h + "</small></button>";
+      return '<button type="button" class="opt' + (cur === r.id ? " is-on" : "") + '" data-id="' + r.id + '">' +
+        '<span class="opt-ic">' + ratioBox(r, 18) + '</span><span class="opt-txt"><span class="opt-name">' + r.id + "</span></span>" + CHECK + "</button>";
     }).join("");
-    $("ratioGrid").innerHTML = html;
-    $("ratioGrid").style.gridTemplateColumns = "repeat(4, 1fr)";
-    $("ratioNote").hidden = !isEdit;
-    Array.prototype.forEach.call($("ratioGrid").querySelectorAll(".ratio-opt"), function (b) {
+    $("ratioList").innerHTML = html;
+    Array.prototype.forEach.call($("ratioList").querySelectorAll(".opt"), function (b) {
       b.addEventListener("click", function () {
         var id = b.getAttribute("data-id");
-        if (state.model.type === "edit") state.editRatio = id;
-        else state.ratio = ratioById(id);
-        savePrefs(); buildRatios(); syncChips(); closePops();
+        if (state.model.type === "edit") state.editRatio = id; else state.ratio = id;
+        savePrefs(); buildRatios(); buildRes(); syncChips(); closePops();
+      });
+    });
+  }
+
+  function buildQuality() {
+    $("qualityList").innerHTML = QUALITIES.map(function (q) {
+      return '<button type="button" class="opt opt-tall' + (q.id === state.quality ? " is-on" : "") + '" data-id="' + q.id + '">' +
+        '<span class="opt-txt"><span class="opt-name">' + q.name + '</span><span class="opt-note">' + esc(q.note) + "</span></span>" + CHECK + "</button>";
+    }).join("");
+    Array.prototype.forEach.call($("qualityList").querySelectorAll(".opt"), function (b) {
+      b.addEventListener("click", function () {
+        state.quality = b.getAttribute("data-id");
+        savePrefs(); buildQuality(); syncChips(); closePops();
+      });
+    });
+  }
+
+  function buildRes() {
+    var keepsPhoto = state.model.type === "edit" && state.editRatio === "auto";
+    $("resList").innerHTML = RESOLUTIONS.map(function (r) {
+      var on = r.id === state.res;
+      return '<button type="button" class="opt opt-tall' + (on ? " is-on" : "") + '" data-id="' + r.id + '"' + (r.soon || keepsPhoto ? " disabled" : "") + ">" +
+        '<span class="opt-txt"><span class="opt-name">' + r.name + (r.soon ? ' <span class="mini-tag">Soon</span>' : "") + '</span><span class="opt-note">' + esc(r.note) + "</span></span>" + CHECK + "</button>";
+    }).join("");
+    $("resNote").hidden = !keepsPhoto;
+    Array.prototype.forEach.call($("resList").querySelectorAll(".opt:not([disabled])"), function (b) {
+      b.addEventListener("click", function () {
+        state.res = b.getAttribute("data-id");
+        savePrefs(); buildRes(); syncChips(); closePops();
       });
     });
   }
 
   function buildCount() {
-    var html = "";
-    for (var n = 1; n <= 4; n++) html += '<button type="button" data-n="' + n + '"' + (n === state.batch ? ' class="is-on"' : "") + ">" + n + "</button>";
-    $("countSeg").innerHTML = html;
-    Array.prototype.forEach.call($("countSeg").querySelectorAll("button"), function (b) {
-      b.addEventListener("click", function () {
-        state.batch = Number(b.getAttribute("data-n"));
-        savePrefs(); buildCount(); syncChips(); closePops();
-      });
-    });
+    $("countOut").textContent = state.batch + "/4";
+    $("countDown").disabled = state.batch <= 1;
+    $("countUp").disabled = state.batch >= 4;
+  }
+
+  function setBatch(n) {
+    state.batch = clamp(n, 1, 4);
+    savePrefs(); buildCount(); syncChips();
   }
 
   function syncChips() {
     var m = state.model;
     $("chipModelThumb").setAttribute("style", thumbCss(m.id));
     $("chipModelName").textContent = m.name;
+    var choice = ratioChoice();
     var r = outRatio();
-    $("chipRatio").disabled = false;
-    $("chipRatio").title = r ? r.w + " × " + r.h : "Same size as your photo";
-    $("chipRatioName").textContent = r ? r.id : "Photo size";
-    $("chipRatioIcon").outerHTML = r
-      ? '<span class="ratio-icon" id="chipRatioIcon" style="' + ratioBox(r, 14).match(/style="([^"]+)"/)[1] + '"></span>'
-      : '<span class="ratio-icon ratio-icon-photo" id="chipRatioIcon"></span>';
-    $("chipCountName").textContent = state.batch + (state.batch === 1 ? " image" : " images");
+    $("chipRatio").title = r ? "Aspect ratio · " + r.w + " × " + r.h : "Aspect ratio · same as your photo";
+    $("chipRatioName").textContent = choice === "auto" ? "Auto" : choice;
+    $("chipRatioIcon").outerHTML = choice === "auto"
+      ? '<span class="ratio-auto" id="chipRatioIcon" aria-hidden="true"></span>'
+      : '<span class="ratio-icon" id="chipRatioIcon" style="' + ratioBox(ratioById(choice), 14).match(/style="([^"]+)"/)[1] + '"></span>';
+    $("chipQualityName").textContent = (QUALITIES.filter(function (q) { return q.id === state.quality; })[0] || QUALITIES[1]).name;
+    var keepsPhoto = !r;
+    $("chipResName").textContent = keepsPhoto ? "Photo" : resById(state.res).name;
     $("chipLora").hidden = !m.lora;
     var lora = $("loraPick");
     var loraLabel = lora.value ? (lora.options[lora.selectedIndex] || {}).text : "";
@@ -419,6 +487,160 @@
     var neg = $("negative").value.trim();
     $("chipAvoidName").textContent = neg ? "Avoid: " + truncate(neg, 16) : "Avoid";
     $("chipAvoid").classList.toggle("is-set", !!neg);
+    var sub = state.batch + (state.batch === 1 ? " image" : " images");
+    sub += r ? " · " + (state.res === "2k" ? "2K" : "1K") : " · photo size";
+    $("goSub").textContent = sub;
+  }
+
+  // ------------------------------------------------------------ tile size
+  function wireTileSize() {
+    Array.prototype.forEach.call(document.querySelectorAll(".size-seg button"), function (b) {
+      b.addEventListener("click", function () { state.tile = b.getAttribute("data-size"); savePrefs(); applyTileSize(); });
+    });
+    applyTileSize();
+  }
+
+  function applyTileSize() {
+    var feed = $("studioFeed");
+    TILE_SIZES.forEach(function (s) { feed.classList.toggle("tiles-" + s, s === state.tile); });
+    Array.prototype.forEach.call(document.querySelectorAll(".size-seg button"), function (b) {
+      var on = b.getAttribute("data-size") === state.tile;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  // -------------------------------------------------------------- library
+  // Pick a photo to edit: this session's uploads, your generations, or your AI influencers.
+  function wireLibrary() {
+    $("libClose").addEventListener("click", closeLibrary);
+    $("lib").addEventListener("click", function (e) { if (e.target === $("lib")) closeLibrary(); });
+    Array.prototype.forEach.call(document.querySelectorAll(".lib-tabs [data-tab]"), function (b) {
+      b.addEventListener("click", function () { showLibTab(b.getAttribute("data-tab")); });
+    });
+    $("libMore").addEventListener("click", function () { loadLibPage(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("lib").hidden) closeLibrary(); });
+  }
+
+  function openLibrary(tab) {
+    $("lib").hidden = false;
+    document.body.classList.add("lib-open");
+    showLibTab(tab);
+    var t = document.querySelector('.lib-tabs [data-tab="' + tab + '"]');
+    if (t) t.focus();
+  }
+
+  function closeLibrary() {
+    $("lib").hidden = true;
+    document.body.classList.remove("lib-open");
+  }
+
+  function showLibTab(tab) {
+    state.lib.tab = tab;
+    state.lib.offset = 0;
+    Array.prototype.forEach.call(document.querySelectorAll(".lib-tabs [data-tab]"), function (b) {
+      var on = b.getAttribute("data-tab") === tab;
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    $("libGrid").innerHTML = "";
+    $("libMore").hidden = true;
+    if (tab === "uploads") return paintUploads();
+    if (!state.user) {
+      $("libSub").textContent = "";
+      $("libGrid").innerHTML = '<p class="lib-empty">Log in to see your ' + (tab === "influencers" ? "AI influencers" : "generations") + '. <a href="auth.html">Log in</a></p>';
+      return;
+    }
+    $("libSub").textContent = tab === "influencers" ? "Pick a character to use as your photo." : "Pick an image to edit it.";
+    loadLibPage();
+  }
+
+  function paintUploads() {
+    $("libSub").textContent = "Upload a photo to edit. You can also drag one onto the page or paste it.";
+    var html = '<button type="button" class="lib-upload" id="libUpload"><span class="lib-upload-ic" aria-hidden="true">' +
+      '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg></span>Upload media</button>';
+    state.lib.uploads.forEach(function (u, i) {
+      html += '<button type="button" class="lib-item" data-up="' + i + '"><img alt="Uploaded photo ' + (i + 1) + '" src="' + esc(u.url) + '" /></button>';
+    });
+    $("libGrid").innerHTML = html;
+    $("libUpload").addEventListener("click", function () { $("refInput").click(); });
+    Array.prototype.forEach.call($("libGrid").querySelectorAll("[data-up]"), function (b) {
+      b.addEventListener("click", function () {
+        var u = state.lib.uploads[Number(b.getAttribute("data-up"))];
+        closeLibrary();
+        if (u) setRef(u.blob, u.url);
+      });
+    });
+  }
+
+  function rememberUpload(blob, url, own) {
+    if (!own) return; // only real uploads, not images picked from the library
+    if (state.lib.uploads.some(function (u) { return u.blob === blob; })) return;
+    state.lib.uploads.unshift({ blob: blob, url: URL.createObjectURL(blob) });
+    state.lib.uploads = state.lib.uploads.slice(0, 24);
+    if (!$("lib").hidden) closeLibrary();
+  }
+
+  async function loadLibPage() {
+    if (!client || !state.user) return;
+    var tab = state.lib.tab;
+    var from = state.lib.offset, n = 30;
+    var items = [];
+    $("libMore").disabled = true;
+    if (tab === "generations") {
+      var res = await client.from("image_jobs").select("id, prompt, urls, created_at")
+        .eq("user_id", state.user.id).eq("status", "done")
+        .order("created_at", { ascending: false }).range(from, from + n - 1);
+      (res.data || []).forEach(function (r) { (r.urls || []).forEach(function (u) { items.push({ src: absUrl(u), label: r.prompt || "" }); }); });
+      state.lib.offset += (res.data || []).length;
+      $("libMore").hidden = (res.data || []).length < n;
+    } else {
+      var inf = await client.from("influencers").select("id, name, job_id, created_at")
+        .eq("user_id", state.user.id).order("created_at", { ascending: false }).range(from, from + n - 1);
+      var rows = inf.data || [];
+      var ids = rows.map(function (r) { return r.job_id; }).filter(Boolean);
+      var jobs = {};
+      if (ids.length) {
+        var jr = await client.from("image_jobs").select("id, status, urls").in("id", ids);
+        (jr.data || []).forEach(function (j) { jobs[j.id] = j; });
+      }
+      rows.forEach(function (r) {
+        var j = jobs[r.job_id];
+        if (j && j.status === "done" && (j.urls || []).length) items.push({ src: absUrl(j.urls[0]), label: r.name || "AI influencer" });
+      });
+      state.lib.offset += rows.length;
+      $("libMore").hidden = rows.length < n;
+    }
+    if (tab !== state.lib.tab) return; // switched tabs while loading
+    $("libMore").disabled = false;
+    if (!items.length && from === 0) {
+      $("libGrid").innerHTML = '<p class="lib-empty">' + (tab === "influencers"
+        ? 'No AI influencers yet. <a href="influencer.html">Create one</a>.'
+        : "No generations yet. Make your first image below.") + "</p>";
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    items.forEach(function (it) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "lib-item";
+      b.title = it.label;
+      var img = document.createElement("img");
+      img.loading = "lazy";
+      img.alt = it.label;
+      img.src = it.src;
+      img.addEventListener("error", function () { b.classList.add("is-missing"); });
+      b.appendChild(img);
+      if (tab === "influencers") {
+        var cap = document.createElement("span");
+        cap.className = "lib-cap";
+        cap.textContent = it.label;
+        b.appendChild(cap);
+      }
+      b.addEventListener("click", function () { closeLibrary(); useAsRef(it.src); });
+      frag.appendChild(b);
+    });
+    $("libGrid").appendChild(frag);
   }
 
   // ---------------------------------------------------------------- LoRA
@@ -503,6 +725,7 @@
     var negative = $("negative").value.trim();
     fd.append("negative", negative);
     fd.append("batch", String(state.batch));
+    fd.append("quality", state.quality);
     var out = outRatio();
     if (out) { fd.append("width", String(out.w)); fd.append("height", String(out.h)); }
     if (m.type === "edit" && out) fd.append("size", "custom");
@@ -636,6 +859,10 @@
   function renderFeed() {
     var host = $("studioFeed");
     $("studio").classList.toggle("has-jobs", state.jobs.length > 0);
+    $("studioToolbar").hidden = state.jobs.length === 0;
+    var shots = 0;
+    state.jobs.forEach(function (j) { shots += j.pending ? (j.batch || 1) : (j.urls || []).length; });
+    $("studioCount").textContent = shots + (shots === 1 ? " image" : " images");
     host.innerHTML = "";
     host.classList.add("studio-wall");
     state.jobs.forEach(function (job) {
@@ -754,12 +981,15 @@
     $("prompt").value = job.prompt || "";
     $("negative").value = job.negative || "";
     if (job.width && job.height && m) {
-      var r = RATIOS.filter(function (x) { return x.w === job.width && x.h === job.height; })[0];
-      if (m.type === "create" && r) state.ratio = r;
-      if (m.type === "edit") state.editRatio = r ? r.id : "photo";
-      buildRatios();
+      var rid = closestRatio(job.width, job.height);
+      var r = ratioById(rid);
+      if (m.type === "create") state.ratio = r ? r.id : "auto";
+      if (m.type === "edit") state.editRatio = r ? r.id : "auto";
+      state.res = Math.max(job.width, job.height) > 1600 ? "2k" : "1k";
+      buildRatios(); buildRes();
     }
     if (job.batch) { state.batch = clamp(job.batch, 1, 4); buildCount(); }
+    if (job.quality) { state.quality = job.quality; buildQuality(); }
     savePrefs(); autosize(); syncChips(); syncGenerate();
     if (m && m.type === "edit" && !state.ref) hint("Add the photo you want to edit, then generate.");
     $("prompt").focus();
@@ -925,6 +1155,7 @@
   function closestRatio(w, h) {
     var exact = RATIOS.filter(function (r) { return r.w === w && r.h === h; })[0];
     if (exact) return exact.id;
+    if (!w || !h) return "";
     var a = w / h, best = null, diff = 9;
     RATIOS.forEach(function (r) { var d = Math.abs(r.w / r.h - a); if (d < diff) { diff = d; best = r; } });
     return diff < 0.04 ? best.id : w + "×" + h;
@@ -932,6 +1163,7 @@
 
   function byId(id) { return MODELS.filter(function (m) { return m.id === id; })[0] || null; }
   function ratioById(id) { return RATIOS.filter(function (r) { return r.id === id; })[0] || null; }
+  function resById(id) { return RESOLUTIONS.filter(function (r) { return r.id === id; })[0] || RESOLUTIONS[0]; }
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
   function truncate(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -952,7 +1184,8 @@
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (e) { return {}; } }
   function savePrefs() {
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ model: state.model.id, ratio: state.ratio.id, editRatio: state.editRatio, batch: state.batch, lastEdit: state.lastEdit }));
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ model: state.model.id, ratio: state.ratio, editRatio: state.editRatio, batch: state.batch, lastEdit: state.lastEdit,
+        quality: state.quality, res: state.res, tile: state.tile }));
     } catch (e) {}
   }
 })();
