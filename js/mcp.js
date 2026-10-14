@@ -47,10 +47,11 @@
       ]; } },
     { id: "chatgpt", name: "ChatGPT", ic: "G", color: "#10a37f", cta: "Connect to ChatGPT", top: true,
       steps: function () { return [
-        { t: "Turn on Developer mode", d: "In ChatGPT open Settings → Connectors → Advanced settings and switch on Developer mode (Plus and Pro plans)." },
-        { t: "Create the connector", d: "Back in Connectors, click Create. Name it AI Resource Hub and paste this URL. Your key is inside it, so keep it private:", code: keyUrl() },
-        { t: "No authentication", d: "Choose No authentication, tick that you trust the app, then click Create." },
-        { t: "Use it in a chat", d: "Start a new chat, open + → More → Developer mode and switch on AI Resource Hub." }
+        { t: "Open Plugins", d: "In ChatGPT, click Plugins in the left sidebar (or go to chatgpt.com/plugins). No Developer mode needed any more." },
+        { t: "Add a custom MCP server", d: "Click Add (top right) → Add custom MCP server. Name it AI Resource Hub." },
+        { t: "Paste your link", d: "Under Connection keep Server URL selected and paste this link. Your key is inside it, so keep it private:", code: keyUrl() },
+        { t: "No authentication, then create", d: "Set Authentication to No authentication, tick I understand and want to continue, then click Create as a plugin." },
+        { t: "Use it in a chat", d: "Start a new chat, type @ and pick AI Resource Hub, then ask for an image, an influencer or a video." }
       ]; } },
     { id: "claude-code", name: "Claude Code", ic: "CC", color: "#d97757", cli: true, top: true,
       prompt: function () { return "Set up AI Resource Hub for me so I can generate images and videos from here.\n1. Run: claude mcp add --transport http --scope user airh " + MCP_URL + ' --header "Authorization: ' + bearer() + '"\n2. Check it shows up in /mcp.\nThen tell me when it\'s ready.'; },
@@ -142,7 +143,7 @@
 
   var FAQ = [
     ["What is MCP?", "Model Context Protocol is the open standard AI apps use to plug in tools. Connect once and your AI can render on your GPU whenever you ask."],
-    ["Which apps work?", "Claude (web, desktop and Claude Code), ChatGPT with Developer mode, Cursor, VS Code with Copilot, Windsurf, Gemini CLI, Codex CLI, and any other app that supports remote MCP servers."],
+    ["Which apps work?", "Claude (web, desktop and Claude Code), ChatGPT (Plugins → Add custom MCP server), Cursor, VS Code with Copilot, Windsurf, Gemini CLI, Codex CLI, and any other app that supports remote MCP servers."],
     ["Where do my renders go?", "Everything shows up on the site too: images in Image Studio and My Images, characters in AI Influencer, videos in your render archives."],
     ["Why does it take a moment?", "Jobs run on your GPU one at a time. Your AI waits for each one and shares the link when it is done."],
     ["Which GPU does my AI use?", "Your own. Connect your PC once on the My GPU page (airesourcehub.vip/gpu) and keep the GPU Connector open while your AI works. If the admin has approved you for his GPU, your AI uses that whenever your PC is offline."],
