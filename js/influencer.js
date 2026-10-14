@@ -21,16 +21,16 @@
     { id: "normal", label: "Average", human: true },
     { id: "freak", label: "Bold", human: true },
     { id: "total", label: "Extreme", human: true },
-    { id: "insect", label: "Insect", animal: "insect (a realistic praying-mantis style insect head with compound eyes and antennae)" },
-    { id: "frog", label: "Frog", animal: "frog (a realistic frog head)" },
-    { id: "cat", label: "Cat", animal: "cat (a realistic cat head with fur and whiskers)" },
-    { id: "dog", label: "Dog", animal: "dog (a realistic pug-like dog head)" },
-    { id: "rodent", label: "Rodent", animal: "capybara (a realistic capybara head)" },
-    { id: "bird", label: "Bird", animal: "bird (a realistic bird head with a beak and feathers)" }
+    { id: "insect", label: "Insect", animal: "praying mantis", head: "a giant green praying mantis head: triangular insect head with two huge bulging compound eyes, long thin antennae and small mandibles, smooth green exoskeleton" },
+    { id: "frog", label: "Frog", animal: "frog", head: "a realistic green frog head with big round golden eyes, a wide frog mouth and smooth moist green skin" },
+    { id: "cat", label: "Cat", animal: "cat", head: "a realistic cat head with fur, whiskers and pointed ears" },
+    { id: "dog", label: "Dog", animal: "dog", head: "a realistic pug dog head with a wrinkled black muzzle and floppy ears" },
+    { id: "rodent", label: "Rodent", animal: "capybara", head: "a realistic capybara head with coarse brown fur, small round ears and a blunt snout" },
+    { id: "bird", label: "Bird", animal: "bird", head: "a realistic bird head with feathers, round eyes and a curved beak" }
   ];
 
   // Option flags: h = humans only, b = Bold/Extreme/animals only,
-  // x = Extreme only, a = animals only. Third item = prompt wording.
+  // x = Extreme only, X = Extreme or animals, a = animals only. Third item = prompt wording.
   var GROUPS = [
     { id: "gender", label: "Gender", max: 1, options: [
       ["female", "Female", "", "woman"], ["male", "Male", "", "man"],
@@ -40,7 +40,7 @@
       ["slim", "Slim", "", "slim build"], ["athletic", "Athletic", "", "athletic build"],
       ["muscular", "Muscular", "", "muscular build"], ["curvy", "Curvy", "", "curvy figure"],
       ["heavy", "Heavy", "", "heavyset build"], ["ultra", "Ultra Muscular", "", "hugely over-muscled bodybuilder physique"],
-      ["centaur", "Centaur", "x", "centaur body with a horse's lower half"]] },
+      ["centaur", "Centaur", "X", "centaur body with a horse's lower half"]] },
     { id: "hair", label: "Hairstyle", max: 1, options: [
       ["bob", "Bob", "b", "rounded lampshade bob haircut"], ["bald", "Bald", "", "completely bald head"],
       ["buzz", "Buzz cut", "", "buzz cut"], ["bowl", "Bowl cut", "", "bowl cut"], ["mullet", "Mullet", "", "mullet"],
@@ -121,6 +121,7 @@
   var VIEWS = {
     full: { w: 832, h: 1216, lead: "Full-body fashion photo, head to toe, of", tail: "standing straight and facing the camera, whole body in frame including shoes" },
     portrait: { w: 896, h: 1152, lead: "Close-up portrait photo, head and shoulders, of", tail: "looking straight into the camera" },
+    card: { w: 1344, h: 768, white: true, lead: "Two-panel photorealistic character sheet of", tail: "LEFT panel: a tight front-facing close-up portrait with the entire head and hair in frame; RIGHT panel: the exact same character full body, standing straight, arms hanging at the sides, head to toe with shoes visible; both panels front-facing with a blank deadpan expression, identical character and outfit in both panels" },
     sheet: { w: 1344, h: 768, lead: "Character turnaround reference sheet of", tail: "shown four times side by side as the exact same character: front view, three-quarter view, side profile and back view, all full body, identical outfit and features" }
   };
   var ENGINES = { zimage: "Z-Image Turbo", flux2: "FLUX.2", qwen_edit2509: "Qwen Edit 2509" };
@@ -191,6 +192,7 @@
   renderFan();
   syncSeg("viewSeg", "data-view", state.view);
   syncSeg("engineSeg", "data-engine", state.engine);
+  syncEngineNote();
   $("batchVal").textContent = state.batch;
   wireMotion();
   applyLinkParams();
@@ -222,6 +224,7 @@
     if (flags.indexOf("h") > -1 && !human) return false;
     if (flags.indexOf("a") > -1 && human) return false;
     if (flags.indexOf("x") > -1 && t !== "total") return false;
+    if (flags.indexOf("X") > -1 && human && t !== "total") return false;
     if (flags.indexOf("b") > -1 && t === "normal") return false;
     return true;
   }
@@ -269,7 +272,15 @@
       state.traits[gid] = (state.traits[gid] || []).filter(function (oid) { var o = optOf(g, oid); return o && allowed(o[2]); });
       if (!state.traits[gid].length) delete state.traits[gid];
     });
-    buildGroups(); renderPicked();
+    buildGroups(); renderPicked(); syncEngineNote();
+  }
+
+  function syncEngineNote() {
+    var seg = $("engineSeg"); if (!seg) return;
+    var animal = isAnimal();
+    seg.classList.toggle("is-locked", animal);
+    seg.title = animal ? "Animal-head characters always use Best (FLUX.2): it keeps the animal head on a human body." : "";
+    syncSeg("engineSeg", "data-engine", animal ? "flux2" : state.engine);
   }
 
   function toggleOpt(gid, oid) {
@@ -324,7 +335,7 @@
       state.traits[g.id] = out;
     });
     if (state.traits.gender && state.traits.gender[0] === "female") delete state.traits.facialhair;
-    buildGroups(); renderPicked();
+    buildGroups(); renderPicked(); syncEngineNote();
     hint("Random character loaded. Tweak anything, then Generate.");
   }
 
@@ -335,6 +346,7 @@
     $("infName").value = name || "";
     setPane("create");
     buildGroups(); renderPicked();
+    syncEngineNote();
     $("paneCreate").scrollTop = 0;
     if (window.matchMedia("(max-width: 960px)").matches) root.scrollIntoView({ behavior: "smooth" });
     hint("Settings loaded" + (name ? " from " + name : "") + ". Change anything, then Generate.");
@@ -355,7 +367,9 @@
       var vibe = t.id === "freak" ? "a bold, quirky, slightly exaggerated " : t.id === "total" ? "an extreme, surreal, heavily exaggerated caricature of a " : "a realistic ";
       subject = vibe + subject;
     } else {
-      subject = "an anthropomorphic " + who + " character with the head of " + (/^[aeiou]/i.test(t.animal) ? "an " : "a ") + t.animal + " on a human body";
+      // The animal head REPLACES the human head (not an animal sitting on a person).
+      subject = "a surreal photoreal hybrid character: a human " + who + "'s body from the neck down, but instead of a human head it has " + t.head +
+        ", attached directly to the human neck and scaled like a human head; no human face, no human skin or human ears on the head, the " + t.animal + " head is the character's real head";
     }
     parts.push(V.lead + " " + subject + (pickOne("style") ? ", fully clothed in " + pickOne("style") : ", fully clothed in a stylish outfit"));
     var body = [pickOne("height"), pickOne("build")].filter(Boolean).join(", ");
@@ -363,7 +377,12 @@
     if (body || prop.length) parts.push([body, prop.length ? "with " + prop.join(" and ") : ""].filter(Boolean).join(" "));
     if (pickOne("skin")) parts.push(pickOne("skin") + " skin tone");
     var hair = pickOne("hair"), hc = pickOne("haircolor");
-    if (hair) parts.push(state.traits.hair[0] === "bald" ? hair : hair + (hc ? " in " + hc : ""));
+    if (!t.human) {
+      // hair sits ON the animal head, like a wig/hairdo
+      if (hair && state.traits.hair[0] !== "bald") parts.push("hair growing from the top of the " + t.animal + " head: " + hair + (hc ? " in " + hc : ""));
+      else if (hc) parts.push("tuft of " + hc + " hair on top of the " + t.animal + " head");
+    }
+    else if (hair) parts.push(state.traits.hair[0] === "bald" ? hair : hair + (hc ? " in " + hc : ""));
     else if (hc) parts.push(hc + " hair");
     var face = [pickOne("head"), pickOne("neck")].filter(Boolean);
     var eyes = [pickOne("eyeshape"), pickOne("eyecolor")].filter(Boolean).join(" ");
@@ -371,15 +390,16 @@
     if (face.length) parts.push(face.join(", "));
     var shaven = (state.traits.facialhair || [])[0] === "clean";
     var feats = pickAll("features").concat(shaven ? [] : pickAll("facialhair"), pickAll("distinctive"));
-    if (feats.length) parts.push("with " + feats.join(", "));
+    if (feats.length) parts.push((t.human ? "with " : "the " + t.animal + " face has ") + feats.join(", "));
     if (shaven) parts.push("clean-shaven");
     var acc = pickAll("accessories");
     if (acc.length) parts.push("accessorized with " + acc.join(", "));
     var extra = $("infExtra").value.trim();
     if (extra) parts.push(extra);
     parts.push(V.tail);
-    parts.push(t.id === "total" ? "surreal hyper-detailed character design, plain light grey studio backdrop, soft even studio lighting, sharp focus"
-      : "plain light grey studio backdrop, soft even studio lighting, photorealistic, natural skin texture, sharp focus, high detail, editorial fashion photography");
+    var bg = V.white ? "pure white seamless studio background, bright soft even light, faint contact shadow under the feet" : "plain light grey studio backdrop, soft even studio lighting";
+    parts.push(t.id === "total" ? "surreal hyper-detailed but photoreal character design, " + bg + ", sharp focus"
+      : bg + ", photorealistic, natural skin texture, sharp focus, high detail, editorial fashion photography");
     return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
   }
 
@@ -400,7 +420,7 @@
     if (!token) { hint("Your session expired. Log in again to keep creating.", true); return; }
     var view = state.view, V = VIEWS[view];
     var fromPhoto = !!state.photo;
-    var model = fromPhoto ? "qwen_edit2509" : state.engine;
+    var model = fromPhoto ? "qwen_edit2509" : isAnimal() ? "flux2" : state.engine;
     var prompt = fromPhoto ? buildEditPrompt(view) : buildPrompt(view);
     var name = $("infName").value.trim() || autoName();
 
@@ -481,7 +501,7 @@
   // ------------------------------------------------------------ my influencers
   async function loadMine() {
     if (!client || !state.user) return;
-    var res = await client.from("influencers").select("id, name, tier, traits, view, model, prompt, job_id, from_photo, created_at")
+    var res = await client.from("influencers").select("id, name, tier, traits, view, model, prompt, job_id, from_photo, favorite, created_at")
       .eq("user_id", state.user.id).order("created_at", { ascending: false }).range(state.offset, state.offset + PAGE - 1);
     var rows = res.data || [];
     var ids = rows.map(function (r) { return r.job_id; }).filter(Boolean);
@@ -505,7 +525,7 @@
 
   function renderMine() {
     var wall = $("mineWall");
-    var list = state.mine;
+    var list = state.mine.filter(function (c) { return c.favorite; }).concat(state.mine.filter(function (c) { return !c.favorite; }));
     $("mineCount").textContent = list.length ? String(list.length) : "";
     $("mineEmpty").hidden = !(state.user && !list.length);
     wall.innerHTML = "";
@@ -529,13 +549,19 @@
       img.src = absUrl(url);
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(c.name || "Influencer") + "</strong><span>" + esc(tierOf(c.tier).label) + "</span></div>" +
-        '<div class="inf-tile-acts"><button type="button" class="inf-tomotion" data-act="motion"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Turn to motion</button>' +
-        '<button type="button" class="inf-recreate" data-act="recreate">Recreate</button></div>' +
+        '<div class="inf-tile-acts"><button type="button" class="inf-recreate" data-act="recreate">Recreate</button></div>' +
+        '<div class="inf-tile-side">' +
+          '<button type="button" class="inf-icon-btn inf-fav' + (c.favorite ? " is-on" : "") + '" data-act="fav" title="Favorite" aria-label="Favorite" aria-pressed="' + !!c.favorite + '"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z\"/></svg></button>' +
+          '<button type="button" class="inf-icon-btn" data-act="dl" title="Download" aria-label="Download"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3v12m0 0-4-4m4 4 4-4M5 21h14\"/></svg></button>' +
+        '</div>' +
+        '<button type="button" class="inf-tomotion" data-act="motion"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Turn to motion</button>' +
         '<div class="inf-missing-note">Image unavailable while the GPU machine is offline</div>');
       t.tabIndex = 0;
       t.addEventListener("click", function (e) {
         if (e.target.closest("[data-act=recreate]")) { e.stopPropagation(); loadRecipe(c.tier, c.traits, c.name); return; }
         if (e.target.closest("[data-act=motion]")) { e.stopPropagation(); toMotion(c, url); return; }
+        if (e.target.closest("[data-act=fav]")) { e.stopPropagation(); toggleFav(c); return; }
+        if (e.target.closest("[data-act=dl]")) { e.stopPropagation(); downloadImg(absUrl(url), c.name); return; }
         openViewer(c, url);
       });
       t.addEventListener("keydown", function (e) { if (e.key === "Enter") openViewer(c, url); });
@@ -548,6 +574,26 @@
       t.querySelector("[data-act=recreate]").addEventListener("click", function () { loadRecipe(c.tier, c.traits, c.name); });
     }
     return t;
+  }
+
+  async function toggleFav(c) {
+    c.favorite = !c.favorite;
+    renderMine();
+    if (client && realId(c.id)) {
+      var r = await client.from("influencers").update({ favorite: c.favorite }).eq("id", c.id);
+      if (r.error) { c.favorite = !c.favorite; renderMine(); hint("Couldn't save the favorite. Try again.", true); }
+    }
+  }
+
+  async function downloadImg(src, name) {
+    try {
+      var blob = await (await fetch(src)).blob();
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "influencer-" + slug(name || "character") + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    } catch (e) { window.open(src, "_blank", "noopener"); }
   }
 
   function updateCard(c) {
@@ -595,7 +641,7 @@
       syncMotionLinks(); return;
     }
     if (!state.motionPick || !ready.some(function (r) { return r.u === state.motionPick; })) state.motionPick = ready[0].u;
-    if (!state.m.char) { var first = ready.filter(function (r) { return r.u === state.motionPick; })[0] || ready[0]; setChar({ url: first.u, name: first.c.name, infId: realId(first.c.id) }, true); }
+    if (!state.m.char) { var first = ready.filter(function (r) { return r.u === state.motionPick; })[0] || ready[0]; setChar({ url: first.u, name: first.c.name, infId: realId(first.c.id), crop: first.c.view === "card" ? "right" : (first.c.view === "sheet" ? "left" : "") }, true); }
     box.innerHTML = ready.slice(0, 36).map(function (r) {
       var on = !!state.m.char && state.m.char.url === r.u;
       return '<button type="button" class="inf-pick-item' + (on ? " is-on" : "") + '" data-u="' + esc(r.u) + '" data-id="' + esc(r.c.id) + '" title="' + esc(r.c.name || "") + '"><img src="' + esc(absUrl(r.u)) + '" alt="' + esc(r.c.name || "Influencer") + '" loading="lazy" /></button>';
@@ -673,7 +719,7 @@
     $("batchMinus").addEventListener("click", function () { setBatch(state.batch - 1); });
     $("batchPlus").addEventListener("click", function () { setBatch(state.batch + 1); });
     segWire("viewSeg", "data-view", function (v) { state.view = v; savePrefs(); });
-    segWire("engineSeg", "data-engine", function (v) { state.engine = v; savePrefs(); });
+    segWire("engineSeg", "data-engine", function (v) { if (isAnimal()) { syncEngineNote(); hint("Animal-head characters always use Best (FLUX.2)."); return; } state.engine = v; savePrefs(); });
 
     Array.prototype.forEach.call(document.querySelectorAll(".inf-seg button"), function (b) {
       b.addEventListener("click", function () { setPane(b.getAttribute("data-pane")); });
@@ -688,7 +734,7 @@
       if (!b) return;
       state.motionPick = b.getAttribute("data-u");
       var c = state.mine.filter(function (x) { return String(x.id) === b.getAttribute("data-id"); })[0];
-      setChar({ url: state.motionPick, name: c ? c.name : "Influencer", infId: c ? realId(c.id) : null });
+      setChar({ url: state.motionPick, name: c ? c.name : "Influencer", infId: c ? realId(c.id) : null, crop: c && c.view === "card" ? "right" : (c && c.view === "sheet" ? "left" : "") });
       Array.prototype.forEach.call(this.querySelectorAll(".inf-pick-item"), function (x) { x.classList.toggle("is-on", x === b); });
       $("mPicker").hidden = true;
       syncMotionLinks();
@@ -788,7 +834,7 @@
 
   // ------------------------------------------------------------ motion: transfer / swap / style
   function toMotion(c, url) {
-    setChar({ url: url, name: c.name || "Influencer", infId: realId(c.id) });
+    setChar({ url: url, name: c.name || "Influencer", infId: realId(c.id), crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") });
     state.motionPick = url;
     setPane("motion");
     $("paneMotion").scrollTop = 0;
@@ -802,6 +848,7 @@
     state.m.char = ch;
     var img = $("mCharImg");
     if (ch) { img.src = ch.blob ? ch.url : absUrl(ch.url); img.alt = ch.name || "Character"; }
+    img.style.objectPosition = ch && ch.crop === "right" ? "85% 30%" : ch && ch.crop === "left" ? "8% 30%" : "";
     img.hidden = !ch;
     $("mCharSlot").classList.toggle("has-file", !!ch);
     $("mCharTag").hidden = !ch;
@@ -926,6 +973,7 @@
         if (!cr.ok) throw new Error("Couldn't load that character image from the GPU server.");
         charBlob = await cr.blob();
       }
+      if (m.char.crop) charBlob = await cropPanel(charBlob, m.char.crop);
       var prompt = m.usePrompt ? $("mPrompt").value.trim() : "";
       var fd = new FormData();
       fd.append("image", charBlob, "character.png");
@@ -1205,6 +1253,19 @@
     if (/out of memory|OOM/i.test(e)) return "The GPU ran out of memory. Try 480p or 5 s.";
     if (/Cancelled/i.test(e)) return "Cancelled.";
     return e.length > 140 ? e.slice(0, 140) + "…" : e;
+  }
+
+  // Character sheets hold more than one view; motion needs a single full-body shot.
+  // card (2 panels): right half = full body. turnaround (4 views): first quarter = front view.
+  async function cropPanel(blob, side) {
+    try {
+      var bmp = await createImageBitmap(blob);
+      var w = side === "right" ? Math.round(bmp.width / 2) : Math.round(bmp.width / 4);
+      var x = side === "right" ? bmp.width - w : 0;
+      var cv = document.createElement("canvas"); cv.width = w; cv.height = bmp.height;
+      cv.getContext("2d").drawImage(bmp, x, 0, w, bmp.height, 0, 0, w, bmp.height);
+      return await new Promise(function (res) { cv.toBlob(function (b) { res(b || blob); }, "image/png"); });
+    } catch (e) { return blob; }
   }
 
   function mHint(msg, err) { var h = $("mHint"); h.textContent = msg || ""; h.classList.toggle("is-err", !!err); }
