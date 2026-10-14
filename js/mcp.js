@@ -239,13 +239,12 @@
   // ------------------------------------------------------------ keys
   async function loadKeys() {
     if (!client || !state.user) return;
-    var r = await client.from("mcp_keys").select("id, name, key_prefix, created_at, last_used_at, revoked_at").eq("user_id", state.user.id).order("created_at", { ascending: false });
+    var r = await client.from("mcp_keys").select("id, name, key_prefix, created_at, last_used_at").eq("user_id", state.user.id).is("revoked_at", null).order("created_at", { ascending: false });
     var rows = r.data || [];
     $("keyList").innerHTML = rows.length ? rows.map(function (k) {
-      var off = !!k.revoked_at;
-      return '<li class="' + (off ? "is-off" : "") + '"><div><strong>' + esc(k.name) + "</strong><code>" + esc(k.key_prefix) + "…</code></div>" +
-        "<span>" + (off ? "Revoked" : k.last_used_at ? "Used " + when(k.last_used_at) : "Never used") + "</span>" +
-        (off ? "" : '<button type="button" class="mcp-revoke" data-id="' + k.id + '">Revoke</button>') + "</li>";
+      return '<li><div><strong>' + esc(k.name) + "</strong><code>" + esc(k.key_prefix) + "…</code></div>" +
+        "<span>" + (k.last_used_at ? "Used " + when(k.last_used_at) : "Never used") + "</span>" +
+        '<button type="button" class="mcp-revoke" data-id="' + k.id + '">Revoke</button></li>';
     }).join("") : '<li class="mcp-empty">No keys yet.</li>';
   }
 
@@ -269,8 +268,9 @@
   }
 
   async function revokeKey(id) {
-    if (!window.confirm("Revoke this key? Any app using it stops working.")) return;
-    await client.from("mcp_keys").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+    if (!window.confirm("Revoke this key? It is deleted for good and any app using it stops working.")) return;
+    var del = await client.from("mcp_keys").delete().eq("id", id).eq("user_id", state.user.id);
+    if (del.error) { alertNote("Couldn't revoke the key: " + del.error.message); return; }
     loadKeys();
   }
 
