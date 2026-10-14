@@ -173,7 +173,7 @@
     viewing: null,
     m: {
       mode: prefs.mMode === "swap" ? "swap" : "motion",
-      res: prefs.mRes === "480p" ? "480p" : "720p",
+      res: prefs.mRes === "480p" || prefs.mRes === "1080p" ? prefs.mRes : "720p",
       len: prefs.mLen === 10 ? 10 : 5,
       video: null,        // { blob, url, w, h, dur }
       char: null,         // { url, name, infId } or { blob, url, name }
@@ -1018,7 +1018,8 @@
   function vidTitle(v) {
     var meta = v.meta || {};
     var st = meta.style ? (STYLES.filter(function (s) { return s[0] === meta.style; })[0] || [0, "Custom style"])[1] : "";
-    return [v.mode === "character_swap" ? "Character swap" : "Motion transfer", st].filter(Boolean).join(" · ");
+    var kind = v.mode === "character_swap" ? "Character swap" : v.mode === "upscale_1080" ? "1080p upscale" : "Motion transfer";
+    return [kind, st].filter(Boolean).join(" · ");
   }
 
   function renderVideos() {
@@ -1044,6 +1045,7 @@
         t.innerHTML = '<video muted loop playsinline preload="metadata"></video><div class="inf-tile-shade"></div>' +
           '<span class="inf-vplay" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>' +
           '<div class="inf-tile-meta"><strong>' + esc(vidTitle(v)) + "</strong><span>" + esc(sub) + "</span></div>" +
+          (is1080(v) ? "" : '<button type="button" class="inf-vup" data-act="up" title="Upscale to 1080p">1080p</button>') +
           '<div class="inf-missing-note">Video unavailable while the GPU machine is offline</div>';
         var vel = t.querySelector("video");
         vel.addEventListener("loadedmetadata", function () {
@@ -1055,7 +1057,10 @@
         t.addEventListener("mouseenter", function () { vel.play().catch(function () {}); });
         t.addEventListener("mouseleave", function () { vel.pause(); });
         t.tabIndex = 0;
-        t.addEventListener("click", function () { openVideo(v); });
+        t.addEventListener("click", function (e) {
+          if (e.target.closest("[data-act=up]")) { e.stopPropagation(); upscaleVideo(v); return; }
+          openVideo(v);
+        });
         t.addEventListener("keydown", function (e) { if (e.key === "Enter") openVideo(v); });
       } else {
         t.innerHTML = '<div class="inf-pend"><strong>' + esc(vidTitle(v)) + '</strong><span class="inf-verr">' + esc(friendlyErr(v.error)) + '</span><button type="button" class="inf-vcancel">Remove</button></div>';
@@ -1089,10 +1094,37 @@
     $("vDl").href = src; $("vDl").setAttribute("download", "motion-" + String(v.id).slice(0, 8) + ".mp4");
     $("vDlMov").hidden = !v.result_mov_url;
     if (v.result_mov_url) { $("vDlMov").href = absUrl(v.result_mov_url); $("vDlMov").setAttribute("download", "motion-" + String(v.id).slice(0, 8) + ".mov"); }
+    $("vUp").hidden = is1080(v);
     $("vViewer").hidden = false;
     document.body.style.overflow = "hidden";
     $("vViewerVid").play().catch(function () {});
   }
+  function is1080(v) { return v.mode === "upscale_1080" || ((v.meta || {}).res === "1080p"); }
+
+  async function upscaleVideo(v) {
+    if (!v || !state.user) return;
+    var token = await freshToken();
+    if (!token) { mHint("Your session expired. Log in again.", true); return; }
+    var meta = v.meta || {};
+    var nv = { id: "tmp-" + Date.now(), mode: "upscale_1080", prompt: v.prompt || "", status: "queued", pending: true, progress: 2,
+      stage: "Sending to the upscaler…", created_at: new Date().toISOString(), meta: { res: "1080p", style: meta.style, length_secs: meta.length_secs } };
+    state.vids.unshift(nv);
+    if (state.vViewing) closeVideo();
+    setStage("videos");
+    try {
+      var fd = new FormData(); fd.append("source", String(v.id));
+      var r = await fetch(RENDER() + "/video-upscale-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var d = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
+      nv.id = d.job_id; nv.stage = "Queued";
+      renderVideos(); pollVideo(nv, 0);
+    } catch (e) {
+      state.vids = state.vids.filter(function (x) { return x !== nv; });
+      renderVideos();
+      mHint(/Failed to fetch|NetworkError|HTTP 5/.test(e.message) ? "The GPU server isn't reachable right now." : e.message, true);
+    }
+  }
+
   function closeVideo() { var vv = $("vViewerVid"); vv.pause(); vv.removeAttribute("src"); vv.load(); $("vViewer").hidden = true; document.body.style.overflow = ""; state.vViewing = null; }
 
   async function deleteVideo(v, quiet) {
@@ -1161,6 +1193,7 @@
     $("vidMore").addEventListener("click", loadVideos);
     Array.prototype.forEach.call(document.querySelectorAll("#vViewer [data-vclose]"), function (b) { b.addEventListener("click", closeVideo); });
     $("vDelete").addEventListener("click", function () { deleteVideo(state.vViewing); });
+    $("vUp").addEventListener("click", function () { upscaleVideo(state.vViewing); });
     paintStyleBtn();
     syncMotionGo();
   }
