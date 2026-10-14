@@ -543,3 +543,4 @@
   .inf-vwall { grid-template-columns: 1fr 1fr; gap: 8px; }
   .inf-tomotion { padding: 5px 9px; font-size: 0.7rem; }
 }
+.inf-verr { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }

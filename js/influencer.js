@@ -1058,7 +1058,7 @@
         t.addEventListener("click", function () { openVideo(v); });
         t.addEventListener("keydown", function (e) { if (e.key === "Enter") openVideo(v); });
       } else {
-        t.innerHTML = '<div class="inf-pend"><strong>' + esc(vidTitle(v)) + "</strong><span>" + esc(v.error || "This video didn't finish.") + '</span><button type="button" class="inf-vcancel">Remove</button></div>';
+        t.innerHTML = '<div class="inf-pend"><strong>' + esc(vidTitle(v)) + '</strong><span class="inf-verr">' + esc(friendlyErr(v.error)) + '</span><button type="button" class="inf-vcancel">Remove</button></div>';
         t.querySelector(".inf-vcancel").addEventListener("click", function () { deleteVideo(v, true); });
       }
       wall.appendChild(t);
@@ -1163,6 +1163,15 @@
     $("vDelete").addEventListener("click", function () { deleteVideo(state.vViewing); });
     paintStyleBtn();
     syncMotionGo();
+  }
+
+  function friendlyErr(e) {
+    e = String(e || "");
+    if (!e) return "This video didn't finish.";
+    if (/8188|actively refused|Failed to establish|Max retries/i.test(e)) return "ComfyUI wasn't running on the GPU machine when this started.";
+    if (/out of memory|OOM/i.test(e)) return "The GPU ran out of memory. Try 480p or 5 s.";
+    if (/Cancelled/i.test(e)) return "Cancelled.";
+    return e.length > 140 ? e.slice(0, 140) + "…" : e;
   }
 
   function mHint(msg, err) { var h = $("mHint"); h.textContent = msg || ""; h.classList.toggle("is-err", !!err); }
