@@ -48,11 +48,11 @@
     { id: "chatgpt", name: "ChatGPT", ic: "G", color: "#10a37f", cta: "Connect to ChatGPT", top: true,
       steps: function () { return [
         { t: "Open Plugins", d: "In ChatGPT, click Plugins in the left sidebar (or go to chatgpt.com/plugins). No Developer mode needed any more." },
-        { t: "Add a custom MCP server", d: "Click Add (top right) → Add custom MCP server. Name it AI Resource Hub." },
+        { t: "Add a custom MCP server", d: "Click Add (top right) → Add custom MCP server. In Name type AI Resource Hub (Icon and Description are optional)." },
         { t: "Paste your link", d: "Under Connection keep Server URL selected and paste this link. Your key is inside it, so keep it private:", code: keyUrl() },
-        { t: "No authentication, then create", d: "Set Authentication to No authentication, tick I understand and want to continue, then click Create as a plugin." },
+        { t: "Switch Authentication to No authentication", d: "The Authentication box starts on OAuth. Click it to open the list and pick No authentication (the Advanced OAuth settings box then disappears). Tick I understand and want to continue, then click Create as a plugin." },
         { t: "Use it in a chat", d: "Start a new chat, type @ and pick AI Resource Hub, then ask for an image, an influencer or a video." },
-        { t: "Using the ChatGPT desktop app?", d: "Open Settings → Plugins → MCPs tab → Add and pick the custom MCP option. Name it AI Resource Hub, switch Type from STDIO to Streamable HTTP, paste the same link into URL, leave Bearer token and Headers empty, then click Save." }
+        { t: "Using the ChatGPT desktop app?", d: "Open Settings → Plugins → MCPs tab → Add and pick the custom MCP option. Name it AI Resource Hub, switch Type from STDIO to Streamable HTTP, paste the same link into URL, leave Bearer token and Headers empty, then click Save. Added this way it shows under Sources in a chat rather than in the + Plugins list; to get it in that list, use the chatgpt.com steps above instead." }
       ]; } },
     { id: "claude-code", name: "Claude Code", ic: "CC", color: "#d97757", cli: true, top: true,
       prompt: function () { return "Set up AI Resource Hub for me so I can generate images and videos from here.\n1. Run: claude mcp add --transport http --scope user airh " + MCP_URL + ' --header "Authorization: ' + bearer() + '"\n2. Check it shows up in /mcp.\nThen tell me when it\'s ready.'; },
