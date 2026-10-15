@@ -136,7 +136,17 @@
       ["none", "None", "", ""], ["glasses", "Glasses", "", "glasses"], ["headphones", "Headphones", "", "headphones around the neck"],
       ["jewelry", "Jewelry", "", "statement jewelry"], ["chain", "Iced-out chain", "", "an iced-out diamond chain"],
       ["cap", "Fitted cap", "", "a fitted baseball cap"], ["backcap", "Backwards cap", "", "a backwards baseball cap"],
-      ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"], ["earmuffs", "Earmuffs", "", "fluffy oversized earmuffs"], ["shades", "Sport shades", "", "black wraparound sport sunglasses"]] }
+      ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"], ["earmuffs", "Earmuffs", "", "fluffy oversized earmuffs"], ["shades", "Sport shades", "", "black wraparound sport sunglasses"]] },
+    { id: "pendant", label: "Chain pendant", max: 1, visual: true, options: [
+      ["none", "None", "", ""],
+      ["lion", "Gold lion", "", "a big solid yellow-gold lion head pendant with a detailed mane and diamond eyes, hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["cross", "Iced cross", "", "a big iced-out diamond cross pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["hundred", "100 emoji", "", "a pendant shaped like the red 100 emoji, double underlined, paved in red rubies and white diamonds, hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["ak", "AK", "", "an iced-out diamond AK-47 rifle pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["mic", "Microphone", "", "an iced-out diamond vintage microphone pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["headphones", "Headphones", "", "an iced-out diamond headphones pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["turntables", "Turntables", "", "an iced-out diamond DJ turntable pendant with a black vinyl record, hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["name", "Name pendant", "", "NAME"]] }
   ];
 
   var VIEWS = {
@@ -209,7 +219,7 @@
       x: "short stocky man, gold teeth, brown suede zip-up jacket over a brown hoodie and a cartoon graphic t-shirt, dark distressed jeans, iced-out rings and watch, holding a phone to his ear" },
     { id: "atm-pale", name: "ATM Stick Boy", tier: "freak", view: "card", t: { gender: ["male"], build: ["skinny"], arms: ["stick"], legs: ["stick"], hair: ["buzz"], haircolor: ["platinum"], ethnicity: ["african"], age: ["adult"], skin: ["porcelain"], distinctive: ["facetattoo"], accessories: ["cap"] },
       x: "African man with albinism: very pale pinkish-white skin with no brown pigment anywhere on his face, neck, arms or legs, pale blonde eyebrows and lashes, light eyes, black fitted baseball cap, plain black t-shirt, black shorts, thin silver cross necklace, black high-top sneakers, small face tattoos" },
-    { id: "peace-slim", name: "Peace Sign Slim", tier: "freak", view: "card", t: { gender: ["male"], build: ["slim"], arms: ["stick"], legs: ["stilts"], headsize: ["big"], hair: ["short"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["beard"], accessories: ["cap", "chain"] },
+    { id: "peace-slim", name: "Peace Sign Slim", tier: "freak", view: "card", t: { gender: ["male"], build: ["slim"], arms: ["stick"], legs: ["stilts"], headsize: ["big"], hair: ["short"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["beard"], accessories: ["cap"], pendant: ["mic"] },
       x: "pink fitted baseball cap, chocolate-brown graphic t-shirt with a big pink print, skinny dark-brown leather stacked pants, brown sneakers with pink laces, tattooed forearm, smiling, throwing a peace sign" },
     { id: "heavyweight", name: "Heavyweight", tier: "total", view: "card", t: { gender: ["male"], build: ["obese"], arms: ["heavy"], legs: ["stick"], hair: ["dyedtips"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], accessories: ["chain"] },
       x: "black graphic t-shirt riding up over the huge bare belly, light-wash ripped skinny jeans on very thin legs, black spiky slides, tattooed forearms, holding a white double foam cup and a blue sports drink" },
@@ -330,7 +340,9 @@
           : '<div class="inf-opts">' + opts.map(function (o) {
               var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
               return '<button type="button" class="inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' + esc(o[1]) + "</button>";
-            }).join("")) + "</div></div></section>";
+            }).join("")) + "</div>" +
+        (g.id === "pendant" ? '<label class="inf-pname"' + ((state.traits.pendant || [])[0] === "name" ? "" : " hidden") + '>Name on the pendant <input id="infPendantName" type="text" maxlength="14" placeholder="e.g. CRISS P" value="' + esc(state.pendantName || "") + '"></label>' : "") +
+        "</div></section>";
     });
     $("groups").innerHTML = html;
   }
@@ -385,6 +397,7 @@
         b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on);
       });
       sec.querySelector(".inf-group-picked").textContent = cur.map(function (id) { return labelOf(g, id); }).join(", ");
+      var pn = sec.querySelector(".inf-pname"); if (pn) pn.hidden = cur[0] !== "name";
     }
     renderPicked();
   }
@@ -437,7 +450,13 @@
   }
 
   // ------------------------------------------------------------ prompt
-  function phrase(gid, oid) { var g = groupById(gid), o = g && optOf(g, oid); return o ? o[3] : ""; }
+  function phrase(gid, oid) {
+    if (gid === "pendant" && oid === "name") {
+      var nm = (state.pendantName || $("infName").value || "ICY").replace(/["<>]/g, "").trim().slice(0, 14) || "ICY";
+      return 'a big custom name pendant spelling "' + nm + '" in bold cursive script letters, white gold paved in diamonds, hanging from a thick iced-out diamond cuban link chain on a big diamond bail, every diamond sparkling';
+    }
+    var g = groupById(gid), o = g && optOf(g, oid); return o ? o[3] : "";
+  }
   function pickOne(gid) { var v = state.traits[gid]; return v && v.length ? phrase(gid, v[0]) : ""; }
   function pickAll(gid) { return (state.traits[gid] || []).map(function (o) { return phrase(gid, o); }).filter(Boolean); }
 
@@ -488,6 +507,8 @@
     if (feats.length) parts.push((t.human ? "with " : "the " + t.animal + " face has ") + feats.join(", "));
     if (shaven) parts.push("clean-shaven");
     var acc = pickAll("accessories");
+    var pend = pickOne("pendant");
+    if (pend) acc = acc.filter(function (a) { return a !== "an iced-out diamond chain"; }).concat([pend]);
     if (acc.length) parts.push("accessorized with " + acc.join(", "));
     if (extraRaw && !lead) parts.push(extraRaw);
     parts.push(V.tail);
@@ -837,6 +858,9 @@
 
   // ------------------------------------------------------------ wiring
   function wire() {
+    $("groups").addEventListener("input", function (e) {
+      if (e.target && e.target.id === "infPendantName") state.pendantName = e.target.value;
+    });
     $("groups").addEventListener("click", function (e) {
       var head = e.target.closest("[data-toggle]");
       if (head) {

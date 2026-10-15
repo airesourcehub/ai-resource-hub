@@ -686,3 +686,7 @@
 .inf-wall.is-sheets .inf-tile { margin-bottom: 0 !important; }
 #presetWall.is-sheets .inf-tile img { object-position: center; }
 @media (max-width: 600px) { .is-full .inf-wall.is-sheets, .inf-wall.is-sheets { grid-template-columns: 1fr; gap: 8px; } }
+.inf-pname{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:13px;color:var(--color-text-muted)}
+.inf-pname[hidden]{display:none}
+.inf-pname input{width:100%;padding:9px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:inherit;font:inherit;font-size:14px;letter-spacing:.04em}
+.inf-pname input:focus{outline:none;border-color:rgba(255,255,255,.4)}
