@@ -661,3 +661,17 @@
 .inf-vis .inf-type-img { background-position: center 25%; }
 .inf-vis.is-hair .inf-type-img { background-position: center 30%; }
 .inf-vis .inf-type span:last-child { font-size: 0.74rem; }
+
+
+/* ---------- Full-bleed layout (edge to edge like Higgsfield) ---------- */
+.is-full .nav { max-width: none; padding-left: 20px; padding-right: 20px; }
+.is-full .vs.inf { max-width: none; padding: 10px 12px 12px; gap: 12px; }
+.is-full .inf-wall { columns: 4 230px; column-gap: 10px; }
+.is-full .inf-wall .inf-tile { margin-bottom: 10px; border-radius: 14px; }
+.is-full #presetWall .inf-tile img { object-position: center top; }
+@media (min-width: 2200px) { .is-full .inf-wall { columns: 5 320px; } }
+@media (max-width: 600px) {
+  .is-full .vs.inf { padding: 8px; }
+  .is-full .inf-wall { columns: 2 140px; column-gap: 8px; }
+  .is-full .inf-wall .inf-tile { margin-bottom: 8px; }
+}

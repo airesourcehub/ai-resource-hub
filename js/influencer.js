@@ -72,7 +72,7 @@
       ["wings", "Hair wings", "b", "hair swept out sideways like wings"], ["hedgehog", "Hedgehog spikes", "b", "spiky hedgehog hair"],
       ["tufts", "Side tufts", "b", "bald on top with big side tufts"], ["stairs", "Stair steps", "b", "hair cut in stair-step layers"],
       ["shelf", "Shelf bob", "b", "flat shelf-like bob"], ["corkscrews", "Corkscrews", "b", "springy corkscrew curls"],
-      ["sidecoil", "Side coil", "b", "one big coil of hair on the side"], ["mushroom", "Mushroom", "b", "mushroom-cap haircut"]] },
+      ["sidecoil", "Side coil", "b", "one big coil of hair on the side"], ["mushroom", "Mushroom", "b", "mushroom-cap haircut"], ["lampshade", "Lampshade bob", "b", "a stiff lampshade-shaped bob with a blunt fringe, flaring out at the bottom"], ["flattop", "Box flat-top", "b", "a tall, perfectly flat box-shaped flat-top haircut"], ["crescent", "Crescent", "b", "hair lacquered into one giant crescent-moon arch curving high over the head from ear to ear"], ["fingerwave", "Finger waves", "", "a sleek finger-wave bob glued flat to the head"], ["checker", "Checkerboard", "b", "a flat-top haircut dyed in a precise checkerboard of black and bleached-white squares"]] },
     { id: "haircolor", label: "Hair color", max: 1, visual: true, options: [
       ["black", "Jet black", "", "jet black"], ["darkbrown", "Dark brown", "", "dark brown"], ["chestnut", "Chestnut", "", "chestnut"],
       ["ginger", "Ginger", "", "ginger"], ["red", "Red", "", "bright red"], ["blonde", "Blonde", "", "blonde"],
@@ -101,9 +101,9 @@
       ["standard", "Standard", "h", ""], ["long", "Long", "h", "long face"], ["tiny", "Tiny", "hb", "comically tiny head"],
       ["forehead", "High forehead", "hb", "very high forehead"], ["caveman", "Caveman", "hb", "heavy caveman brow"],
       ["gigachad", "Gigachad", "hb", "chiseled gigachad jawline"], ["megajaw", "Mega jaw", "hb", "enormous jaw"],
-      ["round", "Round", "h", "round face"], ["square", "Square", "h", "square face"], ["heart", "Heart", "h", "heart-shaped face"]] },
+      ["round", "Round", "h", "round face"], ["square", "Square", "h", "square face"], ["heart", "Heart", "h", "heart-shaped face"], ["dome", "Cone dome", "hb", "an absurdly tall elongated cone-shaped bald dome skull rising high above the forehead, the dome as tall as the whole face"], ["herojaw", "Hero jaw", "hb", "a cartoonish oversized hero jaw with a deep cleft chin"]] },
     { id: "neck", label: "Neck", max: 1, visual: true, options: [
-      ["standard", "Standard", "h", "a normal neck"], ["thin", "Pencil neck", "hb", "a very thin pencil neck"], ["long", "Long", "hb", "a long neck"], ["column", "Column", "hb", "a thick column neck"], ["short", "Short", "h", "a short neck"]] },
+      ["standard", "Standard", "h", "a normal neck"], ["thin", "Pencil neck", "hb", "a very thin pencil neck"], ["long", "Long", "hb", "a long neck"], ["column", "Column", "hb", "a thick column neck"], ["short", "Short", "h", "a short neck"], ["giraffe", "Giraffe", "hb", "an absurdly long, thin human neck, three times normal length, with normal smooth skin"]] },
     { id: "eyeshape", label: "Eye shape", max: 1, visual: true, options: [
       ["almond", "Almond", "h", "almond-shaped"], ["round", "Round", "h", "round"], ["monolid", "Monolid", "h", "monolid"],
       ["closeset", "Close-set", "hb", "close-set"], ["wideset", "Wide-set", "hb", "wide-set"], ["uneven", "Uneven", "hb", "uneven"],
@@ -125,7 +125,7 @@
     { id: "facialhair", label: "Facial hair", max: 1, visual: true, options: [
       ["clean", "Clean", "", "clean-shaven"], ["stubble", "Stubble", "", "stubble"], ["beard", "Full beard", "", "a full beard"],
       ["goatee", "Goatee", "", "a goatee"], ["moustache", "Moustache", "", "a moustache"], ["pencil", "Pencil", "", "a pencil moustache"],
-      ["pushbroom", "Push-broom", "b", "a thick push-broom moustache"], ["braided", "Braided", "b", "a braided beard"]] },
+      ["pushbroom", "Push-broom", "b", "a thick push-broom moustache"], ["braided", "Braided", "b", "a braided beard"], ["handlebar", "Handlebar", "b", "a colossal waxed handlebar moustache wider than the shoulders, both ends curled into tight spirals"], ["horseshoe", "Horseshoe", "", "a heavy horseshoe moustache"]] },
     { id: "distinctive", label: "Distinctive features", max: 2, visual: true, options: [
       ["oddeyes", "Odd eyes", "", "heterochromia, two different eye colors"], ["facetattoo", "Face tattoo", "", "a face tattoo"],
       ["piercing", "Piercing", "", "a septum piercing"], ["earpiercing", "Ear piercing", "", "ear piercings"], ["slits", "Brow slits", "", "eyebrow slits"],
@@ -136,7 +136,7 @@
       ["none", "None", "", ""], ["glasses", "Glasses", "", "glasses"], ["headphones", "Headphones", "", "headphones around the neck"],
       ["jewelry", "Jewelry", "", "statement jewelry"], ["chain", "Iced-out chain", "", "an iced-out diamond chain"],
       ["cap", "Fitted cap", "", "a fitted baseball cap"], ["backcap", "Backwards cap", "", "a backwards baseball cap"],
-      ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"]] }
+      ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"], ["earmuffs", "Earmuffs", "", "fluffy oversized earmuffs"], ["shades", "Sport shades", "", "black wraparound sport sunglasses"]] }
   ];
 
   var VIEWS = {
@@ -162,6 +162,47 @@
   // Presets for the Explore wall (images rendered on the 3090, in img/influencer/).
   // x = extra description (goes into "Anything else?"), view = shot used for the preset image.
   var PRESETS = [
+    // --- Extreme casting (Higgsfield-style "signature" characters)
+    { id: "earmuff-auntie", name: "Earmuff Auntie", tier: "total", view: "card", t: { gender: ["female"], age: ["senior"], ethnicity: ["african"], skin: ["brown"], build: ["slim"], neck: ["giraffe"], hair: ["tufts"], haircolor: ["grey"], accessories: ["earmuffs", "glasses"] },
+      x: "Signature: an absurdly long, thin human neck rising far above her shoulders, smooth brown skin, bald crown with big fluffy grey side tufts, bright orange fluffy earmuffs, thin wire glasses. Outfit: olive suede jacket over a brown plaid flannel shirt, brown leather belt, olive trousers" },
+    { id: "cone-carl", name: "Cone Head Carl", tier: "total", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["african"], skin: ["brown"], build: ["slim"], head: ["dome"], hair: ["afro"], haircolor: ["pink"], facialhair: ["moustache"], neck: ["long"] },
+      x: "Signature: an absurdly tall cone-shaped bald dome skull rising high above the forehead, ringed at the back by a big pink curly afro, thick black moustache. Outfit: brown houndstooth tweed blazer, white shirt, dark green tie" },
+    { id: "caveman-ceo", name: "Caveman CEO", tier: "total", view: "card", t: { gender: ["male"], age: ["mature"], ethnicity: ["mideast"], skin: ["tan"], build: ["heavy"], head: ["caveman"], hair: ["long"], haircolor: ["black"], features: ["unibrow"], style: ["suits"] },
+      x: "Signature: caveman skull with a massive protruding brow ridge and one thick unibrow, deep-set eyes, heavy jaw, contrasted with sleek long jet-black hair in a perfect center part. Outfit: chocolate-brown wide-lapel 70s suit, cream shirt, patterned brown tie" },
+    { id: "lampshade-lou", name: "Lampshade Lou", tier: "total", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["european"], skin: ["fair"], build: ["heavy"], head: ["megajaw"], neck: ["column"], hair: ["lampshade"], haircolor: ["platinum"], accessories: ["glasses"] },
+      x: "Signature: a gigantic swollen mega jaw twice as wide as his skull, thick column neck, platinum lampshade bob with a blunt fringe, tiny black oval sunglasses. Outfit: burgundy knit polo buttoned up, cream pleated high-waisted trousers, burgundy loafers" },
+    { id: "bowl-hulk", name: "Bowl Cut Hulk", tier: "total", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["european"], skin: ["light"], build: ["ultra"], headsize: ["tiny"], hair: ["bowl"], haircolor: ["platinum"] },
+      x: "Signature: hyper-muscular bodybuilder physique with a platinum bowl cut and a deadpan face. Outfit: tight cropped baby-blue knit polo stretched over huge muscles, baggy brown corduroy carpenter pants, wooden clogs with white socks" },
+    { id: "handlebar-baron", name: "Handlebar Baron", tier: "total", view: "card", t: { gender: ["male"], age: ["senior"], ethnicity: ["european"], skin: ["light"], build: ["slim"], hair: ["bald"], facialhair: ["handlebar"], haircolor: ["white"] },
+      x: "Signature: a colossal waxed white handlebar moustache spanning wider than his shoulders, both ends curled into perfect tight spirals, shiny bald head. Outfit: bottle-green velvet three-piece suit, cream shirt, gold pocket-watch chain, brown boots" },
+    { id: "crescent-count", name: "Crescent Count", tier: "total", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["european"], skin: ["porcelain"], build: ["slim"], hair: ["crescent"], haircolor: ["black"], facialhair: ["pencil"], features: ["pointy"] },
+      x: "Signature: jet-black hair lacquered into one giant crescent-moon shape arching high over the head from ear to ear like a halo, long pointy nose, pencil moustache. Outfit: black velvet tuxedo jacket, white ruffled shirt, black bow tie, black trousers, patent shoes" },
+    { id: "checker-dandy", name: "Checkerboard Dandy", tier: "freak", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["mixed"], skin: ["olive"], build: ["slim"], hair: ["checker"], facialhair: ["pencil"], style: ["suits"] },
+      x: "Signature: a short flat-top haircut dyed in a precise checkerboard of black and bleached-white squares across the whole scalp, pencil moustache, haughty blank stare. Outfit: black-and-white houndstooth suit, white shirt, black bow tie, two-tone spectator shoes" },
+    { id: "boxtop-betty", name: "Box Top Betty", tier: "freak", view: "card", t: { gender: ["female"], age: ["adult"], ethnicity: ["european"], skin: ["fair"], build: ["slim"], neck: ["giraffe"], hair: ["flattop"], haircolor: ["blonde"] },
+      x: "Signature: extremely long thin neck, tall bleached-blonde flat-top haircut shaped like a box. Outfit: lime-green fuzzy mohair cropped cardigan, brown leather midi skirt, white knee socks, chunky black loafers" },
+    { id: "aerobics-al", name: "Aerobics Al", tier: "total", view: "card", t: { gender: ["male"], age: ["senior"], ethnicity: ["european"], skin: ["fair"], build: ["muscular"], legs: ["stick"], head: ["gigachad"], hair: ["perm"], haircolor: ["ginger"], facialhair: ["pushbroom"], features: ["gap"] },
+      x: "Signature: retired 80s aerobics instructor with a huge chiseled jaw, an enormous tight ginger perm like a giant ball, bushy ginger push-broom moustache, gap-tooth grin, broad barrel chest. Outfit: neon pink terry headband, shiny teal-and-purple windbreaker tracksuit, white tube socks pulled high, chunky white retro sneakers" },
+    { id: "beehive-boss", name: "Beehive Boss", tier: "total", view: "card", t: { gender: ["female"], age: ["senior"], ethnicity: ["indian"], skin: ["brown"], build: ["slim"], hair: ["beehive"], haircolor: ["white"], distinctive: ["oddeyes", "lashes"], features: ["mole"] },
+      x: "Signature: an enormous towering white beehive hairdo twice the height of her head, thin arched high brows, one blue and one brown eye, long false lashes, beauty mark. Outfit: fitted purple hairdresser tunic with combs and scissors in the chest pocket, holding silver scissors" },
+    { id: "megajaw-mike", name: "Mega Jaw Mike", tier: "total", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["mixed"], skin: ["tan"], build: ["athletic"], head: ["megajaw"], neck: ["column"], hair: ["mullet"], haircolor: ["darkbrown"], facialhair: ["pencil"], distinctive: ["piercing"] },
+      x: "Signature: a gigantic mega jaw, lower face swollen twice as wide as the forehead, very long thick neck, curly dark brown mullet, thin moustache, silver septum ring. Outfit: chrome-silver cropped puffer jacket, black ribbed tank, wide black cargo trousers, chunky black boots" },
+    { id: "ramhorn-rosa", name: "Ram Horn Rosa", tier: "freak", view: "card", t: { gender: ["female"], age: ["adult"], ethnicity: ["asian"], skin: ["light"], build: ["slim"], hair: ["horns"], haircolor: ["black"], features: ["unibrow"] },
+      x: "Signature: one thick black unibrow, black hair coiled into two huge ram-horn buns curling around the sides of the head. Outfit: cropped silver metallic puffer jacket, long black ribbed knit maxi dress, chunky silver sneakers" },
+    { id: "biker-ghost", name: "Biker Ghost", tier: "freak", view: "card", t: { gender: ["male"], age: ["senior"], ethnicity: ["european"], skin: ["fair"], build: ["slim"], hair: ["long"], haircolor: ["white"], facialhair: ["braided"], accessories: ["shades", "chain"] },
+      x: "Signature: very long straight white hair with a center part, long braided white goatee, black wraparound sunglasses, deeply wrinkled gaunt face. Outfit: black leather biker jacket, plain black tee, black flared jeans, black cowboy boots, chunky silver chains and rings" },
+    { id: "herojaw-hank", name: "Hero Jaw Hank", tier: "total", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["european"], skin: ["tan"], build: ["muscular"], head: ["herojaw"], hair: ["hedgehog"], haircolor: ["platinum"], distinctive: ["tape"], accessories: ["shades"] },
+      x: "Signature: a cartoonish oversized hero jaw with a deep cleft chin, platinum spiky hair, white tape strip across the nose, wraparound sport sunglasses. Outfit: navy-and-white motocross jersey, black leather moto trousers, chunky black moto boots, fingerless gloves" },
+    { id: "tall-pin", name: "Tall Pin", tier: "total", view: "card", t: { gender: ["non_binary"], age: ["adult"], ethnicity: ["european"], skin: ["porcelain"], build: ["slim"], height: ["vtall"], headsize: ["tiny"], proportions: ["longlimbs"], hair: ["sphere"], haircolor: ["platinum"], distinctive: ["nobrows"] },
+      x: "Signature: very tall androgynous person with a long lanky body and extremely long limbs, platinum curl-sphere hair, no eyebrows. Outfit: oxblood leather long coat, black crushed-velvet top, black leather trousers, black lace-up combat boots" },
+    { id: "cowboy-chad", name: "Cowboy Chad", tier: "total", view: "card", t: { gender: ["male"], age: ["mature"], ethnicity: ["european"], skin: ["tan"], build: ["heavy"], head: ["gigachad"], hair: ["mullet"], haircolor: ["grey"], facialhair: ["pushbroom"], accessories: ["glasses"] },
+      x: "Signature: an enormous square gigachad jaw, grey mullet, huge grey push-broom moustache, amber-tinted aviator glasses. Outfit: tan suede western jacket with long fringe, brown shirt, bolo tie, brown flared trousers, cowboy boots" },
+    { id: "fingerwave-fifi", name: "Finger Wave Fifi", tier: "freak", view: "card", t: { gender: ["female"], age: ["adult"], ethnicity: ["african"], skin: ["deep"], build: ["slim"], neck: ["giraffe"], hair: ["fingerwave"], haircolor: ["platinum"], features: ["thinbrows"], accessories: ["jewelry"] },
+      x: "Signature: silver-blonde finger-wave bob glued to the head, thin drawn-on arched brows, huge gold hoop earrings, a nose chain to the ear, very long neck. Outfit: red leather racing jacket, white baby tee, low-rise baggy jeans with a wallet chain, white platform sneakers" },
+    { id: "beak-eddie", name: "Big Ears Eddie", tier: "freak", view: "card", t: { gender: ["male"], age: ["adult"], ethnicity: ["european"], skin: ["fair"], build: ["slim"], hair: ["buzz"], haircolor: ["platinum"], features: ["jug"], distinctive: ["braces"], accessories: ["chain"] },
+      x: "Signature: shaved head with a tiny bleached micro-fringe, huge hooked nose, giant sticking-out jug ears, metal braces. Outfit: purple satin bomber jacket, white ribbed tank, grey sweatpants, black slides with white socks, silver chains" },
+    { id: "egg-man", name: "Egg Man", tier: "total", view: "card", t: { gender: ["male"], age: ["mature"], ethnicity: ["european"], skin: ["light"], build: ["heavy"], proportions: ["egg", "shortlegs"], hair: ["bald"], facialhair: ["horseshoe"], accessories: ["hat"] },
+      x: "Signature: a perfectly round egg-shaped body on short little legs, heavy horseshoe moustache, black bowler hat. Outfit: snug grey three-piece suit buttoned over the round body, red bow tie, white spats over black shoes" },
     { id: "stick-stacks", name: "Stick Legs Stacks", tier: "freak", view: "card", t: { gender: ["male"], build: ["slim"], arms: ["stick"], legs: ["stick"], headsize: ["regular"], hair: ["freeform"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], distinctive: ["facetattoo"] },
       x: "plain white fitted t-shirt, white drawstring shorts with a black belt, white-and-red high-top basketball sneakers, small diamond stud earring, silver watch, many small face tattoos, holding a fanned stack of cash" },
     { id: "mushroom-top", name: "Mushroom Top", tier: "freak", view: "card", t: { gender: ["male"], build: ["heavy"], headsize: ["big"], neck: ["short"], hair: ["mushfade"], haircolor: ["darkbrown"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], facialhair: ["stubble"], accessories: ["chain"] },
@@ -406,7 +447,7 @@
     var subject;
     if (t.human) {
       subject = [pickOne("age"), pickOne("ethnicity"), who].filter(Boolean).join(" ");
-      var vibe = t.id === "freak" ? "a bold, quirky, slightly exaggerated " : t.id === "total" ? "an extreme, surreal, heavily exaggerated caricature of a " : "a realistic ";
+      var vibe = t.id === "freak" ? "a bold, quirky, slightly exaggerated " : t.id === "total" ? "a real person, a hyperreal practical-prosthetic casting character with extreme, heavily exaggerated features: a " : "a realistic ";
       subject = vibe + subject;
     } else {
       // The animal head REPLACES the human head (not an animal sitting on a person).
@@ -421,7 +462,9 @@
     if (b0 === "skinny" || b0 === "obese") sig.unshift(pickOne("build"));
     if (sig.length && t.human) subject = subject.replace(/^(a realistic |a bold, quirky, slightly exaggerated )/, "a surreal but photoreal ") + " with wildly exaggerated, unnatural body proportions";
     parts.push(V.lead + " " + subject + (pickOne("style") ? ", fully clothed in " + pickOne("style") : $("infExtra").value.trim() ? ", fully clothed" : ", fully clothed in a stylish outfit"));
-    if (sig.length) parts.push("SIGNATURE, wildly exaggerated and the first thing you notice: " + sig.join("; "));
+    var extraRaw = $("infExtra").value.trim(), lead = /^signature\s*:/i.test(extraRaw);
+    if (lead) parts.push("SIGNATURE, extreme and unmistakable, the first thing you notice: " + extraRaw.replace(/^signature\s*:\s*/i, "") + (sig.length ? "; " + sig.join("; ") : ""));
+    else if (sig.length) parts.push("SIGNATURE, wildly exaggerated and the first thing you notice: " + sig.join("; "));
     var body = [pickOne("height"), b0 === "skinny" || b0 === "obese" ? "" : pickOne("build")].filter(Boolean).join(", ");
     var prop = pickAll("proportions");
     if (body || prop.length) parts.push([body, prop.length ? "with " + prop.join(" and ") : ""].filter(Boolean).join(" "));
@@ -445,11 +488,10 @@
     if (shaven) parts.push("clean-shaven");
     var acc = pickAll("accessories");
     if (acc.length) parts.push("accessorized with " + acc.join(", "));
-    var extra = $("infExtra").value.trim();
-    if (extra) parts.push(extra);
+    if (extraRaw && !lead) parts.push(extraRaw);
     parts.push(V.tail);
     var bg = V.white ? "pure white seamless studio background, bright soft even light, faint contact shadow under the feet" : "plain light grey studio backdrop, soft even studio lighting";
-    parts.push(t.id === "total" ? "surreal hyper-detailed but photoreal character design, " + bg + ", sharp focus"
+    parts.push(t.id === "total" ? "extremely exaggerated but photoreal, a real photograph not a 3D render or cartoon, high-end fashion lookbook photography, " + bg + ", crisp natural skin texture, sharp focus"
       : bg + ", photorealistic, natural skin texture, sharp focus, high detail, editorial fashion photography");
     return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
   }
@@ -686,18 +728,23 @@
   }
 
   // ------------------------------------------------------------ presets + hero
+  // Which presets show their full-body shot on the wall (others show the close-up); unset = every 3rd one.
   function renderPresets() {
+    var PRESET_FULL = { "stick-stacks": true, "heavyweight": true, "peace-slim": true, "earmuff-auntie": false, "bowl-hulk": true, "tall-pin": true,
+      "aerobics-al": true, "egg-man": true, "biker-ghost": true, "boxtop-betty": false, "cone-carl": false, "lampshade-lou": true };
     var wall = $("presetWall");
     wall.innerHTML = "";
-    PRESETS.forEach(function (p) {
+    PRESETS.forEach(function (p, i) {
       var t = document.createElement("div");
       t.className = "inf-tile is-preset";
-      t.style.aspectRatio = p.view === "card" ? "1344 / 768" : "832 / 1216";
+      // Big single-photo previews (Higgsfield-style wall): alternate close-up and full-body crops of the sheet.
+      var full = PRESET_FULL[p.id] !== undefined ? PRESET_FULL[p.id] : (i % 3 === 1);
+      t.style.aspectRatio = full ? "9 / 14" : "7 / 8";
       var img = new Image();
-      img.alt = p.name; img.loading = "lazy";
+      img.alt = p.name; img.loading = "lazy"; img.decoding = "async";
       img.onload = function () { t.classList.add("is-loaded"); };
-      img.onerror = function () { t.classList.add("is-missing"); };
-      img.src = IMG + "preset-" + p.id + ".jpg";
+      img.onerror = function () { if (!img.dataset.fb) { img.dataset.fb = 1; t.style.aspectRatio = "1344 / 768"; img.src = IMG + "preset-" + p.id + ".jpg"; } else t.classList.add("is-missing"); };
+      img.src = IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts is-on"><button type="button" class="inf-recreate">Recreate</button></div>');
       t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name, p.x, p.view); });
@@ -708,7 +755,7 @@
   function renderFan() {
     var ids = ["miami-mc", "goth-queen", "boss-cat", "y2k-star", "gym-chad"];
     $("fan").innerHTML = ids.map(function (id, i) {
-      return '<span class="inf-fan-card" style="--i:' + (i - 2) + ";background-image:url(" + IMG + "preset-" + id + '.jpg)"></span>';
+      return '<span class="inf-fan-card" style="--i:' + (i - 2) + ";background-image:url(" + IMG + "pv/" + id + '-close.jpg)"></span>';
     }).join("");
   }
 
