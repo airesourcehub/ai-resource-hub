@@ -675,3 +675,14 @@
   .is-full .inf-wall { columns: 2 140px; column-gap: 8px; }
   .is-full .inf-wall .inf-tile { margin-bottom: 8px; }
 }
+
+/* Preset wall view switch: big photos (masonry) or two-panel sheets (grid) */
+.inf-feed-head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.inf-viewtoggle { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--color-surface-2, #1b1d22); border: 1px solid var(--color-border, rgba(255,255,255,0.08)); }
+.inf-viewtoggle button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--color-text-muted); font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+.inf-viewtoggle button:hover { color: var(--color-text); }
+.inf-viewtoggle button.is-on { background: var(--color-surface, #2a2d34); color: var(--color-text); box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.is-full .inf-wall.is-sheets, .inf-wall.is-sheets { columns: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.inf-wall.is-sheets .inf-tile { margin-bottom: 0 !important; }
+#presetWall.is-sheets .inf-tile img { object-position: center; }
+@media (max-width: 600px) { .is-full .inf-wall.is-sheets, .inf-wall.is-sheets { grid-template-columns: 1fr; gap: 8px; } }

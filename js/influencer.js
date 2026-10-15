@@ -262,6 +262,7 @@
   buildGroups();
   renderPicked();
   wire();
+  wireWallView();
   renderPresets();
   renderFan();
   syncSeg("viewSeg", "data-view", state.view);
@@ -729,6 +730,22 @@
 
   // ------------------------------------------------------------ presets + hero
   // Which presets show their full-body shot on the wall (others show the close-up); unset = every 3rd one.
+  // (key written inline: these run at boot, before later var assignments)
+  function wallMode() { try { return localStorage.getItem("airh-inf-wall") === "sheets" ? "sheets" : "photos"; } catch (e) { return "photos"; } }
+  function wireWallView() {
+    var box = $("wallView"); if (!box) return;
+    function paint() {
+      var m = wallMode();
+      Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) { var on = b.getAttribute("data-wall") === m; b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+      $("presetWall").classList.toggle("is-sheets", m === "sheets");
+    }
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-wall]"); if (!b) return;
+      try { localStorage.setItem("airh-inf-wall", b.getAttribute("data-wall")); } catch (err) {}
+      paint(); renderPresets();
+    });
+    paint();
+  }
   function renderPresets() {
     var PRESET_FULL = { "stick-stacks": true, "heavyweight": true, "peace-slim": true, "earmuff-auntie": false, "bowl-hulk": true, "tall-pin": true,
       "aerobics-al": true, "egg-man": true, "biker-ghost": true, "boxtop-betty": false, "cone-carl": false, "lampshade-lou": true };
@@ -738,13 +755,14 @@
       var t = document.createElement("div");
       t.className = "inf-tile is-preset";
       // Big single-photo previews (Higgsfield-style wall): alternate close-up and full-body crops of the sheet.
+      var sheets = wallMode() === "sheets";
       var full = PRESET_FULL[p.id] !== undefined ? PRESET_FULL[p.id] : (i % 3 === 1);
-      t.style.aspectRatio = full ? "9 / 14" : "7 / 8";
+      t.style.aspectRatio = sheets ? "1792 / 1024" : (full ? "9 / 14" : "7 / 8");
       var img = new Image();
       img.alt = p.name; img.loading = "lazy"; img.decoding = "async";
       img.onload = function () { t.classList.add("is-loaded"); };
       img.onerror = function () { if (!img.dataset.fb) { img.dataset.fb = 1; t.style.aspectRatio = "1344 / 768"; img.src = IMG + "preset-" + p.id + ".jpg"; } else t.classList.add("is-missing"); };
-      img.src = IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
+      img.src = sheets ? IMG + "preset-" + p.id + ".jpg" : IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts is-on"><button type="button" class="inf-recreate">Recreate</button></div>');
       t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name, p.x, p.view); });

@@ -223,9 +223,15 @@
         <h2 class="vs-title inf-hero-title">Your influencer,<br />your viral hit</h2>
         <p>Build your AI influencer with the face, body and style you want. Then make them dance, talk or star in new shots, all rendered on your own GPU.</p>
       </div>
-      <div class="inf-feed-head">
-        <h3>Start from a preset</h3>
-        <p>Tap <strong>Recreate</strong> to load every setting, then tweak and generate.</p>
+      <div class="inf-feed-head inf-feed-head-row">
+        <div>
+          <h3>Start from a preset</h3>
+          <p>Tap <strong>Recreate</strong> to load every setting, then tweak and generate.</p>
+        </div>
+        <div class="inf-viewtoggle" id="wallView" role="group" aria-label="Preset view">
+          <button type="button" data-wall="photos" class="is-on" aria-pressed="true" title="Big photos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="10" rx="1.5"/><rect x="14" y="3" width="7" height="6" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/></svg>Photos</button>
+          <button type="button" data-wall="sheets" aria-pressed="false" title="Character sheets"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M12 4v7M12 13v7"/></svg>Sheets</button>
+        </div>
       </div>
       <div class="inf-wall" id="presetWall"></div>
     </div>
