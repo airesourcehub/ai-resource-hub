@@ -36,16 +36,35 @@
       ["female", "Female", "", "woman"], ["male", "Male", "", "man"],
       ["trans_man", "Trans man", "", "transgender man"], ["trans_woman", "Trans woman", "", "transgender woman"],
       ["non_binary", "Non-binary", "", "androgynous non-binary person"]] },
-    { id: "build", label: "Build", max: 1, options: [
-      ["slim", "Slim", "", "slim build"], ["athletic", "Athletic", "", "athletic build"],
-      ["muscular", "Muscular", "", "muscular build"], ["curvy", "Curvy", "", "curvy figure"],
-      ["heavy", "Heavy", "", "heavyset build"], ["ultra", "Ultra Muscular", "", "hugely over-muscled bodybuilder physique"],
+    { id: "build", label: "Body", max: 1, visual: true, options: [
+      ["skinny", "Stick thin", "b", "skeletally thin stick-figure body, collarbones and ribs showing"], ["slim", "Slim", "", "slim build"],
+      ["athletic", "Athletic", "", "athletic build"], ["muscular", "Muscular", "", "muscular build"], ["curvy", "Curvy", "", "curvy figure"],
+      ["heavy", "Heavy", "", "heavyset build"], ["obese", "Obese", "b", "absurdly, enormously obese torso with a gigantic round bare belly hanging down far over the waistband"],
+      ["ultra", "Ultra Muscular", "", "hugely over-muscled bodybuilder physique"],
       ["centaur", "Centaur", "X", "centaur body with a horse's lower half"]] },
-    { id: "hair", label: "Hairstyle", max: 1, options: [
+    { id: "arms", label: "Arms", max: 1, visual: true, options: [
+      ["stick", "Stick arms", "b", "bizarrely thin stick arms, unnaturally long and skinny, with smooth natural skin"], ["regular", "Regular", "", "normal arms"],
+      ["toned", "Toned", "", "toned arms"], ["heavy", "Heavy", "", "huge soft heavy fat arms"], ["huge", "Huge", "b", "huge bulging muscular arms"]] },
+    { id: "legs", label: "Legs", max: 1, visual: true, options: [
+      ["stick", "Stick legs", "b", "bizarrely thin stick legs from hip to ankle, unnaturally skinny, with smooth natural skin and normal-size sneakers"],
+      ["stilts", "Long stilts", "b", "impossibly long, stilt-like skinny legs far longer than normal, with smooth natural skin"],
+      ["regular", "Regular", "", "normal legs"], ["thick", "Thick", "", "thick heavy legs"], ["muscular", "Muscular", "", "muscular legs"]] },
+    { id: "headsize", label: "Head size", max: 1, visual: true, options: [
+      ["regular", "Regular", "", "a normal-sized head"],
+      ["big", "Big", "b", "an unnaturally oversized head, about one and a half times normal size, on a small body"], ["huge", "Bobblehead", "b", "a gigantic bobblehead head, twice normal size, on a small body"]] },
+    { id: "hair", label: "Hairstyle", max: 1, visual: true, options: [
+      ["freeform", "Freeform twists", "", "big messy freeform twisted dreads standing up and out like an afro"],
+      ["shortdreads", "Short dreads", "", "short dreadlocks"], ["meddreads", "Medium dreads", "", "medium-length dreadlocks"],
+      ["longdreads", "Long dreads", "", "long dreadlocks hanging past the shoulders"],
+      ["dyedtips", "Dyed-tip dreads", "", "shoulder-length dreadlocks with blonde dyed tips falling over the face"],
+      ["colorlocs", "Color locs", "b", "short twisted locs dyed in bright mixed colors"],
+      ["twists", "Two-strand twists", "", "short two-strand twists"], ["cornrows", "Cornrows", "", "neat straight-back cornrows"],
+      ["waves", "360 waves", "", "short brushed 360 waves haircut"],
+      ["mushfade", "Mushroom fade", "b", "an enormous thick mushroom-shaped bowl cut sitting on top of a high skin fade"],
       ["bob", "Bob", "b", "rounded lampshade bob haircut"], ["bald", "Bald", "", "completely bald head"],
       ["buzz", "Buzz cut", "", "buzz cut"], ["bowl", "Bowl cut", "", "bowl cut"], ["mullet", "Mullet", "", "mullet"],
       ["braids", "Braids", "", "braids"], ["pigtails", "Pigtails", "", "pigtails"], ["afro", "Afro", "", "big afro"],
-      ["mohawk", "Mohawk", "", "mohawk"], ["waves", "Volume waves", "b", "huge voluminous pompadour waves"],
+      ["mohawk", "Mohawk", "", "mohawk"], ["pompadour", "Volume waves", "b", "huge voluminous pompadour waves"],
       ["beehive", "Beehive", "b", "towering beehive hairdo"], ["perm", "Perm", "b", "tight dome-shaped perm"],
       ["long", "Long hair", "", "long hair"], ["short", "Short hair", "", "short hair"],
       ["horns", "Hair horns", "b", "hair styled into two horns"], ["softserve", "Soft-serve swirl", "b", "hair piled into a soft-serve ice cream swirl"],
@@ -83,8 +102,8 @@
       ["forehead", "High forehead", "hb", "very high forehead"], ["caveman", "Caveman", "hb", "heavy caveman brow"],
       ["gigachad", "Gigachad", "hb", "chiseled gigachad jawline"], ["megajaw", "Mega jaw", "hb", "enormous jaw"],
       ["round", "Round", "h", "round face"], ["square", "Square", "h", "square face"], ["heart", "Heart", "h", "heart-shaped face"]] },
-    { id: "neck", label: "Neck", max: 1, options: [
-      ["standard", "Standard", "h", ""], ["long", "Long", "hb", "long neck"], ["column", "Column", "hb", "thick column neck"], ["short", "Short", "h", "short neck"]] },
+    { id: "neck", label: "Neck", max: 1, visual: true, options: [
+      ["standard", "Standard", "h", "a normal neck"], ["thin", "Pencil neck", "hb", "a very thin pencil neck"], ["long", "Long", "hb", "a long neck"], ["column", "Column", "hb", "a thick column neck"], ["short", "Short", "h", "a short neck"]] },
     { id: "eyeshape", label: "Eye shape", max: 1, options: [
       ["almond", "Almond", "h", "almond-shaped"], ["round", "Round", "h", "round"], ["monolid", "Monolid", "h", "monolid"],
       ["closeset", "Close-set", "hb", "close-set"], ["wideset", "Wide-set", "hb", "wide-set"], ["uneven", "Uneven", "hb", "uneven"],
@@ -115,7 +134,9 @@
       ["elf", "Elf ears", "", "pointed elf ears"], ["lashes", "Big lashes", "", "big dramatic lashes"], ["tape", "Nose tape", "", "a strip of tape across the nose"]] },
     { id: "accessories", label: "Accessories", max: 3, options: [
       ["none", "None", "", ""], ["glasses", "Glasses", "", "glasses"], ["headphones", "Headphones", "", "headphones around the neck"],
-      ["jewelry", "Jewelry", "", "statement jewelry"], ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"]] }
+      ["jewelry", "Jewelry", "", "statement jewelry"], ["chain", "Iced-out chain", "", "an iced-out diamond chain"],
+      ["cap", "Fitted cap", "", "a fitted baseball cap"], ["backcap", "Backwards cap", "", "a backwards baseball cap"],
+      ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"]] }
   ];
 
   var VIEWS = {
@@ -139,10 +160,21 @@
   var NEGATIVE = "blurry, deformed, extra limbs, extra fingers, bad anatomy, watermark, text, logo, cropped head, child, minor, nsfw";
 
   // Presets for the Explore wall (images rendered on the 3090, in img/influencer/).
+  // x = extra description (goes into "Anything else?"), view = shot used for the preset image.
   var PRESETS = [
+    { id: "stick-stacks", name: "Stick Legs Stacks", tier: "freak", view: "card", t: { gender: ["male"], build: ["slim"], arms: ["stick"], legs: ["stick"], headsize: ["regular"], hair: ["freeform"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], distinctive: ["facetattoo"] },
+      x: "plain white fitted t-shirt, white drawstring shorts with a black belt, white-and-red high-top basketball sneakers, small diamond stud earring, silver watch, many small face tattoos, holding a fanned stack of cash" },
+    { id: "mushroom-top", name: "Mushroom Top", tier: "freak", view: "card", t: { gender: ["male"], build: ["heavy"], headsize: ["big"], neck: ["short"], hair: ["mushfade"], haircolor: ["darkbrown"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], facialhair: ["stubble"], accessories: ["chain"] },
+      x: "short stocky man, gold teeth, brown suede zip-up jacket over a brown hoodie and a cartoon graphic t-shirt, dark distressed jeans, iced-out rings and watch, holding a phone to his ear" },
+    { id: "atm-pale", name: "ATM Stick Boy", tier: "freak", view: "card", t: { gender: ["male"], build: ["skinny"], arms: ["stick"], legs: ["stick"], hair: ["buzz"], haircolor: ["platinum"], ethnicity: ["african"], age: ["adult"], skin: ["porcelain"], distinctive: ["facetattoo"], accessories: ["cap"] },
+      x: "African man with albinism: very pale pinkish-white skin with no brown pigment anywhere on his face, neck, arms or legs, pale blonde eyebrows and lashes, light eyes, black fitted baseball cap, plain black t-shirt, black shorts, thin silver cross necklace, black high-top sneakers, small face tattoos" },
+    { id: "peace-slim", name: "Peace Sign Slim", tier: "freak", view: "card", t: { gender: ["male"], build: ["slim"], arms: ["stick"], legs: ["stilts"], headsize: ["big"], hair: ["short"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["beard"], accessories: ["cap", "chain"] },
+      x: "pink fitted baseball cap, chocolate-brown graphic t-shirt with a big pink print, skinny dark-brown leather stacked pants, brown sneakers with pink laces, tattooed forearm, smiling, throwing a peace sign" },
+    { id: "heavyweight", name: "Heavyweight", tier: "total", view: "card", t: { gender: ["male"], build: ["obese"], arms: ["heavy"], legs: ["stick"], hair: ["dyedtips"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], accessories: ["chain"] },
+      x: "black graphic t-shirt riding up over the huge bare belly, light-wash ripped skinny jeans on very thin legs, black spiky slides, tattooed forearms, holding a white double foam cup and a blue sports drink" },
     { id: "miami-mc", name: "Miami Night MC", tier: "normal", t: { gender: ["male"], build: ["athletic"], hair: ["braids"], haircolor: ["black"], style: ["street"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["stubble"], distinctive: ["grill"], accessories: ["jewelry"] } },
     { id: "goth-queen", name: "Goth Queen", tier: "normal", t: { gender: ["female"], build: ["slim"], hair: ["long"], haircolor: ["black"], style: ["goth"], ethnicity: ["european"], age: ["adult"], skin: ["porcelain"], eyecolor: ["iceblue"], distinctive: ["piercing", "lashes"], accessories: ["jewelry"] } },
-    { id: "gym-chad", name: "Gym Gigachad", tier: "freak", t: { gender: ["male"], build: ["ultra"], hair: ["waves"], haircolor: ["blonde"], style: ["sporty"], ethnicity: ["european"], age: ["adult"], skin: ["tan"], head: ["gigachad"], height: ["vtall"], facialhair: ["clean"] } },
+    { id: "gym-chad", name: "Gym Gigachad", tier: "freak", t: { gender: ["male"], build: ["ultra"], hair: ["pompadour"], haircolor: ["blonde"], style: ["sporty"], ethnicity: ["european"], age: ["adult"], skin: ["tan"], head: ["gigachad"], height: ["vtall"], facialhair: ["clean"] } },
     { id: "y2k-star", name: "Y2K Pop Star", tier: "normal", t: { gender: ["female"], build: ["curvy"], hair: ["pigtails"], haircolor: ["pink"], style: ["y2k"], ethnicity: ["asian"], age: ["adult"], skin: ["light"], features: ["freckles", "blush"], distinctive: ["gems"], accessories: ["glasses"] } },
     { id: "boss-cat", name: "Boss Cat", tier: "cat", t: { gender: ["male"], build: ["heavy"], hair: ["mullet"], haircolor: ["ginger"], style: ["suits"], height: ["average"], accessories: ["jewelry", "hat"] } },
     { id: "retro-crooner", name: "Retro Crooner", tier: "freak", t: { gender: ["male"], build: ["slim"], hair: ["bowl"], haircolor: ["chestnut"], style: ["retro"], ethnicity: ["mideast"], age: ["mature"], skin: ["olive"], facialhair: ["pushbroom"], proportions: ["longlimbs"] } },
@@ -164,8 +196,8 @@
     tier: "normal",
     traits: {},          // groupId -> [optionId]
     open: { tier: true },
-    view: VIEWS[prefs.view] ? prefs.view : "full",
-    engine: ENGINES[prefs.engine] && prefs.engine !== "qwen_edit2509" ? prefs.engine : "zimage",
+    view: prefs.v2 && VIEWS[prefs.view] ? prefs.view : "card",
+    engine: prefs.v2 && ENGINES[prefs.engine] && prefs.engine !== "qwen_edit2509" ? prefs.engine : "flux2",
     batch: clamp(prefs.batch || 1, 1, 4),
     photo: null,         // { blob, url }
     mine: [],            // influencer rows + job data
@@ -181,7 +213,8 @@
       style: "", styleCustom: "", styleImg: null, styleTab: "presets",
       usePrompt: false
     },
-    vids: [], vidOffset: 0, vViewing: null
+    vids: [], vidOffset: 0, vViewing: null,
+    sel: {}             // "id|url" -> { c, url } (multi-select on My influencers)
   };
 
   // ------------------------------------------------------------ boot
@@ -195,6 +228,7 @@
   syncEngineNote();
   $("batchVal").textContent = state.batch;
   wireMotion();
+  wireSelection();
   applyLinkParams();
 
   if (client) {
@@ -245,10 +279,16 @@
       html += '<section class="inf-group' + (state.open[g.id] ? " is-open" : "") + '" data-g="' + g.id + '">' +
         groupHead(g.id, g.label, opts.length, picked, g.max) +
         '<div class="inf-group-body">' + (g.max > 1 ? '<p class="inf-max">Pick up to ' + g.max + "</p>" : "") +
-        '<div class="inf-opts">' + opts.map(function (o) {
-          var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
-          return '<button type="button" class="inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' + esc(o[1]) + "</button>";
-        }).join("") + "</div></div></section>";
+        (g.visual
+          ? '<div class="inf-types inf-vis' + (g.id === "hair" ? " is-hair" : "") + '">' + opts.map(function (o) {
+              var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
+              return '<button type="button" class="inf-type inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' +
+                '<span class="inf-type-img" style="background-image:url(' + IMG + "opt/" + g.id + "-" + o[0] + '.jpg)"></span><span>' + esc(o[1]) + "</span></button>";
+            }).join("")
+          : '<div class="inf-opts">' + opts.map(function (o) {
+              var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
+              return '<button type="button" class="inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' + esc(o[1]) + "</button>";
+            }).join("")) + "</div></div></section>";
     });
     $("groups").innerHTML = html;
   }
@@ -339,11 +379,13 @@
     hint("Random character loaded. Tweak anything, then Generate.");
   }
 
-  function loadRecipe(tier, traits, name) {
+  function loadRecipe(tier, traits, name, extra, view) {
     state.tier = tierOf(tier).id;
     state.traits = JSON.parse(JSON.stringify(traits || {}));
     state.open = { tier: true };
     $("infName").value = name || "";
+    $("infExtra").value = extra || "";
+    if (view && VIEWS[view]) { state.view = view; syncSeg("viewSeg", "data-view", view); }
     setPane("create");
     buildGroups(); renderPicked();
     syncEngineNote();
@@ -371,10 +413,19 @@
       subject = "a surreal photoreal hybrid character: a human " + who + "'s body from the neck down, but instead of a human head it has " + t.head +
         ", attached directly to the human neck and scaled like a human head; no human face, no human skin or human ears on the head, the " + t.animal + " head is the character's real head";
     }
-    parts.push(V.lead + " " + subject + (pickOne("style") ? ", fully clothed in " + pickOne("style") : ", fully clothed in a stylish outfit"));
-    var body = [pickOne("height"), pickOne("build")].filter(Boolean).join(", ");
+    // Signature = the odd body parts (Arms / Legs / Head size, plus extreme builds). Stated first and loud,
+    // or realistic models quietly normalise them.
+    var sig = ["arms", "legs", "headsize"].filter(function (g) { var v = state.traits[g]; return v && v.length && v[0] !== "regular"; })
+      .map(function (g) { return pickOne(g); });
+    var b0 = (state.traits.build || [])[0];
+    if (b0 === "skinny" || b0 === "obese") sig.unshift(pickOne("build"));
+    if (sig.length && t.human) subject = subject.replace(/^(a realistic |a bold, quirky, slightly exaggerated )/, "a surreal but photoreal ") + " with wildly exaggerated, unnatural body proportions";
+    parts.push(V.lead + " " + subject + (pickOne("style") ? ", fully clothed in " + pickOne("style") : $("infExtra").value.trim() ? ", fully clothed" : ", fully clothed in a stylish outfit"));
+    if (sig.length) parts.push("SIGNATURE, wildly exaggerated and the first thing you notice: " + sig.join("; "));
+    var body = [pickOne("height"), b0 === "skinny" || b0 === "obese" ? "" : pickOne("build")].filter(Boolean).join(", ");
     var prop = pickAll("proportions");
     if (body || prop.length) parts.push([body, prop.length ? "with " + prop.join(" and ") : ""].filter(Boolean).join(" "));
+
     if (pickOne("skin")) parts.push(pickOne("skin") + " skin tone");
     var hair = pickOne("hair"), hc = pickOne("haircolor");
     if (!t.human) {
@@ -401,6 +452,25 @@
     parts.push(t.id === "total" ? "surreal hyper-detailed but photoreal character design, " + bg + ", sharp focus"
       : bg + ", photorealistic, natural skin texture, sharp focus, high detail, editorial fashion photography");
     return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
+  }
+
+  // Second pass for exaggerated traits: FLUX.2 draws a believable character, then Qwen Edit 2509
+  // warps only the body parts (the way the viral "stick legs" edits are made).
+  var EXAGGERATE = {
+    build: { skinny: "the whole body skeletally thin, stick-figure skinny", obese: "the torso absurdly obese with a gigantic round belly hanging far over the waistband" },
+    arms: { stick: "the arms bizarrely, unnaturally thin like broomsticks, with smooth natural skin", heavy: "the arms huge, soft and fat", huge: "the arms enormously muscular and bulging" },
+    legs: { stick: "the legs bizarrely, unnaturally thin like broomsticks from hip to ankle, with smooth natural skin", stilts: "the legs impossibly long and thin like stilts, with smooth natural skin" },
+    headsize: { big: "the head about one and a half times bigger, clearly too big for the body", huge: "the head twice as big, like a bobblehead" }
+  };
+  function exaggerationEdit(view) {
+    var asks = [];
+    Object.keys(EXAGGERATE).forEach(function (g) { var v = (state.traits[g] || [])[0]; if (v && EXAGGERATE[g][v]) asks.push(EXAGGERATE[g][v]); });
+    if (!asks.length) return "";
+    var where = view === "card" ? "Keep the exact two-panel layout (close-up portrait on the left, full body on the right). Edit only the character's body proportions wherever the body is visible: make "
+      : view === "sheet" ? "Keep the exact layout and every view. Edit only the character's body proportions in each view: make "
+      : "Edit only this person's body proportions: make ";
+    return where + asks.join("; make ") +
+      ". Keep the face, hair, skin tone, tattoos, clothes, shoes, accessories, pose and background exactly the same. Surreal but photoreal, seamless.";
   }
 
   function buildEditPrompt(view) {
@@ -434,6 +504,8 @@
     fd.append("height", String(V.h));
     if (fromPhoto) { fd.append("size", "custom"); fd.append("image", state.photo.blob, state.photo.blob.name || "face.png"); }
     if (model === "flux2" || model === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
+    var exa = exaggerationEdit(state.view);
+    if (exa) fd.append("post_edit", exa);
 
     var card = { id: "tmp-" + Date.now(), name: name, tier: state.tier, traits: JSON.parse(JSON.stringify(state.traits)), view: view, model: model,
       prompt: prompt, from_photo: fromPhoto, created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: V.w, h: V.h };
@@ -549,15 +621,23 @@
       img.src = absUrl(url);
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(c.name || "Influencer") + "</strong><span>" + esc(tierOf(c.tier).label) + "</span></div>" +
+        '<button type="button" class="inf-check" data-act="sel" aria-label="Select" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></button>' +
         '<div class="inf-tile-acts"><button type="button" class="inf-recreate" data-act="recreate">Recreate</button></div>' +
         '<div class="inf-tile-side">' +
           '<button type="button" class="inf-icon-btn inf-fav' + (c.favorite ? " is-on" : "") + '" data-act="fav" title="Favorite" aria-label="Favorite" aria-pressed="' + !!c.favorite + '"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z\"/></svg></button>' +
+          '<button type="button" class="inf-icon-btn" data-act="more" title="More" aria-label="More actions"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>' +
           '<button type="button" class="inf-icon-btn" data-act="dl" title="Download" aria-label="Download"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3v12m0 0-4-4m4 4 4-4M5 21h14\"/></svg></button>' +
         '</div>' +
         '<button type="button" class="inf-tomotion" data-act="motion"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Turn to motion</button>' +
         '<div class="inf-missing-note">Image unavailable while the GPU machine is offline</div>');
       t.tabIndex = 0;
+      t.setAttribute("data-key", selKey(c, url));
+      if (state.sel[selKey(c, url)]) t.classList.add("is-selected");
+      t.addEventListener("contextmenu", function (e) { e.preventDefault(); openMenu(e.clientX, e.clientY, c, url); });
       t.addEventListener("click", function (e) {
+        if (e.target.closest("[data-act=sel]")) { e.stopPropagation(); toggleSel(c, url); return; }
+        if (e.target.closest("[data-act=more]")) { e.stopPropagation(); var r = e.target.closest("[data-act=more]").getBoundingClientRect(); openMenu(r.left - 220, r.bottom + 6, c, url); return; }
+        if (selCount() && !e.target.closest("[data-act]")) { toggleSel(c, url); return; }
         if (e.target.closest("[data-act=recreate]")) { e.stopPropagation(); loadRecipe(c.tier, c.traits, c.name); return; }
         if (e.target.closest("[data-act=motion]")) { e.stopPropagation(); toMotion(c, url); return; }
         if (e.target.closest("[data-act=fav]")) { e.stopPropagation(); toggleFav(c); return; }
@@ -578,7 +658,7 @@
 
   async function toggleFav(c) {
     c.favorite = !c.favorite;
-    renderMine();
+    renderMine(); paintSelBar();
     if (client && realId(c.id)) {
       var r = await client.from("influencers").update({ favorite: c.favorite }).eq("id", c.id);
       if (r.error) { c.favorite = !c.favorite; renderMine(); hint("Couldn't save the favorite. Try again.", true); }
@@ -611,7 +691,7 @@
     PRESETS.forEach(function (p) {
       var t = document.createElement("div");
       t.className = "inf-tile is-preset";
-      t.style.aspectRatio = "832 / 1216";
+      t.style.aspectRatio = p.view === "card" ? "1344 / 768" : "832 / 1216";
       var img = new Image();
       img.alt = p.name; img.loading = "lazy";
       img.onload = function () { t.classList.add("is-loaded"); };
@@ -619,7 +699,7 @@
       img.src = IMG + "preset-" + p.id + ".jpg";
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts is-on"><button type="button" class="inf-recreate">Recreate</button></div>');
-      t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name); });
+      t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name, p.x, p.view); });
       wall.appendChild(t);
     });
   }
@@ -683,11 +763,10 @@
 
   async function deleteViewing() {
     var v = state.viewing;
-    if (!v || !client) return;
-    if (!window.confirm("Delete " + (v.c.name || "this influencer") + "? This removes it from your list.")) return;
-    if (String(v.c.id).indexOf("tmp-") !== 0) await client.from("influencers").delete().eq("id", v.c.id);
-    state.mine = state.mine.filter(function (c) { return c !== v.c; });
-    closeViewer(); renderMine(); renderMotionPick();
+    if (!v) return;
+    var before = state.mine.length;
+    await deleteChars([v.c]);
+    if (state.mine.length < before) closeViewer();
   }
 
   // ------------------------------------------------------------ wiring
@@ -826,10 +905,130 @@
   function applyLinkParams() {
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var p = q.get("preset");
-    if (p) { var pr = PRESETS.filter(function (x) { return x.id === p; })[0]; if (pr) loadRecipe(pr.tier, pr.t, pr.name); }
+    if (p) { var pr = PRESETS.filter(function (x) { return x.id === p; })[0]; if (pr) loadRecipe(pr.tier, pr.t, pr.name, pr.x, pr.view); }
     if (q.get("tab") === "mine") setStage("mine");
     if (q.get("tab") === "videos") setStage("videos");
     if (q.get("tab") === "motion") setPane("motion");
+  }
+
+  // ------------------------------------------------------------ select, right-click menu, bottom toolbar
+  function selKey(c, url) { return String(c.id) + "|" + url; }
+  function selCount() { return Object.keys(state.sel).length; }
+  function toggleSel(c, url, force) {
+    var k = selKey(c, url);
+    var on = force === undefined ? !state.sel[k] : force;
+    if (on) state.sel[k] = { c: c, url: url }; else delete state.sel[k];
+    var t = $("mineWall").querySelector('[data-key="' + cssEsc(k) + '"]');
+    if (t) { t.classList.toggle("is-selected", on); var b = t.querySelector(".inf-check"); if (b) b.setAttribute("aria-pressed", on); }
+    paintSelBar();
+  }
+  function clearSel() {
+    state.sel = {};
+    Array.prototype.forEach.call($("mineWall").querySelectorAll(".is-selected"), function (t) { t.classList.remove("is-selected"); });
+    paintSelBar();
+  }
+  function selectAll() {
+    state.mine.forEach(function (c) { if (c.status === "done") (c.urls || []).forEach(function (u) { toggleSel(c, u, true); }); });
+  }
+  function selItems() { return Object.keys(state.sel).map(function (k) { return state.sel[k]; }); }
+  function paintSelBar() {
+    var n = selCount(), bar = $("selBar");
+    document.body.classList.toggle("inf-selecting", n > 0);
+    bar.hidden = n === 0;
+    if (!n) return;
+    var first = selItems()[0];
+    $("selThumb").style.backgroundImage = "url(" + JSON.stringify(absUrl(first.url)) + ")";
+    $("selCount").textContent = n + " selected";
+    var allFav = selItems().every(function (it) { return it.c.favorite; });
+    $("selFav").classList.toggle("is-on", allFav);
+    $("selFav").setAttribute("aria-pressed", allFav);
+  }
+  async function selDownload() {
+    var items = selItems();
+    for (var i = 0; i < items.length; i++) {
+      await downloadImg(absUrl(items[i].url), (items[i].c.name || "character") + (items.length > 1 ? "-" + (i + 1) : ""));
+      await new Promise(function (r) { setTimeout(r, 350); });
+    }
+  }
+  async function selFavorite() {
+    var items = selItems(), seen = {};
+    var target = !items.every(function (it) { return it.c.favorite; });
+    for (var i = 0; i < items.length; i++) {
+      var c = items[i].c; if (seen[c.id]) continue; seen[c.id] = 1;
+      if (!!c.favorite !== target) await toggleFav(c);
+    }
+    renderMine(); paintSelBar();
+  }
+  async function deleteChars(list) {
+    var uniq = [], seen = {};
+    list.forEach(function (c) { if (!seen[c.id]) { seen[c.id] = 1; uniq.push(c); } });
+    if (!uniq.length) return;
+    var label = uniq.length === 1 ? (uniq[0].name || "this influencer") : uniq.length + " influencers";
+    if (!window.confirm("Delete " + label + "? This removes them from your list.")) return;
+    var ids = uniq.map(function (c) { return realId(c.id); }).filter(Boolean);
+    if (client && ids.length) {
+      var r = await client.from("influencers").delete().in("id", ids);
+      if (r.error) { hint("Couldn't delete: " + r.error.message, true); return; }
+    }
+    state.mine = state.mine.filter(function (c) { return !seen[c.id]; });
+    clearSel(); renderMine(); renderMotionPick();
+  }
+
+  var menuCtx = null;
+  function openMenu(x, y, c, url) {
+    menuCtx = { c: c, url: url };
+    var m = $("ctxMenu");
+    $("ctxLike").querySelector("span").textContent = c.favorite ? "Unlike" : "Like";
+    $("ctxSelect").querySelector("span").textContent = state.sel[selKey(c, url)] ? "Unselect" : "Select";
+    m.hidden = false;
+    var w = m.offsetWidth, h = m.offsetHeight;
+    m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
+    m.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + "px";
+    m.classList.toggle("flip-sub", x + w + 220 > window.innerWidth);
+    var first = m.querySelector("button"); if (first) first.focus({ preventScroll: true });
+  }
+  function closeMenu() { $("ctxMenu").hidden = true; menuCtx = null; }
+  async function menuAct(act) {
+    var ctx = menuCtx; closeMenu();
+    if (!ctx) return;
+    var c = ctx.c, url = ctx.url, full = absUrl(url);
+    if (act === "open") openViewer(c, url);
+    else if (act === "select") toggleSel(c, url);
+    else if (act === "motion") { toMotion(c, url); setMode("motion"); }
+    else if (act === "swap") { toMotion(c, url); setMode("swap"); }
+    else if (act === "lipsync") location.href = "lip-sync.html?ref=" + encodeURIComponent(full);
+    else if (act === "recreate") loadRecipe(c.tier, c.traits, c.name);
+    else if (act === "reference") location.href = "image-studio.html?model=qwen_edit2509&ref=" + encodeURIComponent(full);
+    else if (act === "like") toggleFav(c);
+    else if (act === "copy") {
+      try { await navigator.clipboard.writeText(full); hint("Image link copied."); } catch (e) { window.prompt("Copy this link:", full); }
+    }
+    else if (act === "newtab") window.open(full, "_blank", "noopener");
+    else if (act === "download") downloadImg(full, c.name);
+    else if (act === "delete") deleteChars([c]);
+  }
+  function wireSelection() {
+    $("ctxMenu").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-m]");
+      if (!b) return;
+      if (b.classList.contains("has-sub")) { b.parentElement.classList.toggle("sub-open"); return; }
+      menuAct(b.getAttribute("data-m"));
+    });
+    document.addEventListener("mousedown", function (e) { if (!$("ctxMenu").hidden && !e.target.closest("#ctxMenu")) closeMenu(); });
+    window.addEventListener("scroll", function () { if (!$("ctxMenu").hidden) closeMenu(); }, true);
+    window.addEventListener("resize", closeMenu);
+    $("selDl").addEventListener("click", selDownload);
+    $("selFav").addEventListener("click", selFavorite);
+    $("selDel").addEventListener("click", function () { deleteChars(selItems().map(function (it) { return it.c; })); });
+    $("selAll").addEventListener("click", selectAll);
+    $("selClose").addEventListener("click", clearSel);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !$("ctxMenu").hidden) { closeMenu(); e.stopImmediatePropagation(); return; }
+      if (e.key === "Escape" && selCount() && $("viewer").hidden && $("vViewer").hidden && $("styleModal").hidden) clearSel();
+      if ((e.key === "Delete" || e.key === "Backspace") && selCount() && !/INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || "")) {
+        e.preventDefault(); deleteChars(selItems().map(function (it) { return it.c; }));
+      }
+    }, true);
   }
 
   // ------------------------------------------------------------ motion: transfer / swap / style
@@ -1322,6 +1521,6 @@
     return d.toLocaleDateString();
   }
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") || {}; } catch (e) { return {}; } }
-  function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ view: state.view, engine: state.engine, batch: state.batch, mMode: state.m.mode, mRes: state.m.res, mLen: state.m.len })); } catch (e) {} }
+  function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify({ v2: 1, view: state.view, engine: state.engine, batch: state.batch, mMode: state.m.mode, mRes: state.m.res, mLen: state.m.len })); } catch (e) {} }
   function realId(id) { return id && String(id).indexOf("tmp-") !== 0 ? String(id) : null; }
 })();

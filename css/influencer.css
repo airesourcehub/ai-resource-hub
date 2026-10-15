@@ -589,3 +589,75 @@
   .inf-tile .inf-tomotion { padding: 6px 10px; font-size: 0.72rem; }
 }
 .inf-seg-sm.is-locked button:not(.is-on) { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Select + right-click menu + bottom toolbar (Higgsfield-style) ---------- */
+.inf-check {
+  position: absolute; top: 10px; left: 10px; z-index: 3;
+  width: 26px; height: 26px; padding: 0; display: grid; place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 7px;
+  background: rgba(0, 0, 0, 0.3); color: transparent; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s ease, background 0.15s ease;
+}
+.inf-tile-acts { left: 44px; }
+.inf-tile:hover .inf-check, .inf-tile:focus-within .inf-check, .inf-selecting .inf-check { opacity: 1; }
+.inf-tile.is-selected { outline: 3px solid var(--color-accent); outline-offset: -3px; }
+.inf-tile.is-selected .inf-check { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.inf-selecting .inf-tile .inf-tomotion, .inf-selecting .inf-tile .inf-tile-side, .inf-selecting .inf-tile .inf-tile-acts { display: none; }
+.inf-selecting #mineWall .inf-tile { cursor: pointer; }
+
+.ctx-menu {
+  position: fixed; z-index: 300; min-width: 230px; padding: 6px;
+  border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(24, 24, 30, 0.97); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); color: #f3f3f1;
+}
+.ctx-menu[hidden] { display: none; }
+.ctx-menu button {
+  display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px;
+  border: 0; border-radius: 9px; background: none; color: inherit; font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer;
+}
+.ctx-menu button:hover, .ctx-menu button:focus-visible { background: rgba(255, 255, 255, 0.08); outline: none; }
+.ctx-menu button svg { flex-shrink: 0; opacity: 0.9; }
+.ctx-menu button span { flex: 1; }
+.ctx-menu .is-danger { color: #ff6b6b; }
+.ctx-menu hr { margin: 5px 4px; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.ctx-sub { position: relative; }
+.ctx-flyout {
+  display: none; position: absolute; left: calc(100% + 4px); top: -6px; min-width: 190px; padding: 6px;
+  border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(24, 24, 30, 0.98);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+}
+.ctx-menu.flip-sub .ctx-flyout { left: auto; right: calc(100% + 4px); }
+.ctx-sub:hover .ctx-flyout, .ctx-sub.sub-open .ctx-flyout, .ctx-sub:focus-within .ctx-flyout { display: block; }
+.ctx-flyout button { padding-left: 12px; }
+
+.sel-bar {
+  position: fixed; left: 50%; bottom: 22px; z-index: 250; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px; padding: 8px;
+  border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(24, 24, 30, 0.96); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); color: #f3f3f1; white-space: nowrap;
+}
+.sel-bar[hidden] { display: none; }
+.sel-thumb { width: 30px; height: 30px; border-radius: 8px; background: #333 center 20% / cover no-repeat; }
+.sel-bar strong { margin: 0 6px 0 2px; font-size: 0.92rem; }
+.sel-btn, .sel-icon {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px;
+  border: 0; border-radius: 11px; background: rgba(255, 255, 255, 0.07); color: inherit; font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.sel-btn { padding: 0 14px; }
+.sel-icon { width: 42px; }
+.sel-btn:hover, .sel-icon:hover { background: rgba(255, 255, 255, 0.14); }
+.sel-icon.is-danger:hover { background: rgba(255, 80, 80, 0.2); color: #ff6b6b; }
+.sel-icon.is-on svg { fill: #ff4d6d; stroke: #ff4d6d; }
+@media (max-width: 600px) {
+  .sel-bar { left: 8px; right: 8px; transform: none; bottom: 10px; justify-content: space-between; }
+  .sel-btn span { display: none; }
+  .sel-btn { padding: 0 11px; }
+  .sel-thumb { display: none; }
+}
+
+/* Visual trait tiles (Body, Arms, Legs, Head size, Neck, Hairstyle) */
+.inf-vis .inf-type-img { background-position: center 25%; }
+.inf-vis.is-hair .inf-type-img { background-position: center 30%; }
+.inf-vis .inf-type span:last-child { font-size: 0.74rem; }

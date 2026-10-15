@@ -79,7 +79,7 @@
 
       <div class="inf-field">
         <label for="infExtra">Anything else? <small>(optional)</small></label>
-        <textarea id="infExtra" rows="2" maxlength="300" placeholder="e.g. holding a microphone, gold chain, neon city behind"></textarea>
+        <textarea id="infExtra" rows="2" maxlength="600" placeholder="e.g. holding a microphone, gold chain, neon city behind"></textarea>
       </div>
     </div>
 
@@ -182,8 +182,8 @@
       <div class="inf-row">
         <span class="inf-row-lbl">Shot</span>
         <div class="inf-seg-sm" id="viewSeg">
-          <button type="button" data-view="card" title="Close-up + full body side by side, on white">Sheet</button>
-          <button type="button" data-view="full" class="is-on">Full body</button>
+          <button type="button" data-view="card" class="is-on" title="Close-up + full body side by side, on white">Sheet</button>
+          <button type="button" data-view="full">Full body</button>
           <button type="button" data-view="portrait">Portrait</button>
           <button type="button" data-view="sheet">Turnaround</button>
         </div>
@@ -191,8 +191,8 @@
       <div class="inf-row">
         <span class="inf-row-lbl">Engine</span>
         <div class="inf-seg-sm" id="engineSeg">
-          <button type="button" data-engine="zimage" class="is-on" title="Z-Image Turbo — fastest">Fast</button>
-          <button type="button" data-engine="flux2" title="FLUX.2 — slower, more detail">Best</button>
+          <button type="button" data-engine="zimage" title="Z-Image Turbo — fastest">Fast</button>
+          <button type="button" data-engine="flux2" class="is-on" title="FLUX.2 — slower, more detail">Best</button>
         </div>
         <span class="inf-row-lbl inf-batch-lbl">Batch</span>
         <div class="inf-step" aria-label="Batch size">
@@ -313,6 +313,42 @@
         </div>
       </aside>
     </div>
+  </div>
+  <div class="ctx-menu" id="ctxMenu" role="menu" hidden>
+    <button type="button" role="menuitem" data-m="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M9 21H3v-6"/></svg><span>Open</span></button>
+    <button type="button" role="menuitem" data-m="select" id="ctxSelect"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg><span>Select</span></button>
+    <div class="ctx-sub">
+      <button type="button" role="menuitem" class="has-sub" data-m="video" aria-haspopup="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg><span>Turn to video</span><svg class="ctx-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <div class="ctx-flyout" role="menu">
+        <button type="button" role="menuitem" data-m="motion"><span>Motion transfer</span></button>
+        <button type="button" role="menuitem" data-m="swap"><span>Swap into a video</span></button>
+        <button type="button" role="menuitem" data-m="lipsync"><span>Lip sync</span></button>
+      </div>
+    </div>
+    <button type="button" role="menuitem" data-m="recreate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg><span>Recreate</span></button>
+    <button type="button" role="menuitem" data-m="reference"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span>Use as reference</span></button>
+    <hr />
+    <button type="button" role="menuitem" data-m="like" id="ctxLike"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg><span>Like</span></button>
+    <div class="ctx-sub">
+      <button type="button" role="menuitem" class="has-sub" data-m="share" aria-haspopup="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span>Share</span><svg class="ctx-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <div class="ctx-flyout" role="menu">
+        <button type="button" role="menuitem" data-m="copy"><span>Copy image link</span></button>
+        <button type="button" role="menuitem" data-m="newtab"><span>Open in new tab</span></button>
+      </div>
+    </div>
+    <hr />
+    <button type="button" role="menuitem" data-m="download"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg><span>Download</span></button>
+    <button type="button" role="menuitem" data-m="delete" class="is-danger"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Delete</span></button>
+  </div>
+
+  <div class="sel-bar" id="selBar" role="toolbar" aria-label="Selected influencers" hidden>
+    <span class="sel-thumb" id="selThumb" aria-hidden="true"></span>
+    <strong id="selCount">0 selected</strong>
+    <button type="button" class="sel-btn" id="selDl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg><span>Download</span></button>
+    <button type="button" class="sel-btn" id="selAll"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg><span>Select all</span></button>
+    <button type="button" class="sel-icon" id="selFav" title="Like" aria-label="Like selected" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1z"/></svg></button>
+    <button type="button" class="sel-icon is-danger" id="selDel" title="Delete" aria-label="Delete selected"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+    <button type="button" class="sel-icon" id="selClose" title="Clear selection" aria-label="Clear selection"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
 </main>
 
