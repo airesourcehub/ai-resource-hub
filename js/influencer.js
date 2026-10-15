@@ -32,7 +32,7 @@
   // Option flags: h = humans only, b = Bold/Extreme/animals only,
   // x = Extreme only, X = Extreme or animals, a = animals only. Third item = prompt wording.
   var GROUPS = [
-    { id: "gender", label: "Gender", max: 1, options: [
+    { id: "gender", label: "Gender", max: 1, visual: true, options: [
       ["female", "Female", "", "woman"], ["male", "Male", "", "man"],
       ["trans_man", "Trans man", "", "transgender man"], ["trans_woman", "Trans woman", "", "transgender woman"],
       ["non_binary", "Non-binary", "", "androgynous non-binary person"]] },
@@ -50,7 +50,7 @@
       ["stilts", "Long stilts", "b", "impossibly long, stilt-like skinny legs far longer than normal, with smooth natural skin"],
       ["regular", "Regular", "", "normal legs"], ["thick", "Thick", "", "thick heavy legs"], ["muscular", "Muscular", "", "muscular legs"]] },
     { id: "headsize", label: "Head size", max: 1, visual: true, options: [
-      ["regular", "Regular", "", "a normal-sized head"],
+      ["tiny", "Tiny (shrunken)", "b", ""], ["regular", "Regular", "", "a normal-sized head"],
       ["big", "Big", "b", "an unnaturally oversized head, about one and a half times normal size, on a small body"], ["huge", "Bobblehead", "b", "a gigantic bobblehead head, twice normal size, on a small body"]] },
     { id: "hair", label: "Hairstyle", max: 1, visual: true, options: [
       ["freeform", "Freeform twists", "", "big messy freeform twisted dreads standing up and out like an afro"],
@@ -73,66 +73,66 @@
       ["tufts", "Side tufts", "b", "bald on top with big side tufts"], ["stairs", "Stair steps", "b", "hair cut in stair-step layers"],
       ["shelf", "Shelf bob", "b", "flat shelf-like bob"], ["corkscrews", "Corkscrews", "b", "springy corkscrew curls"],
       ["sidecoil", "Side coil", "b", "one big coil of hair on the side"], ["mushroom", "Mushroom", "b", "mushroom-cap haircut"]] },
-    { id: "haircolor", label: "Hair color", max: 1, options: [
+    { id: "haircolor", label: "Hair color", max: 1, visual: true, options: [
       ["black", "Jet black", "", "jet black"], ["darkbrown", "Dark brown", "", "dark brown"], ["chestnut", "Chestnut", "", "chestnut"],
       ["ginger", "Ginger", "", "ginger"], ["red", "Red", "", "bright red"], ["blonde", "Blonde", "", "blonde"],
       ["platinum", "Platinum", "", "platinum blonde"], ["grey", "Grey", "", "grey"], ["white", "White", "", "white"],
       ["pink", "Pastel pink", "", "pastel pink"], ["lilac", "Lilac", "", "lilac"], ["blue", "Blue", "", "blue"], ["green", "Green", "", "green"]] },
-    { id: "style", label: "Style", max: 1, options: [
+    { id: "style", label: "Style", max: 1, visual: true, options: [
       ["retro", "Retro", "", "a retro 70s outfit with a patterned collared shirt and flared trousers"], ["sporty", "Sporty", "", "a matching zip-up athletic tracksuit and sneakers"],
       ["y2k", "Y2K", "", "a Y2K outfit with a cropped baby tee, low-rise cargo pants and platform sneakers"], ["theatre", "Theatre", "", "a glamorous sequined theatrical stage costume"],
       ["goth", "Goth", "", "a gothic all-black outfit with a long coat and platform boots"], ["suits", "Suits", "", "a sharp tailored suit with a shirt and tie"],
       ["street", "Streetstyle", "", "a streetwear outfit with an oversized graphic hoodie, baggy jeans and chunky sneakers"], ["casual", "Casual", "", "a casual outfit of a t-shirt, jeans and sneakers"]] },
-    { id: "ethnicity", label: "Ethnicity", max: 1, options: [
+    { id: "ethnicity", label: "Ethnicity", max: 1, visual: true, options: [
       ["african", "African", "h", "Black African"], ["asian", "Asian", "h", "East Asian"], ["european", "European", "h", "European"],
       ["indian", "Indian", "h", "South Asian Indian"], ["mideast", "Middle Eastern", "h", "Middle Eastern"], ["mixed", "Mixed", "h", "mixed-race Latin American"]] },
-    { id: "age", label: "Age", max: 1, options: [
+    { id: "age", label: "Age", max: 1, visual: true, options: [
       ["adult", "Adult", "h", "young adult (about 25)"], ["mature", "Mature", "h", "middle-aged (about 45)"], ["senior", "Senior", "h", "elderly (about 70)"]] },
-    { id: "skin", label: "Skin color", max: 1, options: [
+    { id: "skin", label: "Skin color", max: 1, visual: true, options: [
       ["porcelain", "Porcelain", "h", "porcelain"], ["fair", "Fair", "h", "fair"], ["light", "Light", "h", "light"], ["olive", "Olive", "h", "olive"],
       ["tan", "Tan", "h", "tan"], ["brown", "Brown", "h", "brown"], ["deep", "Deep brown", "h", "deep brown"], ["ebony", "Ebony", "h", "ebony"]] },
-    { id: "height", label: "Height", max: 1, options: [
+    { id: "height", label: "Height", max: 1, visual: true, options: [
       ["short", "Short", "a", "short"], ["average", "Average", "", ""], ["tall", "Tall", "", "tall"], ["vtall", "Very tall", "", "very tall"]] },
-    { id: "proportions", label: "Proportions", max: 2, options: [
+    { id: "proportions", label: "Proportions", max: 2, visual: true, options: [
       ["longlimbs", "Long limbs", "", "long limbs"], ["shortlegs", "Short legs", "", "short legs"],
       ["shoulders", "Broad shoulders", "", "broad shoulders"], ["waist", "Tiny waist", "", "a very tiny waist"],
       ["egg", "Egg body", "b", "a round egg-shaped body"]] },
-    { id: "head", label: "Head shape", max: 1, options: [
+    { id: "head", label: "Head shape", max: 1, visual: true, options: [
       ["standard", "Standard", "h", ""], ["long", "Long", "h", "long face"], ["tiny", "Tiny", "hb", "comically tiny head"],
       ["forehead", "High forehead", "hb", "very high forehead"], ["caveman", "Caveman", "hb", "heavy caveman brow"],
       ["gigachad", "Gigachad", "hb", "chiseled gigachad jawline"], ["megajaw", "Mega jaw", "hb", "enormous jaw"],
       ["round", "Round", "h", "round face"], ["square", "Square", "h", "square face"], ["heart", "Heart", "h", "heart-shaped face"]] },
     { id: "neck", label: "Neck", max: 1, visual: true, options: [
       ["standard", "Standard", "h", "a normal neck"], ["thin", "Pencil neck", "hb", "a very thin pencil neck"], ["long", "Long", "hb", "a long neck"], ["column", "Column", "hb", "a thick column neck"], ["short", "Short", "h", "a short neck"]] },
-    { id: "eyeshape", label: "Eye shape", max: 1, options: [
+    { id: "eyeshape", label: "Eye shape", max: 1, visual: true, options: [
       ["almond", "Almond", "h", "almond-shaped"], ["round", "Round", "h", "round"], ["monolid", "Monolid", "h", "monolid"],
       ["closeset", "Close-set", "hb", "close-set"], ["wideset", "Wide-set", "hb", "wide-set"], ["uneven", "Uneven", "hb", "uneven"],
       ["large", "Large", "h", "large"], ["huge", "Huge", "hb", "huge"], ["hooded", "Hooded", "h", "hooded"],
       ["upturned", "Upturned", "h", "upturned"], ["downturned", "Downturned", "h", "downturned"]] },
-    { id: "eyecolor", label: "Eye color", max: 1, options: [
+    { id: "eyecolor", label: "Eye color", max: 1, visual: true, options: [
       ["black", "Black", "h", "black"], ["brown", "Brown", "h", "brown"], ["hazel", "Hazel", "h", "hazel"], ["green", "Green", "h", "green"],
       ["blue", "Blue", "h", "blue"], ["iceblue", "Ice blue", "h", "ice blue"], ["amber", "Amber", "h", "amber"], ["grey", "Grey", "h", "grey"]] },
-    { id: "features", label: "Features", max: 4, options: [
+    { id: "features", label: "Features", max: 4, visual: true, options: [
       ["freckles", "Freckles", "h", "freckles"], ["dimples", "Dimples", "h", "dimples"], ["eyebags", "Heavy eye bags", "h", "heavy eye bags"],
       ["blush", "Blush", "hb", "rosy blushing cheeks"], ["cheekbones", "High cheekbones", "h", "high cheekbones"], ["fulllips", "Full lips", "h", "full lips"],
-      ["thickbrows", "Thick brows", "h", "thick eyebrows"], ["mole", "Beauty mark", "h", "a beauty mark"], ["potato", "Potato nose", "hb", "a bulbous potato nose"],
+      ["thickbrows", "Thick brows", "h", "thick eyebrows"], ["mole", "Beauty mark", "h", "a beauty mark"], ["potato", "Potato nose", "hb", "a big, round, bulbous fleshy nose"],
       ["button", "Button nose", "hb", "a button nose"], ["pointy", "Pointy nose", "hb", "a long pointy nose"], ["tinynose", "Tiny nose", "h", "a tiny nose"],
       ["pouty", "Pouty lips", "hb", "pouty lips"], ["pursed", "Tiny pursed mouth", "hb", "a tiny pursed mouth"], ["widemouth", "Wide mouth", "h", "a wide mouth"],
       ["unibrow", "Unibrow", "hb", "a unibrow"], ["thinbrows", "Thin high brows", "hb", "thin high-arched brows"], ["brush", "Brush brows", "hb", "bushy brush brows"],
       ["jug", "Jug ears", "hb", "big jug ears"], ["unevenears", "Uneven ears", "hb", "uneven ears"], ["gap", "Gap teeth", "hb", "a gap-toothed smile"],
       ["buck", "Buck teeth", "hb", "buck teeth"], ["pointychin", "Pointy chin", "h", "a pointy chin"], ["weakchin", "Weak chin", "hb", "a weak chin"],
       ["bigforehead", "Big forehead", "hb", "a big forehead"]] },
-    { id: "facialhair", label: "Facial hair", max: 1, options: [
+    { id: "facialhair", label: "Facial hair", max: 1, visual: true, options: [
       ["clean", "Clean", "", "clean-shaven"], ["stubble", "Stubble", "", "stubble"], ["beard", "Full beard", "", "a full beard"],
       ["goatee", "Goatee", "", "a goatee"], ["moustache", "Moustache", "", "a moustache"], ["pencil", "Pencil", "", "a pencil moustache"],
       ["pushbroom", "Push-broom", "b", "a thick push-broom moustache"], ["braided", "Braided", "b", "a braided beard"]] },
-    { id: "distinctive", label: "Distinctive features", max: 2, options: [
+    { id: "distinctive", label: "Distinctive features", max: 2, visual: true, options: [
       ["oddeyes", "Odd eyes", "", "heterochromia, two different eye colors"], ["facetattoo", "Face tattoo", "", "a face tattoo"],
       ["piercing", "Piercing", "", "a septum piercing"], ["earpiercing", "Ear piercing", "", "ear piercings"], ["slits", "Brow slits", "", "eyebrow slits"],
       ["bleached", "Bleached", "", "bleached eyebrows"], ["nobrows", "No brows", "", "no eyebrows"], ["grill", "Gold grill", "", "a gold grill on the teeth"],
       ["braces", "Braces", "", "braces on the teeth"], ["scar", "Brow scar", "", "a scar through one eyebrow"], ["gems", "Face gems", "", "small face gems"],
       ["elf", "Elf ears", "", "pointed elf ears"], ["lashes", "Big lashes", "", "big dramatic lashes"], ["tape", "Nose tape", "", "a strip of tape across the nose"]] },
-    { id: "accessories", label: "Accessories", max: 3, options: [
+    { id: "accessories", label: "Accessories", max: 3, visual: true, options: [
       ["none", "None", "", ""], ["glasses", "Glasses", "", "glasses"], ["headphones", "Headphones", "", "headphones around the neck"],
       ["jewelry", "Jewelry", "", "statement jewelry"], ["chain", "Iced-out chain", "", "an iced-out diamond chain"],
       ["cap", "Fitted cap", "", "a fitted baseball cap"], ["backcap", "Backwards cap", "", "a backwards baseball cap"],
@@ -172,16 +172,16 @@
       x: "pink fitted baseball cap, chocolate-brown graphic t-shirt with a big pink print, skinny dark-brown leather stacked pants, brown sneakers with pink laces, tattooed forearm, smiling, throwing a peace sign" },
     { id: "heavyweight", name: "Heavyweight", tier: "total", view: "card", t: { gender: ["male"], build: ["obese"], arms: ["heavy"], legs: ["stick"], hair: ["dyedtips"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], accessories: ["chain"] },
       x: "black graphic t-shirt riding up over the huge bare belly, light-wash ripped skinny jeans on very thin legs, black spiky slides, tattooed forearms, holding a white double foam cup and a blue sports drink" },
-    { id: "miami-mc", name: "Miami Night MC", tier: "normal", t: { gender: ["male"], build: ["athletic"], hair: ["braids"], haircolor: ["black"], style: ["street"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["stubble"], distinctive: ["grill"], accessories: ["jewelry"] } },
-    { id: "goth-queen", name: "Goth Queen", tier: "normal", t: { gender: ["female"], build: ["slim"], hair: ["long"], haircolor: ["black"], style: ["goth"], ethnicity: ["european"], age: ["adult"], skin: ["porcelain"], eyecolor: ["iceblue"], distinctive: ["piercing", "lashes"], accessories: ["jewelry"] } },
-    { id: "gym-chad", name: "Gym Gigachad", tier: "freak", t: { gender: ["male"], build: ["ultra"], hair: ["pompadour"], haircolor: ["blonde"], style: ["sporty"], ethnicity: ["european"], age: ["adult"], skin: ["tan"], head: ["gigachad"], height: ["vtall"], facialhair: ["clean"] } },
-    { id: "y2k-star", name: "Y2K Pop Star", tier: "normal", t: { gender: ["female"], build: ["curvy"], hair: ["pigtails"], haircolor: ["pink"], style: ["y2k"], ethnicity: ["asian"], age: ["adult"], skin: ["light"], features: ["freckles", "blush"], distinctive: ["gems"], accessories: ["glasses"] } },
-    { id: "boss-cat", name: "Boss Cat", tier: "cat", t: { gender: ["male"], build: ["heavy"], hair: ["mullet"], haircolor: ["ginger"], style: ["suits"], height: ["average"], accessories: ["jewelry", "hat"] } },
-    { id: "retro-crooner", name: "Retro Crooner", tier: "freak", t: { gender: ["male"], build: ["slim"], hair: ["bowl"], haircolor: ["chestnut"], style: ["retro"], ethnicity: ["mideast"], age: ["mature"], skin: ["olive"], facialhair: ["pushbroom"], proportions: ["longlimbs"] } },
-    { id: "frog-prof", name: "Professor Frog", tier: "frog", t: { gender: ["male"], build: ["slim"], hair: ["tufts"], haircolor: ["white"], style: ["suits"], accessories: ["glasses", "bag"] } },
-    { id: "capy-skater", name: "Capybara Skater", tier: "rodent", t: { gender: ["non_binary"], build: ["athletic"], hair: ["buzz"], haircolor: ["blue"], style: ["street"], accessories: ["headphones", "hat"] } },
-    { id: "salsa-diva", name: "Salsa Diva", tier: "normal", t: { gender: ["female"], build: ["curvy"], hair: ["afro"], haircolor: ["darkbrown"], style: ["theatre"], ethnicity: ["mixed"], age: ["mature"], skin: ["brown"], features: ["fulllips", "cheekbones"], accessories: ["jewelry"] } },
-    { id: "extreme-mantis", name: "Mantis Model", tier: "insect", t: { gender: ["female"], build: ["slim"], hair: ["beehive"], haircolor: ["lilac"], style: ["retro"], proportions: ["longlimbs"], accessories: ["glasses"] } }
+    { id: "miami-mc", name: "Miami Night MC", tier: "normal", view: "card", t: { gender: ["male"], build: ["athletic"], hair: ["braids"], haircolor: ["black"], style: ["street"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["stubble"], distinctive: ["grill"], accessories: ["jewelry"] } },
+    { id: "goth-queen", name: "Goth Queen", tier: "normal", view: "card", t: { gender: ["female"], build: ["slim"], hair: ["long"], haircolor: ["black"], style: ["goth"], ethnicity: ["european"], age: ["adult"], skin: ["porcelain"], eyecolor: ["iceblue"], distinctive: ["piercing", "lashes"], accessories: ["jewelry"] } },
+    { id: "gym-chad", name: "Gym Gigachad", tier: "freak", view: "card", t: { gender: ["male"], build: ["ultra"], hair: ["pompadour"], haircolor: ["blonde"], style: ["sporty"], ethnicity: ["european"], age: ["adult"], skin: ["tan"], head: ["gigachad"], height: ["vtall"], facialhair: ["clean"] } },
+    { id: "y2k-star", name: "Y2K Pop Star", tier: "normal", view: "card", t: { gender: ["female"], build: ["curvy"], hair: ["pigtails"], haircolor: ["pink"], style: ["y2k"], ethnicity: ["asian"], age: ["adult"], skin: ["light"], features: ["freckles", "blush"], distinctive: ["gems"], accessories: ["glasses"] } },
+    { id: "boss-cat", name: "Boss Cat", tier: "cat", view: "card", t: { gender: ["male"], build: ["heavy"], hair: ["mullet"], haircolor: ["ginger"], style: ["suits"], height: ["average"], accessories: ["jewelry", "hat"] } },
+    { id: "retro-crooner", name: "Retro Crooner", tier: "freak", view: "card", t: { gender: ["male"], build: ["slim"], hair: ["bowl"], haircolor: ["chestnut"], style: ["retro"], ethnicity: ["mideast"], age: ["mature"], skin: ["olive"], facialhair: ["pushbroom"], proportions: ["longlimbs"] } },
+    { id: "frog-prof", name: "Professor Frog", tier: "frog", view: "card", t: { gender: ["male"], build: ["slim"], hair: ["tufts"], haircolor: ["white"], style: ["suits"], accessories: ["glasses", "bag"] } },
+    { id: "capy-skater", name: "Capybara Skater", tier: "rodent", view: "card", t: { gender: ["non_binary"], build: ["athletic"], hair: ["buzz"], haircolor: ["blue"], style: ["street"], accessories: ["headphones", "hat"] } },
+    { id: "salsa-diva", name: "Salsa Diva", tier: "normal", view: "card", t: { gender: ["female"], build: ["curvy"], hair: ["afro"], haircolor: ["darkbrown"], style: ["theatre"], ethnicity: ["mixed"], age: ["mature"], skin: ["brown"], features: ["fulllips", "cheekbones"], accessories: ["jewelry"] } },
+    { id: "extreme-mantis", name: "Mantis Model", tier: "insect", view: "card", t: { gender: ["female"], build: ["slim"], hair: ["beehive"], haircolor: ["lilac"], style: ["retro"], proportions: ["longlimbs"], accessories: ["glasses"] } }
   ];
 
   // ------------------------------------------------------------ state
@@ -416,7 +416,7 @@
     // Signature = the odd body parts (Arms / Legs / Head size, plus extreme builds). Stated first and loud,
     // or realistic models quietly normalise them.
     var sig = ["arms", "legs", "headsize"].filter(function (g) { var v = state.traits[g]; return v && v.length && v[0] !== "regular"; })
-      .map(function (g) { return pickOne(g); });
+      .map(function (g) { return pickOne(g); }).filter(Boolean);  // "tiny" head has no wording: the server shrinks it
     var b0 = (state.traits.build || [])[0];
     if (b0 === "skinny" || b0 === "obese") sig.unshift(pickOne("build"));
     if (sig.length && t.human) subject = subject.replace(/^(a realistic |a bold, quirky, slightly exaggerated )/, "a surreal but photoreal ") + " with wildly exaggerated, unnatural body proportions";
@@ -506,6 +506,7 @@
     if (model === "flux2" || model === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
     var exa = exaggerationEdit(state.view);
     if (exa) fd.append("post_edit", exa);
+    if ((state.traits.headsize || [])[0] === "tiny") fd.append("shrink_head", "1");
 
     var card = { id: "tmp-" + Date.now(), name: name, tier: state.tier, traits: JSON.parse(JSON.stringify(state.traits)), view: view, model: model,
       prompt: prompt, from_photo: fromPhoto, created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: V.w, h: V.h };
