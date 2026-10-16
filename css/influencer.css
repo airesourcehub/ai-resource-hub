@@ -701,3 +701,6 @@
 .inf-chain-ice{display:flex;align-items:center;gap:4px;font-size:12.5px;white-space:nowrap}
 .inf-chain-hint{margin:0;font-size:12px;color:var(--color-text-muted)}
 
+/* grills: metal + coverage nested under the Grills group */
+.inf-subgroup { margin-top: 14px; }
+.inf-sub-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }

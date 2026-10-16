@@ -129,7 +129,7 @@
     { id: "distinctive", label: "Distinctive features", max: 2, visual: true, options: [
       ["oddeyes", "Odd eyes", "", "heterochromia, two different eye colors"], ["facetattoo", "Face tattoo", "", "a face tattoo"],
       ["piercing", "Piercing", "", "a septum piercing"], ["earpiercing", "Ear piercing", "", "ear piercings"], ["slits", "Brow slits", "", "eyebrow slits"],
-      ["bleached", "Bleached", "", "bleached eyebrows"], ["nobrows", "No brows", "", "no eyebrows"], ["grill", "Gold grill", "", "a gold grill on the teeth"],
+      ["bleached", "Bleached", "", "bleached eyebrows"], ["nobrows", "No brows", "", "no eyebrows"],
       ["braces", "Braces", "", "braces on the teeth"], ["scar", "Brow scar", "", "a scar through one eyebrow"], ["gems", "Face gems", "", "small face gems"],
       ["elf", "Elf ears", "", "pointed elf ears"], ["lashes", "Big lashes", "", "big dramatic lashes"], ["tape", "Nose tape", "", "a strip of tape across the nose"]] },
     { id: "accessories", label: "Accessories", max: 3, visual: true, options: [
@@ -148,7 +148,23 @@
       ["turntables", "DJ decks", "", "an iced-out {M} DJ setup pendant: two turntables side by side with black vinyl records and tonearms and a DJ mixer with knobs and faders in the middle, all paved in diamonds"],
       ["name", "Name pendant", "", "NAME"]] },
     { id: "metal", label: "Chain metal", max: 1, visual: true, options: [
-      ["silver", "White gold", "", "white gold"], ["gold", "Yellow gold", "", "yellow gold"], ["rose", "Rose gold", "", "rose gold"]] }
+      ["silver", "White gold", "", "white gold"], ["gold", "Yellow gold", "", "yellow gold"], ["rose", "Rose gold", "", "rose gold"]] },
+    { id: "grill", label: "Grills", max: 1, visual: true, options: [
+      ["none", "None", "", ""],
+      ["solid", "Solid", "", "a polished solid {G} grill with a mirror shine, each tooth individually shaped"],
+      ["diamondcut", "Diamond-cut", "", "a {G} diamond-cut grill, the metal engraved with fine glittering faceted cuts that sparkle like diamond dust"],
+      ["iced", "Iced out", "", "a fully iced-out grill, every tooth completely paved in brilliant VVS diamonds set in {G}", "platinum"],
+      ["stars", "Star cut", "", "a polished {G} grill with a small diamond-paved star set into the center of each tooth"],
+      ["openface", "Open face", "", "an open-face {G} grill: thin polished frames outlining each tooth with the natural white enamel showing through the middle"],
+      ["ruby", "Ruby", "", "a grill paved in deep blood-red rubies set in {G}, every gem individually set and glowing red"],
+      ["led", "LED", "", "a light-up LED grill glowing bright neon blue, pink and purple through clear covers with thin {G} edges, the light glowing on the lips"],
+      ["fangs", "Fangs", "", "pointed {G} fang caps paved in diamonds on the upper canine teeth, the other teeth natural white", "silver"],
+      ["rainbow", "Rainbow gems", "", "a grill paved in a rainbow mosaic of rubies, sapphires, emeralds and yellow and pink diamonds set in {G}"]] },
+    { id: "grillmetal", label: "Grill metal", max: 1, visual: true, sub: "grill", options: [
+      ["gold", "Gold", "", "yellow gold"], ["silver", "Silver", "", "sterling silver"], ["platinum", "Platinum", "", "platinum"], ["rose", "Rose gold", "", "rose gold"]] },
+    { id: "grillcover", label: "Coverage", max: 1, sub: "grill", options: [
+      ["top6", "Top 6", "", "the top six front teeth"], ["bottom6", "Bottom 6", "", "the bottom six front teeth"],
+      ["both6", "Top & bottom 6", "", "the top six and bottom six front teeth"], ["full8", "Full mouth 8+8", "", "every visible tooth, the top eight and bottom eight"]] }
   ];
 
   var VIEWS = {
@@ -225,7 +241,7 @@
       x: "pink fitted baseball cap, chocolate-brown graphic t-shirt with a big pink print, skinny dark-brown leather stacked pants, brown sneakers with pink laces, tattooed forearm, smiling, throwing a peace sign" },
     { id: "heavyweight", name: "Heavyweight", tier: "total", view: "card", t: { gender: ["male"], build: ["obese"], arms: ["heavy"], legs: ["stick"], hair: ["dyedtips"], haircolor: ["black"], ethnicity: ["african"], age: ["adult"], skin: ["brown"], accessories: ["chain"] },
       x: "black graphic t-shirt riding up over the huge bare belly, light-wash ripped skinny jeans on very thin legs, black spiky slides, tattooed forearms, holding a white double foam cup and a blue sports drink" },
-    { id: "miami-mc", name: "Miami Night MC", tier: "normal", view: "card", t: { gender: ["male"], build: ["athletic"], hair: ["braids"], haircolor: ["black"], style: ["street"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["stubble"], distinctive: ["grill"], accessories: ["jewelry"] } },
+    { id: "miami-mc", name: "Miami Night MC", tier: "normal", view: "card", t: { gender: ["male"], build: ["athletic"], hair: ["braids"], haircolor: ["black"], style: ["street"], ethnicity: ["african"], age: ["adult"], skin: ["deep"], facialhair: ["stubble"], grill: ["solid"], grillmetal: ["gold"], accessories: ["jewelry"] } },
     { id: "goth-queen", name: "Goth Queen", tier: "normal", view: "card", t: { gender: ["female"], build: ["slim"], hair: ["long"], haircolor: ["black"], style: ["goth"], ethnicity: ["european"], age: ["adult"], skin: ["porcelain"], eyecolor: ["iceblue"], distinctive: ["piercing", "lashes"], accessories: ["jewelry"] } },
     { id: "gym-chad", name: "Gym Gigachad", tier: "freak", view: "card", t: { gender: ["male"], build: ["ultra"], hair: ["pompadour"], haircolor: ["blonde"], style: ["sporty"], ethnicity: ["european"], age: ["adult"], skin: ["tan"], head: ["gigachad"], height: ["vtall"], facialhair: ["clean"] } },
     { id: "y2k-star", name: "Y2K Pop Star", tier: "normal", view: "card", t: { gender: ["female"], build: ["curvy"], hair: ["pigtails"], haircolor: ["pink"], style: ["y2k"], ethnicity: ["asian"], age: ["adult"], skin: ["light"], features: ["freckles", "blush"], distinctive: ["gems"], accessories: ["glasses"] } },
@@ -326,23 +342,31 @@
         return '<button type="button" class="inf-type' + (t.id === state.tier ? " is-on" : "") + '" data-tier="' + t.id + '" aria-pressed="' + (t.id === state.tier) + '">' +
           '<span class="inf-type-img" style="background-image:url(' + IMG + "type-" + t.id + '.jpg)"></span><span>' + t.label + "</span></button>";
       }).join("") + "</div></div></section>";
+    function optsHtml(g, opts) {
+      return g.visual
+        ? '<div class="inf-types inf-vis' + (g.id === "hair" ? " is-hair" : "") + '">' + opts.map(function (o) {
+            var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
+            return '<button type="button" class="inf-type inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' +
+              '<span class="inf-type-img" style="background-image:url(' + IMG + "opt/" + g.id + "-" + o[0] + '.jpg)"></span><span>' + esc(o[1]) + "</span></button>";
+          }).join("") + "</div>"
+        : '<div class="inf-opts">' + opts.map(function (o) {
+            var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
+            return '<button type="button" class="inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' + esc(o[1]) + "</button>";
+          }).join("") + "</div>";
+    }
     GROUPS.forEach(function (g) {
+      if (g.sub) return;
       var opts = visibleOptions(g);
       if (!opts.length) return;
-      var picked = (state.traits[g.id] || []).map(function (id) { return labelOf(g, id); }).join(", ");
+      var picked = g.id === "grill" ? grillSummary() : (state.traits[g.id] || []).map(function (id) { return labelOf(g, id); }).join(", ");
+      var subs = GROUPS.filter(function (x) { return x.sub === g.id; }).map(function (x) {
+        return '<div class="inf-subgroup" data-g="' + x.id + '"><p class="inf-sub-label">' + esc(x.label) + '<span class="inf-group-picked" hidden></span></p>' + optsHtml(x, visibleOptions(x)) + "</div>";
+      }).join("");
       html += '<section class="inf-group' + (state.open[g.id] ? " is-open" : "") + '" data-g="' + g.id + '">' +
         groupHead(g.id, g.label, opts.length, picked, g.max) +
         '<div class="inf-group-body">' + (g.max > 1 ? '<p class="inf-max">Pick up to ' + g.max + "</p>" : "") +
-        (g.visual
-          ? '<div class="inf-types inf-vis' + (g.id === "hair" ? " is-hair" : "") + '">' + opts.map(function (o) {
-              var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
-              return '<button type="button" class="inf-type inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' +
-                '<span class="inf-type-img" style="background-image:url(' + IMG + "opt/" + g.id + "-" + o[0] + '.jpg)"></span><span>' + esc(o[1]) + "</span></button>";
-            }).join("")
-          : '<div class="inf-opts">' + opts.map(function (o) {
-              var on = (state.traits[g.id] || []).indexOf(o[0]) > -1;
-              return '<button type="button" class="inf-opt' + (on ? " is-on" : "") + '" data-g="' + g.id + '" data-o="' + o[0] + '" aria-pressed="' + on + '">' + esc(o[1]) + "</button>";
-            }).join("")) + "</div>" +
+        optsHtml(g, opts) + subs +
+        (g.id === "grill" ? '<p class="inf-chain-hint">Pick a grill style, then the metal and how many teeth it covers. Leave it on None for no grill.</p>' : "") +
         (g.id === "pendant" ? '<label class="inf-pname"' + ((state.traits.pendant || [])[0] === "name" ? "" : " hidden") + '>Name on the pendant <input id="infPendantName" type="text" maxlength="14" placeholder="e.g. CRISS P" value="' + esc(state.pendantName || "") + '"></label>' : "") +
         "</div></section>";
       if (g.id === "metal" && tierOf(state.tier).human) {
@@ -398,13 +422,14 @@
       cur.push(oid);
     }
     if (cur.length) state.traits[gid] = cur; else delete state.traits[gid];
-    var sec = $("groups").querySelector('.inf-group[data-g="' + gid + '"]');
+    var sec = $("groups").querySelector('.inf-group[data-g="' + gid + '"], .inf-subgroup[data-g="' + gid + '"]');
     if (sec) {
-      Array.prototype.forEach.call(sec.querySelectorAll(".inf-opt"), function (b) {
+      Array.prototype.forEach.call(sec.querySelectorAll('.inf-opt[data-g="' + gid + '"]'), function (b) {
         var on = cur.indexOf(b.getAttribute("data-o")) > -1;
         b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on);
       });
       sec.querySelector(".inf-group-picked").textContent = cur.map(function (id) { return labelOf(g, id); }).join(", ");
+      if (gid === "grill" || g.sub === "grill") { var gh = $("groups").querySelector('.inf-group[data-g="grill"] .inf-group-head .inf-group-picked'); if (gh) gh.textContent = grillSummary(); }
       var pn = sec.querySelector(".inf-pname"); if (pn) pn.hidden = cur[0] !== "name";
     }
     renderPicked();
@@ -415,7 +440,7 @@
     chips.push('<span class="inf-chip is-type">' + esc(tierOf(state.tier).label) + "</span>");
     GROUPS.forEach(function (g) {
       (state.traits[g.id] || []).forEach(function (oid) {
-        chips.push('<button type="button" class="inf-chip" data-g="' + g.id + '" data-o="' + oid + '" title="Remove">' + esc(labelOf(g, oid)) + ' <span aria-hidden="true">&times;</span></button>');
+        chips.push('<button type="button" class="inf-chip" data-g="' + g.id + '" data-o="' + oid + '" title="Remove">' + esc((g.sub === "grill" ? "Grill: " : g.id === "grill" ? "Grill " : "") + labelOf(g, oid)) + ' <span aria-hidden="true">&times;</span></button>');
       });
     });
     $("picked").innerHTML = chips.join("");
@@ -430,6 +455,8 @@
     GROUPS.forEach(function (g) {
       var opts = visibleOptions(g).filter(function (o) { return o[0] !== "none"; });
       if (!opts.length) return;
+      if (g.sub && !(state.traits[g.sub] || []).length) return;
+      if (g.id === "grill" && Math.random() < 0.75) return;
       var core = ["gender", "build", "hair", "haircolor", "style", "ethnicity", "age", "skin"].indexOf(g.id) > -1;
       if (!core && Math.random() < 0.55) return;
       var n = g.max > 1 ? 1 + Math.floor(Math.random() * Math.min(2, g.max)) : 1;
@@ -468,6 +495,23 @@
     if (!o) return "";
     if (gid === "pendant") return o[3].replace(/\{M\}/g, metalWord(o[4])) + pendantAttach(o[4]);
     return o[3];
+  }
+  function grillSummary() {
+    var gs = (state.traits.grill || [])[0];
+    if (!gs || gs === "none") return gs === "none" ? "None" : "";
+    var g = groupById("grill"), o = optOf(g, gs);
+    var m = (state.traits.grillmetal || [])[0], c = (state.traits.grillcover || [])[0];
+    return [o ? o[1] : gs, m ? labelOf(groupById("grillmetal"), m) : "", gs !== "fangs" && c ? labelOf(groupById("grillcover"), c) : ""].filter(Boolean).join(" \u00b7 ");
+  }
+  function grillPhrase() {
+    var gs = (state.traits.grill || [])[0];
+    if (!gs || gs === "none") return "";
+    var o = optOf(groupById("grill"), gs); if (!o) return "";
+    var m = (state.traits.grillmetal || [])[0] || o[4] || "gold";
+    var mw = { gold: "yellow gold", silver: "sterling silver", platinum: "platinum", rose: "rose gold" }[m] || "yellow gold";
+    var cov = optOf(groupById("grillcover"), (state.traits.grillcover || [])[0] || "both6");
+    var core = o[3].replace(/\{G\}/g, mw);
+    return gs === "fangs" ? core : core + ", fitted over " + cov[3];
   }
   function metalWord(def) {
     var m = (state.traits.metal || [])[0] || def || "silver";
@@ -583,8 +627,10 @@
     if (pend) acc = acc.filter(function (a) { return a !== "an iced-out diamond chain"; }).concat([pend]);
     else if ((state.traits.metal || [])[0]) acc = acc.map(function (a) { return a === "an iced-out diamond chain" ? "an iced-out " + metalWord() + " diamond cuban link chain" : a; });
     if (acc.length) parts.push("accessorized with " + acc.join(", "));
+    var grl = grillPhrase();
+    if (grl) parts.push("wearing a custom grill on the teeth: " + grl + ", mouth open in a confident wide grin with lips parted so the grill is clearly visible, sharp detailed jewelry on the teeth");
     if (extraRaw && !lead) parts.push(extraRaw);
-    parts.push(V.tail);
+    parts.push(grl ? V.tail.replace("a blank deadpan expression", "a confident open-mouth grin showing the grill") : V.tail);
     var bg = V.white ? "pure white seamless studio background, bright soft even light, faint contact shadow under the feet" : "plain light grey studio backdrop, soft even studio lighting";
     parts.push(t.id === "total" ? "extremely exaggerated but photoreal, a real photograph not a 3D render or cartoon, high-end fashion lookbook photography, " + bg + ", crisp natural skin texture, sharp focus"
       : bg + ", photorealistic, natural skin texture, sharp focus, high detail, editorial fashion photography");
