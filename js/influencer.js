@@ -481,7 +481,7 @@
     buildGroups(); renderPicked();
     syncEngineNote();
     $("paneCreate").scrollTop = 0;
-    if (window.matchMedia("(max-width: 960px)").matches) root.scrollIntoView({ behavior: "smooth" });
+    if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
     hint("Settings loaded" + (name ? " from " + name : "") + ". Change anything, then Generate.");
   }
 
@@ -1264,7 +1264,7 @@
     state.motionPick = url;
     setPane("motion");
     $("paneMotion").scrollTop = 0;
-    if (window.matchMedia("(max-width: 960px)").matches) root.scrollIntoView({ behavior: "smooth" });
+    if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
     mHint(state.m.video ? "Ready. Pick a style if you like, then Generate." : "Now add a reference video.");
   }
 

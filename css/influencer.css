@@ -373,10 +373,31 @@
 .inf-viewer-acts .btn-primary { grid-column: 1 / -1; }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 960px) {
-  .inf { grid-template-columns: 1fr; }
+/* Laptop / half-screen: keep Higgsfield's two columns (narrow builder panel + stage) */
+@media (max-width: 1240px) {
+  .vs.inf { grid-template-columns: 330px minmax(0, 1fr); gap: 12px; padding: 12px; }
+}
+@media (max-width: 1240px) and (min-width: 721px) {
+  .inf-foot .inf-row-lbl { min-width: 38px; }
+  .inf-foot #viewSeg { flex: 1; min-width: 0; }
+  .inf-foot #viewSeg button { flex: 1 1 auto; min-width: 0; white-space: nowrap; padding-left: 4px; padding-right: 4px; font-size: 0.75rem; }
+}
+@media (max-width: 1100px) {
+  .inf-stage-tabs button { white-space: nowrap; }
+  .inf-gpu { font-size: 0; gap: 0; }
+}
+@media (min-width: 721px) and (max-width: 960px) {
+  .vs.inf { grid-template-columns: 318px minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .inf .vs-panel { position: sticky; top: 74px; height: calc(100vh - 86px); }
+  .inf .vs-scroll { overflow-y: auto; }
+}
+/* Phones and small tablets: one column */
+@media (max-width: 720px) {
+  .vs.inf { grid-template-columns: 1fr; padding: 10px; }
   .inf-panel .vs-scroll { max-height: none; }
   .inf-foot { position: sticky; bottom: 0; z-index: 4; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.25); }
+}
+@media (max-width: 960px) {
   .inf-fan { height: 190px; }
   .inf-fan-card { width: 104px; height: 156px; margin-left: -52px; transform: translateX(calc(var(--i) * 64px)) rotate(calc(var(--i) * 6deg)) translateY(calc(var(--i) * var(--i) * 5px)); }
   .inf-viewer-body { grid-template-columns: 1fr; overflow-y: auto; }
