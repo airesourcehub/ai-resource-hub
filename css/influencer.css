@@ -690,3 +690,14 @@
 .inf-pname[hidden]{display:none}
 .inf-pname input{width:100%;padding:9px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:inherit;font:inherit;font-size:14px;letter-spacing:.04em}
 .inf-pname input:focus{outline:none;border-color:rgba(255,255,255,.4)}
+.inf-chains{display:flex;flex-direction:column;gap:10px}
+.inf-chain-count,.inf-chain-pend{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--color-text-muted)}
+.inf-chain-count button,.inf-chain-pend button{padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:inherit;font:inherit;font-size:13px;cursor:pointer}
+.inf-chain-count button.is-on,.inf-chain-pend button.is-on{background:#fff;color:#111;border-color:#fff}
+.inf-chain-row{display:grid;grid-template-columns:22px 1.25fr .85fr 1fr;gap:6px;align-items:center;padding:8px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+.inf-chain-row select[data-k=metal]{grid-column:2/4}
+.inf-chain-n{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;font-size:12px;font-weight:600}
+.inf-chain-row select{width:100%;min-width:0;padding:7px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:#16171b;color:inherit;font:inherit;font-size:12.5px}
+.inf-chain-ice{display:flex;align-items:center;gap:4px;font-size:12.5px;white-space:nowrap}
+.inf-chain-hint{margin:0;font-size:12px;color:var(--color-text-muted)}
+

@@ -139,13 +139,13 @@
       ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"], ["earmuffs", "Earmuffs", "", "fluffy oversized earmuffs"], ["shades", "Sport shades", "", "black wraparound sport sunglasses"]] },
     { id: "pendant", label: "Chain pendant", max: 1, visual: true, options: [
       ["none", "None", "", ""],
-      ["lion", "Gold lion", "", "a big solid {M} lion head pendant with a detailed mane and diamond eyes, hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling", "gold"],
-      ["cross", "Iced cross", "", "a big iced-out {M} diamond cross pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["hundred", "100 emoji", "", "a pendant shaped like the red 100 emoji, double underlined, paved in red rubies and white diamonds set in {M}, hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["ak", "AK", "", "an iced-out {M} diamond AK-47 rifle pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["mic", "Microphone", "", "an iced-out {M} diamond vintage microphone pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["headphones", "Headphones", "", "an iced-out {M} diamond over-ear headphones pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["turntables", "DJ decks", "", "an iced-out {M} DJ setup pendant: two turntables side by side with black vinyl records and tonearms and a DJ mixer with knobs and faders in the middle, all paved in diamonds, hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["lion", "Gold lion", "", "a big solid {M} lion head pendant with a detailed mane and diamond eyes", "gold"],
+      ["cross", "Iced cross", "", "a big iced-out {M} diamond cross pendant"],
+      ["hundred", "100 emoji", "", "a pendant shaped like the red 100 emoji, double underlined, paved in red rubies and white diamonds set in {M}"],
+      ["ak", "AK", "", "an iced-out {M} diamond AK-47 rifle pendant"],
+      ["mic", "Microphone", "", "an iced-out {M} diamond vintage microphone pendant"],
+      ["headphones", "Headphones", "", "an iced-out {M} diamond over-ear headphones pendant"],
+      ["turntables", "DJ decks", "", "an iced-out {M} DJ setup pendant: two turntables side by side with black vinyl records and tonearms and a DJ mixer with knobs and faders in the middle, all paved in diamonds"],
       ["name", "Name pendant", "", "NAME"]] },
     { id: "metal", label: "Chain metal", max: 1, visual: true, options: [
       ["silver", "White gold", "", "white gold"], ["gold", "Yellow gold", "", "yellow gold"], ["rose", "Rose gold", "", "rose gold"]] }
@@ -345,6 +345,12 @@
             }).join("")) + "</div>" +
         (g.id === "pendant" ? '<label class="inf-pname"' + ((state.traits.pendant || [])[0] === "name" ? "" : " hidden") + '>Name on the pendant <input id="infPendantName" type="text" maxlength="14" placeholder="e.g. CRISS P" value="' + esc(state.pendantName || "") + '"></label>' : "") +
         "</div></section>";
+      if (g.id === "metal" && tierOf(state.tier).human) {
+        var cs = state.chains || [];
+        html += '<section class="inf-group' + (state.open.chains ? " is-open" : "") + '" data-g="chains">' +
+          groupHead("chains", "Chains (jeweler)", 3, cs.length ? cs.map(function (c) { return c.mm + "mm " + c.len + '"'; }).join(" + ") : "") +
+          '<div class="inf-group-body"><div class="inf-chains-wrap">' + chainsHtml() + "</div></div></section>";
+      }
     });
     $("groups").innerHTML = html;
   }
@@ -439,6 +445,7 @@
   function loadRecipe(tier, traits, name, extra, view) {
     state.tier = tierOf(tier).id;
     state.traits = JSON.parse(JSON.stringify(traits || {}));
+    state.chains = []; state.pendantOn = 0;
     state.open = { tier: true };
     $("infName").value = name || "";
     $("infExtra").value = extra || "";
@@ -455,16 +462,70 @@
   function phrase(gid, oid) {
     if (gid === "pendant" && oid === "name") {
       var nm = (state.pendantName || $("infName").value || "ICY").replace(/["<>]/g, "").trim().slice(0, 14) || "ICY";
-      return 'a big custom name pendant spelling "' + nm + '" in bold cursive script letters, ' + metalWord() + ' paved in diamonds, hanging from a thick iced-out ' + metalWord() + ' cuban link chain on a big diamond bail, every diamond sparkling';
+      return 'a big custom name pendant spelling "' + nm + '" in bold cursive script letters, ' + metalWord() + ' paved in diamonds' + pendantAttach();
     }
     var g = groupById(gid), o = g && optOf(g, oid);
     if (!o) return "";
-    if (gid === "pendant") return o[3].replace(/\{M\}/g, metalWord(o[4]));
+    if (gid === "pendant") return o[3].replace(/\{M\}/g, metalWord(o[4])) + pendantAttach(o[4]);
     return o[3];
   }
   function metalWord(def) {
     var m = (state.traits.metal || [])[0] || def || "silver";
     return { silver: "white gold", gold: "yellow gold", rose: "rose gold" }[m] || "white gold";
+  }
+  // ---- jeweler: up to 3 layered chains, each with its own style, width, length and metal
+  var CHAIN_STYLES = [["cuban", "Cuban link", "cuban link chain"], ["tennis", "Tennis", "tennis chain of single set diamonds"], ["rope", "Rope", "twisted rope chain"],
+    ["franco", "Franco", "franco chain"], ["figaro", "Figaro", "figaro chain"], ["herringbone", "Herringbone", "flat herringbone chain"], ["rolo", "Rolo", "rolo link chain"]];
+  var CHAIN_MM = [3, 5, 8, 10, 12, 15, 18, 20, 25];
+  var CHAIN_LEN = [[16, "16\" choker", "16 inches, sitting tight around the neck like a choker"], [18, "18\"", "18 inches, resting at the collarbone"],
+    [20, "20\"", "20 inches, resting on the upper chest"], [22, "22\"", "22 inches, hanging to the mid chest"], [24, "24\"", "24 inches, hanging to the lower chest"],
+    [26, "26\"", "26 inches, hanging just above the stomach"], [30, "30\"", "30 inches, hanging down to the stomach"]];
+  var CHAIN_METAL = [["match", "Match pendant"], ["silver", "White gold"], ["gold", "Yellow gold"], ["rose", "Rose gold"]];
+  function newChain(i) { return [{ style: "cuban", mm: 12, len: 20, metal: "match", iced: true }, { style: "tennis", mm: 5, len: 18, metal: "match", iced: true }, { style: "rope", mm: 8, len: 24, metal: "match", iced: false }][i] || { style: "cuban", mm: 10, len: 22, metal: "match", iced: true }; }
+  function chainMetal(c) { if (c.metal && c.metal !== "match") return { silver: "white gold", gold: "yellow gold", rose: "rose gold" }[c.metal]; var p = (state.traits.pendant || [])[0], g = groupById("pendant"), o = p && optOf(g, p); return metalWord(o && o[4]); }
+  function chainPhrase(c) {
+    var st = CHAIN_STYLES.filter(function (x) { return x[0] === c.style; })[0] || CHAIN_STYLES[0];
+    var ln = CHAIN_LEN.filter(function (x) { return x[0] === +c.len; })[0] || CHAIN_LEN[2];
+    var w = c.mm <= 5 ? "thin " : c.mm >= 15 ? "massive heavy " : "thick ";
+    return "a " + w + c.mm + "mm " + (c.iced && c.style !== "tennis" ? "iced-out diamond " : "") + chainMetal(c) + " " + st[2] + ", " + ln[2];
+  }
+  function chainsPhrase() {
+    var cs = state.chains || [];
+    if (!cs.length) return "";
+    var ord = ["first", "second", "third"];
+    var list = cs.map(function (c, i) { return (cs.length > 1 ? "(" + (i + 1) + ") " : "") + chainPhrase(c); }).join("; ");
+    return (cs.length > 1 ? cs.length + " layered chains at the same time, clearly separate and each fully visible: " : "") + list +
+      ", every diamond individually set and sparkling, realistic jewelry proportions";
+  }
+  function pendantAttach(def) {
+    var cs = state.chains || [];
+    if (!cs.length) return ", hanging from the center of a thick iced-out " + metalWord(def) + " cuban link chain on a big diamond bail, every diamond individually set and sparkling";
+    var i = Math.min(state.pendantOn || 0, cs.length - 1);
+    return ", hanging on a big diamond bail from the center of the " + ["first", "second", "third"][i] + " chain (the " + cs[i].len + "-inch " + cs[i].mm + "mm one)";
+  }
+  function chainsHtml() {
+    var cs = state.chains || [];
+    function sel(i, key, opts) {
+      return '<select data-chain="' + i + '" data-k="' + key + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cs[i][key]) === String(o[0]) ? " selected" : "") + ">" + esc(o[1]) + "</option>"; }).join("") + "</select>";
+    }
+    var h = '<div class="inf-chains"><div class="inf-chain-count">' + [0, 1, 2, 3].map(function (n) {
+      return '<button type="button" data-chaincount="' + n + '" class="' + (cs.length === n ? "is-on" : "") + '">' + (n ? n + (n > 1 ? " chains" : " chain") : "Off") + "</button>";
+    }).join("") + "</div>";
+    cs.forEach(function (c, i) {
+      h += '<div class="inf-chain-row"><span class="inf-chain-n">' + (i + 1) + "</span>" +
+        sel(i, "style", CHAIN_STYLES) + sel(i, "mm", CHAIN_MM.map(function (m) { return [m, m + "mm"]; })) +
+        sel(i, "len", CHAIN_LEN) + sel(i, "metal", CHAIN_METAL) +
+        '<label class="inf-chain-ice"><input type="checkbox" data-chain="' + i + '" data-k="iced"' + (c.iced ? " checked" : "") + "> Iced</label></div>";
+    });
+    if (cs.length > 1) h += '<div class="inf-chain-pend">Pendant hangs on chain ' + cs.map(function (c, i) {
+      return '<button type="button" data-pendon="' + i + '" class="' + ((state.pendantOn || 0) === i ? "is-on" : "") + '">' + (i + 1) + "</button>";
+    }).join("") + "</div>";
+    return h + '<p class="inf-chain-hint">Pick 1 to 3 chains and set each one like a jeweler would: style, width, length and metal.</p></div>';
+  }
+  function refreshChains() {
+    var box = $("groups").querySelector(".inf-chains-wrap"); if (box) box.innerHTML = chainsHtml();
+    var head = $("groups").querySelector('.inf-group[data-g="chains"] .inf-group-picked');
+    if (head) head.textContent = (state.chains || []).length ? (state.chains || []).map(function (c) { return c.mm + "mm " + c.len + '"'; }).join(" + ") : "";
   }
   function pickOne(gid) { var v = state.traits[gid]; return v && v.length ? phrase(gid, v[0]) : ""; }
   function pickAll(gid) { return (state.traits[gid] || []).map(function (o) { return phrase(gid, o); }).filter(Boolean); }
@@ -517,6 +578,8 @@
     if (shaven) parts.push("clean-shaven");
     var acc = pickAll("accessories");
     var pend = pickOne("pendant");
+    var chs = chainsPhrase();
+    if (chs) acc = acc.filter(function (a) { return a !== "an iced-out diamond chain"; }).concat(["wearing " + chs]);
     if (pend) acc = acc.filter(function (a) { return a !== "an iced-out diamond chain"; }).concat([pend]);
     else if ((state.traits.metal || [])[0]) acc = acc.map(function (a) { return a === "an iced-out diamond chain" ? "an iced-out " + metalWord() + " diamond cuban link chain" : a; });
     if (acc.length) parts.push("accessorized with " + acc.join(", "));
@@ -871,6 +934,24 @@
     $("groups").addEventListener("input", function (e) {
       if (e.target && e.target.id === "infPendantName") state.pendantName = e.target.value;
     });
+    $("groups").addEventListener("change", function (e) {
+      var t = e.target, i = t && t.getAttribute("data-chain");
+      if (i === null || i === undefined || !state.chains || !state.chains[+i]) return;
+      var k = t.getAttribute("data-k");
+      state.chains[+i][k] = k === "iced" ? t.checked : (k === "mm" || k === "len") ? +t.value : t.value;
+      refreshChains();
+    });
+    $("groups").addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-chaincount],[data-pendon]");
+      if (!b) return;
+      if (b.hasAttribute("data-chaincount")) {
+        var n = +b.getAttribute("data-chaincount"), cs = state.chains || [];
+        while (cs.length < n) cs.push(newChain(cs.length));
+        cs.length = n; state.chains = cs;
+        if ((state.pendantOn || 0) >= n) state.pendantOn = 0;
+      } else state.pendantOn = +b.getAttribute("data-pendon");
+      refreshChains();
+    });
     $("groups").addEventListener("click", function (e) {
       var head = e.target.closest("[data-toggle]");
       if (head) {
@@ -890,7 +971,7 @@
       if (c) toggleOpt(c.getAttribute("data-g"), c.getAttribute("data-o"));
     });
     $("resetAll").addEventListener("click", function () {
-      state.traits = {}; state.tier = "normal"; $("infName").value = ""; $("infExtra").value = "";
+      state.traits = {}; state.chains = []; state.pendantOn = 0; state.tier = "normal"; $("infName").value = ""; $("infExtra").value = "";
       buildGroups(); renderPicked(); hint("");
     });
     $("shuffleBtn").addEventListener("click", shuffle);
