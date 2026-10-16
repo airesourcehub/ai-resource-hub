@@ -725,3 +725,6 @@
 /* grills: metal + coverage nested under the Grills group */
 .inf-subgroup { margin-top: 14px; }
 .inf-sub-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }
+/* preset wall laid out row by row in JS (left-to-right reading order) */
+#presetWall.is-masonry { columns: auto !important; display: flex; align-items: flex-start; }
+#presetWall.is-masonry .inf-wcol { flex: 1 1 0; min-width: 0; }
