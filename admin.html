@@ -82,6 +82,7 @@
           <button class="admin-tab" data-admin-tab="thumbs">Model Thumbnails</button>
           <button class="admin-tab" data-admin-tab="analytics">Analytics</button>
           <button class="admin-tab" data-admin-tab="site">Site Settings</button>
+          <button class="admin-tab" data-admin-tab="inforder">Influencer Order</button>
         </div>
 
         <!-- ACCESS REQUESTS -->
@@ -219,6 +220,18 @@
           </div>
         </div>
 
+        <!-- INFLUENCER ORDER -->
+        <div class="admin-panel" id="admin-inforder">
+          <h3>Influencer page order</h3>
+          <p class="model-note" style="margin:0 0 16px;">Arrange the preset characters on the AI Influencer page. Drag a card to move it, or use the arrows. Visitors see them in this order, left to right, row by row (four across on a laptop). Untick <strong>Show</strong> to hide one. Click Save and everyone sees it on their next visit.</p>
+          <div class="io-bar">
+            <button type="button" class="btn btn-primary" id="ioSave">Save for everyone</button>
+            <button type="button" class="btn btn-secondary" id="ioDefault">Back to default order</button>
+            <span class="form-status" id="ioStatus"></span>
+          </div>
+          <div class="io-grid" id="ioGrid"></div>
+        </div>
+
         <!-- ANALYTICS -->
         <div class="admin-panel" id="admin-analytics">
           <h3>Site analytics</h3>
@@ -292,6 +305,8 @@
 <script src="js/admin.js"></script>
 <script src="js/admin-thumbs.js"></script>
 <script src="js/admin-site.js"></script>
+<script src="js/influencer-presets.js"></script>
+<script src="js/admin-inforder.js"></script>
 <script src="js/gpu-access-admin.js"></script>
 <script src="js/admin-gpu.js"></script>
 </body>

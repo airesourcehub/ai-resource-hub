@@ -2511,3 +2511,22 @@ video.upload-preview {
   .nav-links .nav-sec { position: static; }
   .nav-sec[data-sec] > .mega { left: 12px; right: auto; top: calc(100% - 4px); }
 }
+
+/* ---------- Admin → Influencer Order ---------- */
+.io-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.io-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.io-card { position: relative; display: flex; flex-direction: column; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface); overflow: hidden; cursor: grab; user-select: none; }
+.io-card.is-drag { opacity: 0.4; }
+.io-card.is-over { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.io-card.is-off .io-img { filter: grayscale(1); opacity: 0.35; }
+.io-img { aspect-ratio: 7 / 6; background-size: cover; background-position: center top; background-color: var(--color-surface-2); }
+.io-meta { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px 4px; min-width: 0; }
+.io-meta strong { font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.io-meta small { font-size: 0.72rem; color: var(--color-text-muted); }
+.io-pos { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 0.72rem; font-weight: 700; }
+.io-acts { display: flex; align-items: center; gap: 4px; padding: 4px 10px 10px; }
+.io-acts button { width: 30px; height: 28px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface-2); color: var(--color-text); cursor: pointer; }
+.io-acts button:disabled { opacity: 0.35; cursor: default; }
+.io-acts label { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; cursor: pointer; }
+@media (max-width: 900px) { .io-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .io-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
