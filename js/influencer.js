@@ -139,14 +139,16 @@
       ["hat", "Hat", "", "a hat"], ["bag", "Bag", "", "a designer bag"], ["earmuffs", "Earmuffs", "", "fluffy oversized earmuffs"], ["shades", "Sport shades", "", "black wraparound sport sunglasses"]] },
     { id: "pendant", label: "Chain pendant", max: 1, visual: true, options: [
       ["none", "None", "", ""],
-      ["lion", "Gold lion", "", "a big solid yellow-gold lion head pendant with a detailed mane and diamond eyes, hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["cross", "Iced cross", "", "a big iced-out diamond cross pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["hundred", "100 emoji", "", "a pendant shaped like the red 100 emoji, double underlined, paved in red rubies and white diamonds, hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["ak", "AK", "", "an iced-out diamond AK-47 rifle pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["mic", "Microphone", "", "an iced-out diamond vintage microphone pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["headphones", "Headphones", "", "an iced-out diamond headphones pendant hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["turntables", "Turntables", "", "an iced-out diamond DJ turntable pendant with a black vinyl record, hanging from the center of a thick iced-out diamond cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
-      ["name", "Name pendant", "", "NAME"]] }
+      ["lion", "Gold lion", "", "a big solid {M} lion head pendant with a detailed mane and diamond eyes, hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling", "gold"],
+      ["cross", "Iced cross", "", "a big iced-out {M} diamond cross pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["hundred", "100 emoji", "", "a pendant shaped like the red 100 emoji, double underlined, paved in red rubies and white diamonds set in {M}, hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["ak", "AK", "", "an iced-out {M} diamond AK-47 rifle pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["mic", "Microphone", "", "an iced-out {M} diamond vintage microphone pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["headphones", "Headphones", "", "an iced-out {M} diamond over-ear headphones pendant hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["turntables", "DJ decks", "", "an iced-out {M} DJ setup pendant: two turntables side by side with black vinyl records and tonearms and a DJ mixer with knobs and faders in the middle, all paved in diamonds, hanging from the center of a thick iced-out {M} cuban link chain on a big diamond bail, every diamond individually set and sparkling"],
+      ["name", "Name pendant", "", "NAME"]] },
+    { id: "metal", label: "Chain metal", max: 1, visual: true, options: [
+      ["silver", "White gold", "", "white gold"], ["gold", "Yellow gold", "", "yellow gold"], ["rose", "Rose gold", "", "rose gold"]] }
   ];
 
   var VIEWS = {
@@ -453,9 +455,16 @@
   function phrase(gid, oid) {
     if (gid === "pendant" && oid === "name") {
       var nm = (state.pendantName || $("infName").value || "ICY").replace(/["<>]/g, "").trim().slice(0, 14) || "ICY";
-      return 'a big custom name pendant spelling "' + nm + '" in bold cursive script letters, white gold paved in diamonds, hanging from a thick iced-out diamond cuban link chain on a big diamond bail, every diamond sparkling';
+      return 'a big custom name pendant spelling "' + nm + '" in bold cursive script letters, ' + metalWord() + ' paved in diamonds, hanging from a thick iced-out ' + metalWord() + ' cuban link chain on a big diamond bail, every diamond sparkling';
     }
-    var g = groupById(gid), o = g && optOf(g, oid); return o ? o[3] : "";
+    var g = groupById(gid), o = g && optOf(g, oid);
+    if (!o) return "";
+    if (gid === "pendant") return o[3].replace(/\{M\}/g, metalWord(o[4]));
+    return o[3];
+  }
+  function metalWord(def) {
+    var m = (state.traits.metal || [])[0] || def || "silver";
+    return { silver: "white gold", gold: "yellow gold", rose: "rose gold" }[m] || "white gold";
   }
   function pickOne(gid) { var v = state.traits[gid]; return v && v.length ? phrase(gid, v[0]) : ""; }
   function pickAll(gid) { return (state.traits[gid] || []).map(function (o) { return phrase(gid, o); }).filter(Boolean); }
@@ -509,6 +518,7 @@
     var acc = pickAll("accessories");
     var pend = pickOne("pendant");
     if (pend) acc = acc.filter(function (a) { return a !== "an iced-out diamond chain"; }).concat([pend]);
+    else if ((state.traits.metal || [])[0]) acc = acc.map(function (a) { return a === "an iced-out diamond chain" ? "an iced-out " + metalWord() + " diamond cuban link chain" : a; });
     if (acc.length) parts.push("accessorized with " + acc.join(", "));
     if (extraRaw && !lead) parts.push(extraRaw);
     parts.push(V.tail);
