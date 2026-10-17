@@ -54,6 +54,7 @@
       ["big", "Big", "b", "an unnaturally oversized head, about one and a half times normal size, on a small body"], ["huge", "Bobblehead", "b", "a gigantic bobblehead head, twice normal size, on a small body"]] },
     { id: "hair", label: "Hairstyle", max: 1, visual: true, options: [
       ["freeform", "Freeform twists", "", "big messy freeform twisted dreads standing up and out like an afro"],
+      ["spiderlocs", "Spider locs", "", "very thick twisted dreadlocks gathered into about eight stiff rope-like locs that stick straight out and up from the head in every direction like spider legs or antennae, each lock as thick as a thumb"],
       ["shortdreads", "Short dreads", "", "short dreadlocks"], ["meddreads", "Medium dreads", "", "medium-length dreadlocks"],
       ["longdreads", "Long dreads", "", "long dreadlocks hanging past the shoulders"],
       ["dyedtips", "Dyed-tip dreads", "", "shoulder-length dreadlocks with blonde dyed tips falling over the face"],
@@ -435,10 +436,10 @@
     hint("Random character loaded. Tweak anything, then Generate.");
   }
 
-  function loadRecipe(tier, traits, name, extra, view) {
+  function loadRecipe(tier, traits, name, extra, view, chains) {
     state.tier = tierOf(tier).id;
     state.traits = JSON.parse(JSON.stringify(traits || {}));
-    state.chains = []; state.pendantOn = 0;
+    state.chains = chains ? JSON.parse(JSON.stringify(chains)) : []; state.pendantOn = 0;
     state.open = { tier: true };
     $("infName").value = name || "";
     $("infExtra").value = extra || "";
@@ -872,7 +873,7 @@
       img.src = sheets ? IMG + "preset-" + p.id + ".jpg" : IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts is-on"><button type="button" class="inf-recreate">Recreate</button></div>');
-      t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name, p.x, p.view); });
+      t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); });
       t._ar = sheets ? 1024 / 1792 : (full ? 14 / 9 : 8 / 7);
       tiles.push(t);
     });
@@ -1132,7 +1133,7 @@
   function applyLinkParams() {
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var p = q.get("preset");
-    if (p) { var pr = (window.AIRH_INF_PRESETS || PRESETS).filter(function (x) { return x.id === p; })[0]; if (pr) loadRecipe(pr.tier, pr.t, pr.name, pr.x, pr.view); }
+    if (p) { var pr = (window.AIRH_INF_PRESETS || PRESETS).filter(function (x) { return x.id === p; })[0]; if (pr) loadRecipe(pr.tier, pr.t, pr.name, pr.x, pr.view, pr.chains); }
     if (q.get("tab") === "mine") setStage("mine");
     if (q.get("tab") === "videos") setStage("videos");
     if (q.get("tab") === "motion") setPane("motion");
