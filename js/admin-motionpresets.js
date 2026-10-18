@@ -1,6 +1,6 @@
 // AI Resource Hub — Admin → Motion Presets.
 // Clips live in the public Storage bucket "motion-presets" (admin-only write). The list is saved to
-// site_settings key "motion_presets" as { items: [{ id, name, video, poster, mode, target, note, portrait, hidden }] };
+// site_settings key "motion_presets" as { items: [{ id, name, video, poster, mode, target, note, shots, portrait, hidden }] };
 // js/influencer.js shows them on Explore → Motion Presets and in each character's popup.
 (function () {
   if (!window.supabase || typeof SUPABASE_URL === "undefined") return;
@@ -22,7 +22,7 @@
       var pos = m.hidden ? "Hidden" : "#" + (++n);
       return '<div class="io-card' + (m.hidden ? " is-off" : "") + '" draggable="true" data-id="' + esc(m.id) + '">' +
         '<div class="io-img"><video muted loop playsinline preload="metadata"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' src="' + esc(m.video) + '#t=0.1"></video></div>' +
-        '<div class="io-meta"><span class="io-pos">' + pos + "</span><strong>" + esc(m.name) + "</strong><small>" + (m.mode === "swap" ? "Character swap" : "Motion transfer") + "</small></div>" +
+        '<div class="io-meta"><span class="io-pos">' + pos + "</span><strong>" + esc(m.name) + "</strong><small>" + (m.mode === "swap" ? "Character swap" : "Motion transfer") + (m.shots > 1 ? " · " + m.shots + " angles" : "") + "</small></div>" +
         '<div class="io-acts"><button type="button" data-mv="-1" aria-label="Move earlier"' + (i === 0 ? " disabled" : "") + ">&larr;</button>" +
         '<button type="button" data-mv="1" aria-label="Move later"' + (i === items.length - 1 ? " disabled" : "") + ">&rarr;</button>" +
         '<button type="button" class="mp-del" data-del aria-label="Delete">Delete</button>' +
@@ -95,7 +95,7 @@
       }
       items.unshift({ id: id, name: name, video: BASE + path, path: path, poster: poster, posterPath: poster ? posterPath : null,
         mode: $("mpMode").value, target: $("mpMode").value === "swap" ? ($("mpTarget").value.trim() || "person") : "",
-        note: $("mpNote").value.trim(), portrait: info.h >= info.w, secs: Math.round(info.dur * 10) / 10, hidden: false });
+        note: $("mpNote").value.trim(), shots: Math.max(1, Math.min(12, parseInt($("mpShots") && $("mpShots").value, 10) || 1)), portrait: info.h >= info.w, secs: Math.round(info.dur * 10) / 10, hidden: false });
       render();
       await save();
       addStatus("Added and live.");

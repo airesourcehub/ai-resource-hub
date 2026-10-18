@@ -183,8 +183,8 @@
     ["plush", "Plush Toy"], ["photoreal", "Photoreal"]
   ];
   var MODE_COPY = {
-    motion: { note: "Your influencer copies every move from the video, in their own setting.", title: "Add a reference video<br />to extract motion", hint: "Video duration: 4 to 30 seconds" },
-    swap: { note: "Changes only what you pick: your character takes the place of someone in the video. Everything else stays the same.", title: "Add a reference video<br />to edit", hint: "Video duration: 4 to 30 seconds" }
+    motion: { note: "Your influencer copies every move from the video, in their own setting and with their own body shape.", title: "Add a reference video<br />to extract motion", hint: "Video duration: 4 to 30 seconds" },
+    swap: { note: "Your character takes the place of someone in the video. The scene and camera stay the same. Works best for characters with regular human proportions.", title: "Add a reference video<br />to edit", hint: "Video duration: 4 to 30 seconds" }
   };
   var NEGATIVE = "blurry, deformed, extra limbs, extra fingers, bad anatomy, watermark, text, logo, cropped head, child, minor, nsfw";
 
@@ -248,7 +248,8 @@
       video: null,        // { blob, url, w, h, dur }
       char: null,         // { url, name, infId } or { blob, url, name }
       style: "", styleCustom: "", styleImg: null, styleTab: "presets",
-      usePrompt: false
+      usePrompt: false,
+      setting: "own", clip: null
     },
     vids: [], vidOffset: 0, vViewing: null,
     sel: {}             // "id|url" -> { c, url } (multi-select on My influencers)
@@ -791,7 +792,7 @@
       if (state.sel[selKey(c, url)]) t.classList.add("is-selected");
       t.addEventListener("contextmenu", function (e) { e.preventDefault(); openMenu(e.clientX, e.clientY, c, url); });
       t.draggable = true;
-      t.addEventListener("dragstart", function (e) { dragChar(e, { url: url, name: c.name || "Influencer", infId: realId(c.id), crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") }, absUrl(url)); });
+      t.addEventListener("dragstart", function (e) { dragChar(e, { url: url, name: c.name || "Influencer", infId: realId(c.id), t: c.traits, tier: c.tier, crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") }, absUrl(url)); });
       t.addEventListener("click", function (e) {
         if (e.target.closest("[data-act=sel]")) { e.stopPropagation(); toggleSel(c, url); return; }
         if (e.target.closest("[data-act=more]")) { e.stopPropagation(); var r = e.target.closest("[data-act=more]").getBoundingClientRect(); openMenu(r.left - 220, r.bottom + 6, c, url); return; }
@@ -882,7 +883,7 @@
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
       t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
       t.draggable = true;
-      t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });
+      t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, t: p.t, tier: p.tier, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });
       t.addEventListener("click", function (e) {
         if (e.target.closest(".inf-recreate")) { e.stopPropagation(); loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); return; }
         openPresetViewer(p);
@@ -971,7 +972,7 @@
     wall.innerHTML = MPRESETS.map(function (m, i) {
       return '<button type="button" class="inf-mtile' + (m.portrait === false ? " is-wide" : "") + '" data-mi="' + i + '">' +
         '<video muted loop playsinline preload="none"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' src="' + esc(m.video) + '#t=0.1"></video>' +
-        '<span class="inf-tile-shade"></span><span class="inf-mbadge">' + esc(mpModeLabel(m)) + '</span><span class="inf-tile-meta"><strong>' + esc(m.name || "Motion") + "</strong></span>" +
+        '<span class="inf-tile-shade"></span><span class="inf-mbadge">' + esc(mpModeLabel(m)) + '</span><span class="inf-tile-meta"><strong>' + esc(m.name || "Motion") + "</strong>" + (m.shots > 1 ? "<small>" + m.shots + " camera angles</small>" : "") + "</span>" +
         '<span class="inf-mrecreate" data-mrec="' + i + '" role="button" tabindex="0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</span></button>';
     }).join("");
   }
@@ -1066,9 +1067,9 @@
       }).join("");
       hintEl.textContent = pv.motion ? "Selected: " + (pv.motion.name || "motion") + ". Choose Turn to motion or Objects swap." : "Optional: pick a clip, then choose Turn to motion or Objects swap.";
     } else {
-      var list = (PRESETS || []).map(function (p) { return { key: "p:" + p.id, name: p.name, thumb: IMG + "pv/" + p.id + "-close.jpg", ch: { url: presetFull(p), name: p.name, infId: null, crop: "" } }; });
+      var list = (PRESETS || []).map(function (p) { return { key: "p:" + p.id, name: p.name, thumb: IMG + "pv/" + p.id + "-close.jpg", ch: { url: presetFull(p), name: p.name, infId: null, t: p.t, tier: p.tier, crop: "" } }; });
       var mine = [];
-      state.mine.forEach(function (c) { if (c.status === "done" && c.urls && c.urls.length) mine.push({ key: "m:" + c.urls[0], name: c.name || "My influencer", thumb: absUrl(c.urls[0]), ch: { url: c.urls[0], name: c.name, infId: realId(c.id), crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") } }); });
+      state.mine.forEach(function (c) { if (c.status === "done" && c.urls && c.urls.length) mine.push({ key: "m:" + c.urls[0], name: c.name || "My influencer", thumb: absUrl(c.urls[0]), ch: { url: c.urls[0], name: c.name, infId: realId(c.id), t: c.traits, tier: c.tier, crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") } }); });
       pv.list = mine.slice(0, 24).concat(list);
       box.innerHTML = pv.list.map(function (r, i) {
         return '<button type="button" class="inf-pv-pick is-char' + (pv.char && pv.char.key === r.key ? " is-on" : "") + '" data-pc="' + i + '" title="' + esc(r.name) + '"><img src="' + esc(r.thumb) + '" alt="" loading="lazy" /><span>' + esc(r.name) + "</span></button>";
@@ -1084,14 +1085,16 @@
       if (!r.ok) throw new Error("HTTP " + r.status);
       var b = await r.blob();
       var type = b.type && /^video\//.test(b.type) ? b.type : "video/mp4";
-      setVideo(new File([b], slug(m.name || "motion") + (type === "video/webm" ? ".webm" : type === "video/quicktime" ? ".mov" : ".mp4"), { type: type }));
+      var fl = new File([b], slug(m.name || "motion") + (type === "video/webm" ? ".webm" : type === "video/quicktime" ? ".mov" : ".mp4"), { type: type });
+      fl.__preset = true; state.m.clip = m;
+      setVideo(fl);
       mHint(state.m.char ? "Ready. Pick a style if you like, then Generate." : "Clip loaded. Now drag & drop your character into the slot below.");
     } catch (e) { mHint("Couldn't load that motion clip. Try again, or upload your own video.", true); }
   }
   function pvSend(mode) {
     var cur = pv; if (!cur) return;
     var ch = null, clip = null;
-    if (cur.kind === "inf") { ch = { url: presetFull(cur.data), name: cur.data.name, infId: null, crop: "" }; clip = cur.motion; }
+    if (cur.kind === "inf") { ch = { url: presetFull(cur.data), name: cur.data.name, infId: null, t: cur.data.t, tier: cur.data.tier, crop: "" }; clip = cur.motion; }
     else { ch = cur.char ? cur.char.ch : null; clip = cur.data; }
     closePv();
     applyMotion(clip, mode, ch);
@@ -1099,13 +1102,17 @@
   // Recreate a motion preset (tile button or popup): switch the left panel to Motion, load the clip + mode (+ character).
   function applyMotion(clip, mode, ch) {
     if (ch) setChar(ch);
+    var f = charFit(ch || state.m.char), switched = false;
+    if (mode === "swap" && f && f.odd) { mode = "motion"; switched = true; }
+    state.m.clip = clip || null;
+    if (clip) { state.m.setting = "clip"; if ($("mSetSeg")) syncSeg("mSetSeg", "data-set", "clip"); }
     setPane("motion");
     setMode(mode);
     if (mode === "swap" && clip && clip.target) $("mTarget").value = clip.target;
     else if (mode === "swap" && !$("mTarget").value.trim()) $("mTarget").value = "person";
     $("paneMotion").scrollTop = 0;
     if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
-    toast(clip ? "Motion preset loaded into Motion" : (ch ? ch.name + " added to Motion" : "Motion tab ready"));
+    toast(switched ? "Using Motion transfer: it keeps " + ((ch || state.m.char).name || "this character") + "'s proportions" : (clip ? "Motion preset loaded into Motion" : (ch ? ch.name + " added to Motion" : "Motion tab ready")));
     if (clip) loadMotionClip(clip);
     else mHint(state.m.video ? "Ready. Pick a style if you like, then Generate." : "Now add a reference video, or pick one from Motion Presets.");
     renderMotionPick();
@@ -1265,7 +1272,7 @@
       if (!b) return;
       state.motionPick = b.getAttribute("data-u");
       var c = state.mine.filter(function (x) { return String(x.id) === b.getAttribute("data-id"); })[0];
-      setChar({ url: state.motionPick, name: c ? c.name : "Influencer", infId: c ? realId(c.id) : null, crop: c && c.view === "card" ? "right" : (c && c.view === "sheet" ? "left" : "") });
+      setChar({ url: state.motionPick, name: c ? c.name : "Influencer", infId: c ? realId(c.id) : null, t: c ? c.traits : null, tier: c ? c.tier : null, crop: c && c.view === "card" ? "right" : (c && c.view === "sheet" ? "left" : "") });
       Array.prototype.forEach.call(this.querySelectorAll(".inf-pick-item"), function (x) { x.classList.toggle("is-on", x === b); });
       $("mPicker").hidden = true;
       syncMotionLinks();
@@ -1514,7 +1521,7 @@
 
   // ------------------------------------------------------------ motion: transfer / swap / style
   function toMotion(c, url) {
-    setChar({ url: url, name: c.name || "Influencer", infId: realId(c.id), crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") });
+    setChar({ url: url, name: c.name || "Influencer", infId: realId(c.id), t: c.traits, tier: c.tier, crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") });
     state.motionPick = url;
     setPane("motion");
     $("paneMotion").scrollTop = 0;
@@ -1536,12 +1543,15 @@
     $("mCharTag").hidden = !ch;
     $("mCharTag").textContent = ch ? (ch.name || "Character") : "";
     if (!quiet) syncMotionGo();
+    paintFit();
   }
 
   function setVideo(f) {
     if (!/^video\//.test(f.type)) { mHint("That file isn't a video.", true); return; }
     if (f.size > 300 * 1024 * 1024) { mHint("That video is over 300 MB. Trim it first.", true); return; }
     clearVideo(true);
+    if (!f.__preset) state.m.clip = null;
+    paintFit();
     var url = URL.createObjectURL(f);
     var v = $("mVideoPrev");
     state.m.video = { blob: f, url: url, w: 0, h: 0, dur: 0 };
@@ -1577,6 +1587,50 @@
     tag.hidden = false;
   }
 
+  // ---- fit check: some characters don't fit onto another person's body (Objects swap)
+  var ODD = {
+    neck: { giraffe: "a very long neck", column: "a very thick neck" },
+    headsize: { tiny: "a tiny head", big: "an oversized head" },
+    head: { dome: "a cone-shaped head", megajaw: "a giant jaw", caveman: "a huge brow" },
+    height: { vtall: "extreme height" },
+    proportions: { longlimbs: "extra-long limbs", egg: "an egg-shaped body", shortlegs: "very short legs" },
+    arms: { stick: "stick arms", heavy: "giant arms" },
+    legs: { stick: "stick legs", stilts: "stilt legs" },
+    build: { obese: "a very large build", ultra: "a giant build" },
+    hair: { spiderlocs: "big sticking-out hair", horns: "big sculpted hair", beehive: "a towering hairdo", sphere: "a giant round hairdo",
+      tufts: "big side puffs of hair", crescent: "big sculpted hair", lampshade: "a lampshade hairdo", flattop: "a tall flat-top" }
+  };
+  var ODD_TIERS = { cat: "a cat body", rodent: "an animal body", insect: "an insect body", frog: "a frog body" };
+  function charFit(ch) {
+    if (!ch || (!ch.t && !ch.tier)) return null;
+    var why = [];
+    if (ch.tier && ODD_TIERS[ch.tier]) why.push(ODD_TIERS[ch.tier]);
+    Object.keys(ODD).forEach(function (g) { ((ch.t || {})[g] || []).forEach(function (o) { if (ODD[g][o]) why.push(ODD[g][o]); }); });
+    return { odd: why.length > 0, why: why.slice(0, 2) };
+  }
+  function paintFit() {
+    var el = $("mFit"); if (!el) return;
+    var m = state.m, ch = m.char, f = charFit(ch), clip = m.clip || null, html = "", cls = "";
+    var nm = esc((ch && ch.name) || "This character");
+    if (ch && f && f.odd && m.mode === "swap") {
+      cls = "is-warn";
+      html = "<strong>Heads up:</strong> " + nm + " has " + esc(f.why.join(" and ")) + ". Objects swap fits the character onto the body of the person in the clip, so anything bigger or taller than a normal person can glitch, get cut off or float. " +
+        '<button type="button" class="m-fit-btn" data-fitmode="motion">Use Motion transfer instead</button>';
+    } else if (ch && f && f.odd) {
+      cls = "is-ok";
+      html = "<strong>Good choice:</strong> Motion transfer keeps " + nm + "'s own shape (" + esc(f.why.join(", ")) + ")" +
+        (m.setting === "clip" ? " and rebuilds the clip's setting around them." : " and keeps the setting from their picture. Pick <em>Same as clip</em> under Setting to put them in the clip's location.");
+    } else if (ch && f && m.mode === "swap") {
+      cls = "is-ok";
+      html = "<strong>Good match:</strong> " + nm + " has regular proportions, so they fit cleanly onto the person in the clip.";
+    } else if (ch && !f) {
+      cls = "is-tip";
+      html = "<strong>Tip:</strong> use a photo that shows the whole body, facing the camera. If your character is unusually tall or has a long neck, tiny head or big hair, use Motion transfer: Objects swap squeezes them onto the body of the person in the clip.";
+    }
+    if (clip && clip.shots > 1) html += (html ? "<br>" : "") + '<span class="m-fit-shots">This clip has ' + clip.shots + " camera angles. Each shot is rendered on its own and joined back together, so it takes a little longer.</span>";
+    el.className = "m-fit " + cls; el.innerHTML = html; el.hidden = !html;
+  }
+
   function setMode(mode) {
     state.m.mode = mode;
     syncSeg("mModeSeg", "data-mode", mode);
@@ -1584,7 +1638,8 @@
     $("mVideoHint").textContent = MODE_COPY[mode].hint;
     if ($("mVideoTitle")) $("mVideoTitle").innerHTML = MODE_COPY[mode].title;
     $("mTargetField").hidden = mode !== "swap";
-    savePrefs(); syncMotionGo();
+    if ($("mSettingRow")) $("mSettingRow").hidden = mode === "swap";
+    savePrefs(); syncMotionGo(); paintFit();
   }
 
   function syncMotionGo() {
@@ -1669,6 +1724,7 @@
       fd.append("steps", "4");
       fd.append("fps", "16");
       if (m.mode === "swap") fd.append("target", $("mTarget").value.trim());
+      else fd.append("setting", m.setting === "clip" ? "clip" : "own");
       if (m.style) {
         fd.append("style", m.style);
         if (m.style === "custom") {
@@ -1872,6 +1928,7 @@
 
   function wireMotion() {
     segWire("mModeSeg", "data-mode", setMode);
+    if ($("mSetSeg")) segWire("mSetSeg", "data-set", function (v) { state.m.setting = v === "clip" ? "clip" : "own"; paintFit(); });
     segWire("mLenSeg", "data-len", function (v) { state.m.len = Number(v); savePrefs(); paintVideoTag(); });
     segWire("mResSeg", "data-res", function (v) { state.m.res = v; savePrefs(); });
     syncSeg("mLenSeg", "data-len", String(state.m.len));
@@ -1936,6 +1993,7 @@
     });
 
     $("mGenerateBtn").addEventListener("click", onMotionGenerate);
+    if ($("mFit")) $("mFit").addEventListener("click", function (e) { var b = e.target.closest("[data-fitmode]"); if (b) { setMode(b.getAttribute("data-fitmode")); toast("Switched to Motion transfer"); } });
     $("vidMore").addEventListener("click", loadVideos);
     Array.prototype.forEach.call(document.querySelectorAll("#vViewer [data-vclose]"), function (b) { b.addEventListener("click", closeVideo); });
     $("vDelete").addEventListener("click", function () { deleteVideo(state.vViewing); });

@@ -16,7 +16,7 @@
 <meta name="description" content="Build your own AI influencer: pick the face, body, hair and style, render them on your own GPU, then make them dance, talk or star in new shots." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/influencer.css?v=20261018b" />
+<link rel="stylesheet" href="css/influencer.css?v=20261018c" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -115,6 +115,8 @@
         </div>
       </div>
 
+      <div class="m-fit" id="mFit" role="status" aria-live="polite" hidden></div>
+
       <div class="m-picker" id="mPicker" hidden>
         <div class="m-picker-head"><span>Choose a character</span>
           <label class="m-upload">Upload photo<input type="file" id="mCharInput" accept="image/*" hidden /></label>
@@ -140,6 +142,13 @@
       </div>
       <textarea id="mPrompt" rows="3" maxlength="600" hidden placeholder="Describe the scene, e.g. dancing in a neon-lit club, cinematic lighting"></textarea>
 
+      <div class="inf-row" id="mSettingRow">
+        <span class="inf-row-lbl" title="Where the video takes place">Setting</span>
+        <div class="inf-seg-sm" id="mSetSeg">
+          <button type="button" data-set="own" class="is-on" title="Use the background from your character's picture">Character's</button>
+          <button type="button" data-set="clip" title="Recreate the place from the reference video around your character">Same as clip</button>
+        </div>
+      </div>
       <div class="inf-row">
         <span class="inf-row-lbl">Length</span>
         <div class="inf-seg-sm" id="mLenSeg">
@@ -447,7 +456,7 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/influencer-presets.js?v=20261018b"></script>
-<script src="js/influencer.js?v=20261018b"></script>
+<script src="js/influencer-presets.js?v=20261018c"></script>
+<script src="js/influencer.js?v=20261018c"></script>
 </body>
 </html>

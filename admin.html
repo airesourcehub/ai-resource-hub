@@ -242,6 +242,7 @@
               <label>Name<input type="text" id="mpName" maxlength="60" placeholder="e.g. Runway walk" required /></label>
               <label>Best used for<select id="mpMode"><option value="motion">Motion transfer (copy the moves)</option><option value="swap">Character swap (replace the person)</option></select></label>
               <label id="mpTargetRow" hidden>What to replace<input type="text" id="mpTarget" maxlength="40" value="person" /></label>
+              <label>Camera angles<input type="number" id="mpShots" min="1" max="12" value="1" title="How many different shots / camera angles the clip cuts between. The render server splits multi-angle clips into shots automatically." /></label>
               <label>Note (optional)<input type="text" id="mpNote" maxlength="160" placeholder="Shown in the popup" /></label>
               <div class="io-bar" style="margin:4px 0 0;"><button type="submit" class="btn btn-primary" id="mpAdd">Upload and add</button><span class="mp-status" id="mpAddStatus"></span></div>
             </div>
@@ -328,7 +329,7 @@
 <script src="js/admin-site.js"></script>
 <script src="js/influencer-presets.js?v=20261017c"></script>
 <script src="js/admin-inforder.js"></script>
-<script src="js/admin-motionpresets.js?v=20261017b"></script>
+<script src="js/admin-motionpresets.js?v=20261018c"></script>
 <script src="js/gpu-access-admin.js"></script>
 <script src="js/admin-gpu.js"></script>
 </body>
