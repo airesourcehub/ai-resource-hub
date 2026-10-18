@@ -16,7 +16,7 @@
 <meta name="description" content="Build your own AI influencer: pick the face, body, hair and style, render them on your own GPU, then make them dance, talk or star in new shots." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/influencer.css?v=20261017b" />
+<link rel="stylesheet" href="css/influencer.css?v=20261017d" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -85,8 +85,8 @@
 
     <div class="vs-scroll" id="paneMotion" hidden>
       <div class="inf-seg-sm inf-mode" id="mModeSeg" role="radiogroup" aria-label="Motion mode">
-        <button type="button" data-mode="motion" class="is-on">Motion transfer</button>
-        <button type="button" data-mode="swap">Swap character</button>
+        <button type="button" data-mode="motion" class="is-on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke-dasharray="3 2.6"/><circle cx="12" cy="12" r="3"/></svg>Motion transfer</button>
+        <button type="button" data-mode="swap"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Objects swap</button>
       </div>
       <p class="inf-mode-note" id="mModeNote">Your influencer copies every move from the video, in their own setting.</p>
 
@@ -95,8 +95,8 @@
           <input type="file" id="mVideoInput" accept="video/*" />
           <span class="m-slot-empty">
             <span class="m-slot-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg></span>
-            <strong>Reference video</strong>
-            <small id="mVideoHint">The moves to copy</small>
+            <strong id="mVideoTitle">Add a reference video<br />to extract motion</strong>
+            <small id="mVideoHint">Video duration: 4 to 30 seconds</small>
           </span>
           <video id="mVideoPrev" muted loop playsinline hidden></video>
           <span class="m-slot-tag" id="mVideoTag" hidden></span>
@@ -105,8 +105,9 @@
         <button type="button" class="m-slot m-slot-char" id="mCharSlot" aria-haspopup="dialog">
           <span class="m-slot-empty">
             <span class="m-slot-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
-            <strong>Character</strong>
-            <small>Pick an influencer</small>
+            <span class="m-slot-ics" aria-hidden="true"><span><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="5"/><path d="M3 22a9 9 0 0 1 18 0z"/></svg></span><span><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 0 1-8 0z"/></svg></span><span><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 9 5v10l-9 5-9-5V7z"/></svg></span></span>
+            <strong>Add your character</strong>
+            <small>Pick an influencer or upload a photo</small>
           </span>
           <img id="mCharImg" alt="" hidden />
           <span class="m-slot-tag" id="mCharTag" hidden></span>
@@ -215,8 +216,9 @@
       <button type="button" role="tab" data-stage="history" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>History</button>
       <span class="inf-gpu" id="gpuLine"><span class="gpu-dot" id="gpuDot"></span><span id="gpuText">Your GPU</span></span>
     </div>
-    <div class="inf-subtabs" id="histBar" role="tablist" hidden>
-      <button type="button" role="tab" data-hist="mine" class="is-on">Influencers <span class="inf-count" id="mineCount"></span></button>
+    <div class="inf-subtabs inf-histbar" id="histBar" role="tablist" hidden>
+      <button type="button" role="tab" data-hist="all" class="is-on">All</button>
+      <button type="button" role="tab" data-hist="mine">Influencers <span class="inf-count" id="mineCount"></span></button>
       <button type="button" role="tab" data-hist="videos">Videos <span class="inf-count" id="vidCount"></span></button>
     </div>
 
@@ -322,6 +324,7 @@
     </div>
   </div>
 
+  <div class="inf-toast" id="infToast" role="status" aria-live="polite" hidden><span class="inf-toast-ic" aria-hidden="true">!</span><span id="infToastTxt"></span><button type="button" id="infToastX" aria-label="Dismiss">&times;</button></div>
   <div class="inf-viewer inf-pviewer" id="pViewer" hidden role="dialog" aria-modal="true" aria-labelledby="pvName">
     <div class="inf-viewer-bg" id="pvBg" data-pclose></div>
     <button type="button" class="inf-viewer-x inf-pv-mx" data-pclose aria-label="Close">&times;</button>
@@ -332,7 +335,7 @@
         <div class="inf-pv-scroll">
           <section class="inf-pv-sec" id="pvParams">
             <h4><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Character parameters</h4>
-            <div class="inf-viewer-chips" id="pvChips"></div>
+            <div id="pvChips"></div>
             <button type="button" class="inf-pv-more" id="pvMore" hidden>See all</button>
           </section>
           <section class="inf-pv-sec" id="pvNoteSec" hidden>
@@ -347,8 +350,8 @@
         </div>
         <div class="inf-pv-acts" id="pvActs">
           <button type="button" class="btn btn-primary" id="pvRecreate"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button>
-          <button type="button" class="btn btn-secondary" id="pvMotion">Motion transfer</button>
-          <button type="button" class="btn btn-secondary" id="pvSwap">Character swap</button>
+          <button type="button" class="btn btn-secondary" id="pvMotion">Turn to motion</button>
+          <button type="button" class="btn btn-secondary" id="pvSwap">Objects swap</button>
           <a class="btn btn-secondary" id="pvDl" href="#" download hidden>Download</a>
         </div>
       </aside>
@@ -443,7 +446,7 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/influencer-presets.js?v=20261017c"></script>
-<script src="js/influencer.js?v=20261017b"></script>
+<script src="js/influencer-presets.js?v=20261017d"></script>
+<script src="js/influencer.js?v=20261017d"></script>
 </body>
 </html>

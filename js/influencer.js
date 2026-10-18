@@ -183,8 +183,8 @@
     ["plush", "Plush Toy"], ["photoreal", "Photoreal"]
   ];
   var MODE_COPY = {
-    motion: { note: "Your influencer copies every move from the video, in their own setting.", hint: "The moves to copy" },
-    swap: { note: "Your influencer replaces someone in the video. The scene, camera and lighting stay the same.", hint: "The video to put them into" }
+    motion: { note: "Your influencer copies every move from the video, in their own setting.", title: "Add a reference video<br />to extract motion", hint: "Video duration: 4 to 30 seconds" },
+    swap: { note: "Changes only what you pick: your character takes the place of someone in the video. Everything else stays the same.", title: "Add a reference video<br />to edit", hint: "Video duration: 4 to 30 seconds" }
   };
   var NEGATIVE = "blurry, deformed, extra limbs, extra fingers, bad anatomy, watermark, text, logo, cropped head, child, minor, nsfw";
 
@@ -228,6 +228,7 @@
   }
   var prefs = loadPrefs();
   var state = {
+    histF: "all",       // History filter: all / mine / videos
     user: null,
     tier: "normal",
     traits: {},          // groupId -> [optionId]
@@ -452,6 +453,7 @@
     $("paneCreate").scrollTop = 0;
     if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
     hint("Settings loaded" + (name ? " from " + name : "") + ". Change anything, then Generate.");
+    toast("Character settings applied to the sidebar");
   }
 
   // ------------------------------------------------------------ prompt
@@ -753,6 +755,7 @@
     var list = state.mine.filter(function (c) { return c.favorite; }).concat(state.mine.filter(function (c) { return !c.favorite; }));
     $("mineCount").textContent = list.length ? String(list.length) : "";
     $("mineEmpty").hidden = !(state.user && !list.length);
+    if (typeof paintHistEmpty === "function" && state.histF === "all") paintHistEmpty();
     wall.innerHTML = "";
     list.forEach(function (c) {
       if (c.status === "done" && c.urls && c.urls.length) c.urls.forEach(function (u, i) { wall.appendChild(tileFor(c, u, i)); });
@@ -874,7 +877,7 @@
       img.onerror = function () { if (!img.dataset.fb) { img.dataset.fb = 1; t.style.aspectRatio = "1344 / 768"; img.src = IMG + "preset-" + p.id + ".jpg"; } else t.classList.add("is-missing"); };
       img.src = sheets ? IMG + "preset-" + p.id + ".jpg" : IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
-      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts is-on"><button type="button" class="inf-recreate">Recreate</button></div>');
+      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
       t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
       t.addEventListener("click", function (e) {
         if (e.target.closest(".inf-recreate")) { e.stopPropagation(); loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); return; }
@@ -978,6 +981,8 @@
       $("pvParams").hidden = false; $("pvNoteSec").hidden = true;
       paintPvChips();
       $("pvRecreate").hidden = false; $("pvDl").hidden = true;
+      $("pvMotion").hidden = false; $("pvSwap").hidden = false;
+      $("pvMotion").textContent = "Turn to motion"; $("pvSwap").textContent = "Objects swap";
       $("pvMotionTitle").lastChild.textContent = "Add a motion preset";
     } else {
       var m = data;
@@ -987,7 +992,8 @@
       $("pvName").textContent = m.name || "Motion preset";
       $("pvParams").hidden = true;
       $("pvNoteSec").hidden = !m.note; $("pvNote").textContent = m.note || "";
-      $("pvRecreate").hidden = true;
+      $("pvRecreate").hidden = false;
+      $("pvMotion").hidden = true; $("pvSwap").hidden = true;
       $("pvDl").hidden = false; $("pvDl").href = m.video; $("pvDl").setAttribute("download", slug(m.name || "motion") + ".mp4");
       $("pvMotionTitle").lastChild.textContent = "Pick your character";
     }
@@ -999,13 +1005,28 @@
   function openMotionViewer(m) { if (m) openPv("motion", m); }
   function closePv() { $("pViewer").hidden = true; $("pvVid").pause(); document.body.style.overflow = ""; pv = null; }
 
+  var PV_SECTIONS = [
+    { t: "Character parameters", ids: ["gender", "build", "arms", "legs", "ethnicity", "age", "skin", "height", "proportions", "headsize"] },
+    { t: "Face", ids: ["head", "neck", "eyeshape", "eyecolor", "features", "facialhair", "distinctive"] },
+    { t: "Hair", ids: ["hair", "haircolor"] },
+    { t: "Style", ids: ["style", "accessories", "pendant", "metal", "grill", "grillmetal", "grillcover"] }
+  ];
   function paintPvChips() {
-    var p = pv.data, chips = ['<span class="inf-chip is-type">' + esc(tierOf(p.tier).label) + "</span>"];
-    GROUPS.forEach(function (g) { ((p.t || {})[g.id] || []).forEach(function (o) { chips.push('<span class="inf-chip">' + esc(labelOf(g, o)) + "</span>"); }); });
-    var LIM = 9, many = chips.length > LIM;
-    $("pvChips").innerHTML = (pv.all || !many ? chips : chips.slice(0, LIM)).join("");
-    $("pvMore").hidden = !many;
-    $("pvMore").textContent = pv.all ? "Show less" : "See all (" + chips.length + ")";
+    var p = pv.data, tr = p.t || {}, byId = {}, used = {};
+    GROUPS.forEach(function (g) { byId[g.id] = g; });
+    var secs = PV_SECTIONS.map(function (sec, i) {
+      var chips = i === 0 ? ['<span class="inf-chip is-type">' + esc(tierOf(p.tier).label) + "</span>"] : [];
+      sec.ids.forEach(function (id) { used[id] = 1; var g = byId[id]; if (g) (tr[id] || []).forEach(function (o) { chips.push('<span class="inf-chip">' + esc(labelOf(g, o)) + "</span>"); }); });
+      return { t: sec.t, chips: chips };
+    });
+    GROUPS.forEach(function (g) { if (!used[g.id]) (tr[g.id] || []).forEach(function (o) { secs[3].chips.push('<span class="inf-chip">' + esc(labelOf(g, o)) + "</span>"); }); });
+    secs = secs.filter(function (x) { return x.chips.length; });
+    var shown = pv.all ? secs : secs.slice(0, 1);
+    $("pvChips").innerHTML = shown.map(function (x, i) {
+      return (i ? '<h5 class="inf-pv-sub">' + esc(x.t) + "</h5>" : "") + '<div class="inf-viewer-chips">' + x.chips.join("") + "</div>";
+    }).join("");
+    $("pvMore").hidden = secs.length < 2;
+    $("pvMore").innerHTML = pv.all ? 'Show less <span aria-hidden="true">&#8963;</span>' : 'See all <span aria-hidden="true">&#8964;</span>';
   }
   function paintPvStrip() {
     var box = $("pvStrip"), hintEl = $("pvStripHint");
@@ -1016,7 +1037,7 @@
           (m.poster ? '<img src="' + esc(m.poster) + '" alt="" loading="lazy" />' : '<video muted playsinline preload="metadata" src="' + esc(m.video) + '#t=0.1"></video>') +
           "<span>" + esc(m.name || "Motion") + "</span></button>";
       }).join("");
-      hintEl.textContent = pv.motion ? "Selected: " + (pv.motion.name || "motion") + ". Choose Motion transfer or Character swap." : "Optional: pick a clip, then choose Motion transfer or Character swap.";
+      hintEl.textContent = pv.motion ? "Selected: " + (pv.motion.name || "motion") + ". Choose Turn to motion or Objects swap." : "Optional: pick a clip, then choose Turn to motion or Objects swap.";
     } else {
       var list = (PRESETS || []).map(function (p) { return { key: "p:" + p.id, name: p.name, thumb: IMG + "pv/" + p.id + "-close.jpg", ch: { url: presetFull(p), name: p.name, infId: null, crop: "" } }; });
       var mine = [];
@@ -1052,6 +1073,7 @@
     if (mode === "swap" && !$("mTarget").value.trim()) $("mTarget").value = (clip && clip.target) || "person";
     $("paneMotion").scrollTop = 0;
     if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
+    toast(clip ? "Motion preset loaded into Motion" : (ch ? ch.name + " added to Motion" : "Motion tab ready"));
     if (clip) loadMotionClip(clip);
     else mHint(state.m.video ? "Ready. Pick a style if you like, then Generate." : "Now add a reference video, or pick one from Motion Presets.");
     renderMotionPick();
@@ -1067,7 +1089,10 @@
       else { var r = pv.list[+b.getAttribute("data-pc")]; pv.char = pv.char && pv.char.key === r.key ? null : r; }
       paintPvStrip();
     });
-    $("pvRecreate").addEventListener("click", function () { var p = pv && pv.data; closePv(); if (p) loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); });
+    $("pvRecreate").addEventListener("click", function () {
+      if (pv && pv.kind === "motion") { pvSend(pv.data.mode === "swap" ? "swap" : "motion"); return; }
+      var p = pv && pv.data; closePv(); if (p) loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains);
+    });
     $("pvMotion").addEventListener("click", function () { pvSend("motion"); });
     $("pvSwap").addEventListener("click", function () { pvSend("swap"); });
     var ex = $("exploreTabs");
@@ -1075,7 +1100,8 @@
       var b = e.target.closest("[data-ex]"); if (!b) return; setExplore(b.getAttribute("data-ex"));
     });
     var hb = $("histBar");
-    if (hb) hb.addEventListener("click", function (e) { var b = e.target.closest("[data-hist]"); if (b) setStage(b.getAttribute("data-hist")); });
+    if (hb) hb.addEventListener("click", function (e) { var b = e.target.closest("[data-hist]"); if (b) setStage(b.getAttribute("data-hist"), true); });
+    if ($("infToastX")) $("infToastX").addEventListener("click", function () { $("infToast").hidden = true; });
     wireMotionWall();
     fetchMotionPresets();
   }
@@ -1272,25 +1298,46 @@
     $("paneMotion").hidden = p !== "motion";
     $("createFoot").hidden = p !== "create";
     $("motionFoot").hidden = p !== "motion";
-    if (p === "motion") { renderMotionPick(); if (state.user) setStage("videos"); }
-    else if (!$("stageVideos").hidden) setStage("mine");
+    if (p === "motion") renderMotionPick();
   }
 
-  function setStage(s) {
-    if (s === "history") s = state.hist || "mine";
-    if (s === "mine" || s === "videos") state.hist = s;
-    var hist = s === "mine" || s === "videos";
+  // History = one tab (like Higgsfield) with a filter: all / influencers / videos.
+  // Code paths call setStage("mine") / setStage("videos") after a render; that opens History and keeps "All" if it's on.
+  function setStage(s, explicit) {
+    if (s === "history") s = state.histF || "all";
+    var hist = s === "all" || s === "mine" || s === "videos";
+    if (hist) { if (explicit || s === "all" || state.histF !== "all") state.histF = s; }
+    var f = state.histF || "all";
     Array.prototype.forEach.call(document.querySelectorAll(".inf-stage-tabs [data-stage]"), function (b) {
-      var k = b.getAttribute("data-stage"), on = k === s || (k === "history" && hist); b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on);
+      var k = b.getAttribute("data-stage"), on = hist ? k === "history" : k === s; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on);
     });
     if ($("histBar")) {
       $("histBar").hidden = !hist;
-      Array.prototype.forEach.call($("histBar").querySelectorAll("[data-hist]"), function (b) { var on = b.getAttribute("data-hist") === s; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
+      Array.prototype.forEach.call($("histBar").querySelectorAll("[data-hist]"), function (b) { var on = b.getAttribute("data-hist") === f; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
     }
-    $("stageExplore").hidden = s !== "explore";
-    $("stageMine").hidden = s !== "mine";
-    $("stageVideos").hidden = s !== "videos";
-    if (s === "videos") renderVideos();
+    var showMine = hist && f !== "videos", showVids = hist && f !== "mine";
+    $("stageExplore").hidden = hist;
+    $("stageMine").hidden = !showMine;
+    $("stageVideos").hidden = !showVids;
+    var all = hist && f === "all";
+    $("stageMine").classList.toggle("is-all", all); $("stageVideos").classList.toggle("is-all", all);
+    if (all) {   // newest kind first, like one mixed history feed
+      var tm = state.mine[0] && state.mine[0].created_at, tv = state.vids[0] && state.vids[0].created_at;
+      var mineFirst = !tv || (tm && new Date(tm) >= new Date(tv));
+      var m = $("stageMine"), v = $("stageVideos");
+      if (mineFirst && v.nextElementSibling === m) m.parentNode.insertBefore(m, v);
+      if (!mineFirst && m.nextElementSibling === v) v.parentNode.insertBefore(v, m);
+    }
+    if (showVids) renderVideos();
+    paintHistEmpty();
+  }
+  function paintHistEmpty() {
+    if (!$("histBar")) return;
+    var all = (state.histF || "all") === "all";
+    if (all) {
+      $("vidEmpty").hidden = true;
+      $("mineEmpty").hidden = !(state.user && !state.mine.length && !state.vids.length);
+    }
   }
 
   function setBatch(n) { state.batch = clamp(n, 1, 4); $("batchVal").textContent = state.batch; savePrefs(); }
@@ -1308,8 +1355,9 @@
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var p = q.get("preset");
     if (p) { var pr = (window.AIRH_INF_PRESETS || PRESETS).filter(function (x) { return x.id === p; })[0]; if (pr) loadRecipe(pr.tier, pr.t, pr.name, pr.x, pr.view, pr.chains); }
-    if (q.get("tab") === "mine") setStage("mine");
-    if (q.get("tab") === "videos") setStage("videos");
+    if (q.get("tab") === "mine") setStage("mine", true);
+    if (q.get("tab") === "videos") setStage("videos", true);
+    if (q.get("tab") === "history") setStage("history");
     if (q.get("tab") === "motion") setPane("motion");
   }
 
@@ -1441,6 +1489,7 @@
     $("paneMotion").scrollTop = 0;
     if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
     mHint(state.m.video ? "Ready. Pick a style if you like, then Generate." : "Now add a reference video.");
+    toast((c.name || "Your character") + " added to Motion");
   }
 
   function setChar(ch, quiet) {
@@ -1501,13 +1550,14 @@
     syncSeg("mModeSeg", "data-mode", mode);
     $("mModeNote").textContent = MODE_COPY[mode].note;
     $("mVideoHint").textContent = MODE_COPY[mode].hint;
+    if ($("mVideoTitle")) $("mVideoTitle").innerHTML = MODE_COPY[mode].title;
     $("mTargetField").hidden = mode !== "swap";
     savePrefs(); syncMotionGo();
   }
 
   function syncMotionGo() {
     var b = $("mGenerateBtn"), m = state.m;
-    var label = !state.user ? "Log in to generate " : m.mode === "swap" ? "Swap character " : "Generate motion ";
+    var label = !state.user ? "Log in to generate " : "Generate ";
     b.firstChild.nodeValue = label;
     b.classList.toggle("is-dim", !!state.user && !(m.video && m.char));
   }
@@ -1675,7 +1725,7 @@
     var wall = $("vidWall");
     if (!wall) return;
     $("vidCount").textContent = state.vids.length ? String(state.vids.length) : "";
-    $("vidEmpty").hidden = !(state.user && !state.vids.length);
+    $("vidEmpty").hidden = !(state.user && !state.vids.length) || (state.histF || "all") === "all";
     wall.innerHTML = "";
     state.vids.forEach(function (v) {
       var t = document.createElement("div");
@@ -1905,6 +1955,13 @@
     var t = tierOf(state.tier), g = state.traits.gender && labelOf(groupById("gender"), state.traits.gender[0]);
     var s = state.traits.style && labelOf(groupById("style"), state.traits.style[0]);
     return [s, t.human ? (g || "Influencer") : t.label].filter(Boolean).join(" ");
+  }
+  var toastT;
+  function toast(msg) {
+    var t = $("infToast"); if (!t) return;
+    $("infToastTxt").textContent = msg; t.hidden = false;
+    t.classList.remove("is-in"); void t.offsetWidth; t.classList.add("is-in");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 3200);
   }
   function hint(msg, err) { var h = $("hint"); h.textContent = msg || ""; h.classList.toggle("is-err", !!err); }
   function absUrl(u) { if (!u) return u; return /^https?:\/\//i.test(u) ? u : RENDER() + (u.charAt(0) === "/" ? "" : "/") + u; }
