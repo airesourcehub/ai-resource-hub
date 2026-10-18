@@ -935,12 +935,21 @@
   // ------------------------------------------------------------ preset viewer + motion presets (Higgsfield-style)
   // Clicking a preset opens its full sheet in a popup; only the Recreate button imports settings.
   // Motion presets are reference clips the admin uploads (site_settings key "motion_presets", bucket motion-presets).
-  function siteUrl(u) { return /^https?:\/\//i.test(u) ? u : location.origin + "/" + String(u).replace(/^\//, ""); }
+  function siteUrl(u) {
+    if (!u) return u;
+    var m = String(u).match(/^https?:\/\/(?:www\.)?airesourcehub\.vip(\/.*)$/i);
+    if (m) return location.origin + m[1];             // www. vs bare domain must not break fetch()
+    return /^https?:\/\//i.test(u) ? u : location.origin + "/" + String(u).replace(/^\//, "");
+  }
   function presetFull(p) { return siteUrl(IMG + "pv/" + p.id + "-full.jpg"); }
   function loadMotionCache() { try { return JSON.parse(localStorage.getItem("airh-motion-presets") || "null"); } catch (e) { return null; } }
   function setMotionPresets(cfg) {
     var items = (cfg && cfg.items) || [];
-    MPRESETS = items.filter(function (m) { return m && m.video && !m.hidden; });
+    MPRESETS = items.filter(function (m) { return m && m.video && !m.hidden; }).map(function (m) {
+      var c = {}; for (var k in m) c[k] = m[k];
+      c.video = siteUrl(m.video); if (m.poster) c.poster = siteUrl(m.poster);
+      return c;
+    });
     renderMotionWall();
     if (pv && !$("pViewer").hidden) paintPvStrip();
   }
@@ -955,19 +964,24 @@
         setMotionPresets(cfg);
       }).catch(function () {});
   }
-  function mpModeLabel(m) { return m.mode === "swap" ? "Character swap" : "Motion transfer"; }
+  function mpModeLabel(m) { return m.mode === "swap" ? "Objects swap" : "Motion transfer"; }
   function renderMotionWall() {
     var wall = $("motionWall"); if (!wall) return;
     $("motionEmpty").hidden = MPRESETS.length > 0;
     wall.innerHTML = MPRESETS.map(function (m, i) {
       return '<button type="button" class="inf-mtile' + (m.portrait === false ? " is-wide" : "") + '" data-mi="' + i + '">' +
         '<video muted loop playsinline preload="none"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' src="' + esc(m.video) + '#t=0.1"></video>' +
-        '<span class="inf-tile-shade"></span><span class="inf-tile-meta"><strong>' + esc(m.name || "Motion") + "</strong><span>" + esc(mpModeLabel(m)) + "</span></span></button>";
+        '<span class="inf-tile-shade"></span><span class="inf-mbadge">' + esc(mpModeLabel(m)) + '</span><span class="inf-tile-meta"><strong>' + esc(m.name || "Motion") + "</strong></span>" +
+        '<span class="inf-mrecreate" data-mrec="' + i + '" role="button" tabindex="0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</span></button>';
     }).join("");
   }
   function wireMotionWall() {
     var wall = $("motionWall"); if (!wall) return;
-    wall.addEventListener("click", function (e) { var b = e.target.closest("[data-mi]"); if (b) openMotionViewer(MPRESETS[+b.getAttribute("data-mi")]); });
+    wall.addEventListener("click", function (e) {
+      var r = e.target.closest("[data-mrec]");
+      if (r) { e.stopPropagation(); var mm = MPRESETS[+r.getAttribute("data-mrec")]; if (mm) applyMotion(mm, mm.mode === "swap" ? "swap" : "motion", null); return; }
+      var b = e.target.closest("[data-mi]"); if (b) openMotionViewer(MPRESETS[+b.getAttribute("data-mi")]);
+    });
     wall.addEventListener("mouseover", function (e) { var b = e.target.closest("[data-mi]"); if (b) { var v = b.querySelector("video"); if (v && v.paused) v.play().catch(function () {}); } });
     wall.addEventListener("mouseout", function (e) { var b = e.target.closest("[data-mi]"); if (b && !b.contains(e.relatedTarget)) { var v = b.querySelector("video"); if (v) v.pause(); } });
   }
@@ -1066,12 +1080,12 @@
   async function loadMotionClip(m) {
     mHint("Loading the motion clip…");
     try {
-      var r = await fetch(m.video);
+      var r = await fetch(siteUrl(m.video));
       if (!r.ok) throw new Error("HTTP " + r.status);
       var b = await r.blob();
       var type = b.type && /^video\//.test(b.type) ? b.type : "video/mp4";
       setVideo(new File([b], slug(m.name || "motion") + (type === "video/webm" ? ".webm" : type === "video/quicktime" ? ".mov" : ".mp4"), { type: type }));
-      mHint("Ready. Pick a style if you like, then Generate.");
+      mHint(state.m.char ? "Ready. Pick a style if you like, then Generate." : "Clip loaded. Now drag & drop your character into the slot below.");
     } catch (e) { mHint("Couldn't load that motion clip. Try again, or upload your own video.", true); }
   }
   function pvSend(mode) {
@@ -1080,10 +1094,15 @@
     if (cur.kind === "inf") { ch = { url: presetFull(cur.data), name: cur.data.name, infId: null, crop: "" }; clip = cur.motion; }
     else { ch = cur.char ? cur.char.ch : null; clip = cur.data; }
     closePv();
+    applyMotion(clip, mode, ch);
+  }
+  // Recreate a motion preset (tile button or popup): switch the left panel to Motion, load the clip + mode (+ character).
+  function applyMotion(clip, mode, ch) {
     if (ch) setChar(ch);
     setPane("motion");
     setMode(mode);
-    if (mode === "swap" && !$("mTarget").value.trim()) $("mTarget").value = (clip && clip.target) || "person";
+    if (mode === "swap" && clip && clip.target) $("mTarget").value = clip.target;
+    else if (mode === "swap" && !$("mTarget").value.trim()) $("mTarget").value = "person";
     $("paneMotion").scrollTop = 0;
     if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
     toast(clip ? "Motion preset loaded into Motion" : (ch ? ch.name + " added to Motion" : "Motion tab ready"));
