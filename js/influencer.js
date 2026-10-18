@@ -790,6 +790,8 @@
       t.setAttribute("data-key", selKey(c, url));
       if (state.sel[selKey(c, url)]) t.classList.add("is-selected");
       t.addEventListener("contextmenu", function (e) { e.preventDefault(); openMenu(e.clientX, e.clientY, c, url); });
+      t.draggable = true;
+      t.addEventListener("dragstart", function (e) { dragChar(e, { url: url, name: c.name || "Influencer", infId: realId(c.id), crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") }, absUrl(url)); });
       t.addEventListener("click", function (e) {
         if (e.target.closest("[data-act=sel]")) { e.stopPropagation(); toggleSel(c, url); return; }
         if (e.target.closest("[data-act=more]")) { e.stopPropagation(); var r = e.target.closest("[data-act=more]").getBoundingClientRect(); openMenu(r.left - 220, r.bottom + 6, c, url); return; }
@@ -879,6 +881,8 @@
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
       t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
+      t.draggable = true;
+      t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });
       t.addEventListener("click", function (e) {
         if (e.target.closest(".inf-recreate")) { e.stopPropagation(); loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); return; }
         openPresetViewer(p);
@@ -1002,6 +1006,15 @@
     document.body.style.overflow = "hidden";
   }
   function openPresetViewer(p) { openPv("inf", p); }
+  function dragChar(e, ch, thumb) {
+    try {
+      e.dataTransfer.setData("application/x-airh-char", JSON.stringify(ch));
+      e.dataTransfer.setData("text/uri-list", /^https?:/.test(ch.url) ? ch.url : absUrl(ch.url));
+      e.dataTransfer.effectAllowed = "copy";
+    } catch (er) {}
+    if (!$("paneMotion").hidden) $("mCharSlot").classList.add("is-target");
+  }
+  document.addEventListener("dragend", function () { var s = $("mCharSlot"); if (s) s.classList.remove("is-target", "is-over"); });
   function openMotionViewer(m) { if (m) openPv("motion", m); }
   function closePv() { $("pViewer").hidden = true; $("pvVid").pause(); document.body.style.overflow = ""; pv = null; }
 
@@ -1121,7 +1134,6 @@
       syncMotionLinks(); return;
     }
     if (!state.motionPick || !ready.some(function (r) { return r.u === state.motionPick; })) state.motionPick = ready[0].u;
-    if (!state.m.char) { var first = ready.filter(function (r) { return r.u === state.motionPick; })[0] || ready[0]; setChar({ url: first.u, name: first.c.name, infId: realId(first.c.id), crop: first.c.view === "card" ? "right" : (first.c.view === "sheet" ? "left" : "") }, true); }
     box.innerHTML = ready.slice(0, 36).map(function (r) {
       var on = !!state.m.char && state.m.char.url === r.u;
       return '<button type="button" class="inf-pick-item' + (on ? " is-on" : "") + '" data-u="' + esc(r.u) + '" data-id="' + esc(r.c.id) + '" title="' + esc(r.c.name || "") + '"><img src="' + esc(absUrl(r.u)) + '" alt="' + esc(r.c.name || "Influencer") + '" loading="lazy" /></button>';
@@ -1501,6 +1513,7 @@
     img.style.objectPosition = ch && ch.crop === "right" ? "85% 30%" : ch && ch.crop === "left" ? "8% 30%" : "";
     img.hidden = !ch;
     $("mCharSlot").classList.toggle("has-file", !!ch);
+    if ($("mCharClear")) { $("mCharClear").hidden = !ch; $("mCharSub").hidden = !ch; }
     $("mCharTag").hidden = !ch;
     $("mCharTag").textContent = ch ? (ch.name || "Character") : "";
     if (!quiet) syncMotionGo();
@@ -1853,7 +1866,22 @@
     vdrop.addEventListener("drop", function (e) { e.preventDefault(); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) setVideo(f); });
     $("mVideoClear").addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); clearVideo(); });
 
-    $("mCharSlot").addEventListener("click", function () { $("mPicker").hidden = !$("mPicker").hidden; renderMotionPick(); });
+    // Character slot: drag & drop (image files, or an influencer card dragged from the wall / History), click to pick.
+    var cslot = $("mCharSlot");
+    cslot.addEventListener("click", function (e) { if (e.target.closest("#mCharClear")) return; $("mPicker").hidden = !$("mPicker").hidden; renderMotionPick(); });
+    cslot.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cslot.click(); } });
+    ["dragenter", "dragover"].forEach(function (ev) { cslot.addEventListener(ev, function (e) { e.preventDefault(); cslot.classList.add("is-over"); }); });
+    ["dragleave", "drop"].forEach(function (ev) { cslot.addEventListener(ev, function () { cslot.classList.remove("is-over"); }); });
+    cslot.addEventListener("drop", function (e) {
+      e.preventDefault();
+      var dt = e.dataTransfer; if (!dt) return;
+      var raw = ""; try { raw = dt.getData("application/x-airh-char"); } catch (er) {}
+      if (raw) { try { var ch = JSON.parse(raw); setChar(ch); $("mPicker").hidden = true; toast((ch.name || "Character") + " added to Motion"); } catch (er) {} return; }
+      var f = dt.files && dt.files[0];
+      if (f && /^image\//.test(f.type)) { setChar({ blob: f, url: URL.createObjectURL(f), name: "Your photo", infId: null }); $("mPicker").hidden = true; return; }
+      if (f) mHint("Drop an image (PNG or JPG) of your character.", true);
+    });
+    $("mCharClear").addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); setChar(null); renderMotionPick(); });
     $("mCharInput").addEventListener("change", function () {
       var f = this.files && this.files[0];
       if (!f || !/^image\//.test(f.type)) return;
