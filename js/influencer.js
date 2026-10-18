@@ -195,6 +195,7 @@
   // ------------------------------------------------------------ state
   var $ = function (id) { return document.getElementById(id); };
   var root = $("inf");
+  var MPRESETS = [], pv = null;   // motion presets + open preset viewer (declared early: boot code uses them)
   if (!root) return;
   var hasSupabase = !!(window.supabase && typeof SUPABASE_URL !== "undefined");
   var client = hasSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
@@ -265,6 +266,7 @@
   syncEngineNote();
   $("batchVal").textContent = state.batch;
   wireMotion();
+  wirePresetViewer();
   wireSelection();
   applyLinkParams();
 
@@ -873,7 +875,12 @@
       img.src = sheets ? IMG + "preset-" + p.id + ".jpg" : IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts is-on"><button type="button" class="inf-recreate">Recreate</button></div>');
-      t.addEventListener("click", function () { loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); });
+      t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
+      t.addEventListener("click", function (e) {
+        if (e.target.closest(".inf-recreate")) { e.stopPropagation(); loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); return; }
+        openPresetViewer(p);
+      });
+      t.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === t) { e.preventDefault(); openPresetViewer(p); } });
       t._ar = sheets ? 1024 / 1792 : (full ? 14 / 9 : 8 / 7);
       tiles.push(t);
     });
@@ -916,6 +923,166 @@
     $("fan").innerHTML = ids.map(function (id, i) {
       return '<span class="inf-fan-card" style="--i:' + (i - 2) + ";background-image:url(" + IMG + "pv/" + id + '-close.jpg)"></span>';
     }).join("");
+  }
+
+  // ------------------------------------------------------------ preset viewer + motion presets (Higgsfield-style)
+  // Clicking a preset opens its full sheet in a popup; only the Recreate button imports settings.
+  // Motion presets are reference clips the admin uploads (site_settings key "motion_presets", bucket motion-presets).
+  function siteUrl(u) { return /^https?:\/\//i.test(u) ? u : location.origin + "/" + String(u).replace(/^\//, ""); }
+  function presetFull(p) { return siteUrl(IMG + "pv/" + p.id + "-full.jpg"); }
+  function loadMotionCache() { try { return JSON.parse(localStorage.getItem("airh-motion-presets") || "null"); } catch (e) { return null; } }
+  function setMotionPresets(cfg) {
+    var items = (cfg && cfg.items) || [];
+    MPRESETS = items.filter(function (m) { return m && m.video && !m.hidden; });
+    renderMotionWall();
+    if (pv && !$("pViewer").hidden) paintPvStrip();
+  }
+  function fetchMotionPresets() {
+    setMotionPresets(loadMotionCache());
+    if (!hasSupabase) return;
+    fetch(SUPABASE_URL + "/rest/v1/site_settings?key=eq.motion_presets&select=value", { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }, cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        var cfg = rows && rows[0] ? rows[0].value : null;
+        try { localStorage.setItem("airh-motion-presets", JSON.stringify(cfg)); } catch (e) {}
+        setMotionPresets(cfg);
+      }).catch(function () {});
+  }
+  function mpModeLabel(m) { return m.mode === "swap" ? "Character swap" : "Motion transfer"; }
+  function renderMotionWall() {
+    var wall = $("motionWall"); if (!wall) return;
+    $("motionEmpty").hidden = MPRESETS.length > 0;
+    wall.innerHTML = MPRESETS.map(function (m, i) {
+      return '<button type="button" class="inf-mtile' + (m.portrait === false ? " is-wide" : "") + '" data-mi="' + i + '">' +
+        '<video muted loop playsinline preload="none"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' src="' + esc(m.video) + '#t=0.1"></video>' +
+        '<span class="inf-tile-shade"></span><span class="inf-tile-meta"><strong>' + esc(m.name || "Motion") + "</strong><span>" + esc(mpModeLabel(m)) + "</span></span></button>";
+    }).join("");
+  }
+  function wireMotionWall() {
+    var wall = $("motionWall"); if (!wall) return;
+    wall.addEventListener("click", function (e) { var b = e.target.closest("[data-mi]"); if (b) openMotionViewer(MPRESETS[+b.getAttribute("data-mi")]); });
+    wall.addEventListener("mouseover", function (e) { var b = e.target.closest("[data-mi]"); if (b) { var v = b.querySelector("video"); if (v && v.paused) v.play().catch(function () {}); } });
+    wall.addEventListener("mouseout", function (e) { var b = e.target.closest("[data-mi]"); if (b && !b.contains(e.relatedTarget)) { var v = b.querySelector("video"); if (v) v.pause(); } });
+  }
+
+  function openPv(kind, data) {
+    pv = { kind: kind, data: data, motion: null, char: null, all: false };
+    var img = $("pvImg"), vid = $("pvVid");
+    $("pViewer").classList.toggle("is-motion", kind === "motion");
+    if (kind === "inf") {
+      var p = data;
+      vid.pause(); vid.hidden = true; vid.removeAttribute("src");
+      img.hidden = false; img.src = IMG + "preset-" + p.id + ".jpg"; img.alt = p.name;
+      $("pvBg").style.backgroundImage = "url(" + JSON.stringify(IMG + "pv/" + p.id + "-close.jpg") + ")";
+      $("pvName").textContent = p.name;
+      $("pvParams").hidden = false; $("pvNoteSec").hidden = true;
+      paintPvChips();
+      $("pvRecreate").hidden = false; $("pvDl").hidden = true;
+      $("pvMotionTitle").lastChild.textContent = "Add a motion preset";
+    } else {
+      var m = data;
+      img.hidden = true; img.removeAttribute("src");
+      vid.hidden = false; vid.poster = m.poster || ""; vid.src = m.video; vid.play().catch(function () {});
+      $("pvBg").style.backgroundImage = m.poster ? "url(" + JSON.stringify(m.poster) + ")" : "none";
+      $("pvName").textContent = m.name || "Motion preset";
+      $("pvParams").hidden = true;
+      $("pvNoteSec").hidden = !m.note; $("pvNote").textContent = m.note || "";
+      $("pvRecreate").hidden = true;
+      $("pvDl").hidden = false; $("pvDl").href = m.video; $("pvDl").setAttribute("download", slug(m.name || "motion") + ".mp4");
+      $("pvMotionTitle").lastChild.textContent = "Pick your character";
+    }
+    paintPvStrip();
+    $("pViewer").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function openPresetViewer(p) { openPv("inf", p); }
+  function openMotionViewer(m) { if (m) openPv("motion", m); }
+  function closePv() { $("pViewer").hidden = true; $("pvVid").pause(); document.body.style.overflow = ""; pv = null; }
+
+  function paintPvChips() {
+    var p = pv.data, chips = ['<span class="inf-chip is-type">' + esc(tierOf(p.tier).label) + "</span>"];
+    GROUPS.forEach(function (g) { ((p.t || {})[g.id] || []).forEach(function (o) { chips.push('<span class="inf-chip">' + esc(labelOf(g, o)) + "</span>"); }); });
+    var LIM = 9, many = chips.length > LIM;
+    $("pvChips").innerHTML = (pv.all || !many ? chips : chips.slice(0, LIM)).join("");
+    $("pvMore").hidden = !many;
+    $("pvMore").textContent = pv.all ? "Show less" : "See all (" + chips.length + ")";
+  }
+  function paintPvStrip() {
+    var box = $("pvStrip"), hintEl = $("pvStripHint");
+    if (pv.kind === "inf") {
+      if (!MPRESETS.length) { box.innerHTML = ""; hintEl.textContent = "No motion presets yet. Motion transfer opens the Motion tab, where you can add your own clip."; return; }
+      box.innerHTML = MPRESETS.map(function (m, i) {
+        return '<button type="button" class="inf-pv-pick' + (pv.motion === m ? " is-on" : "") + '" data-pm="' + i + '" title="' + esc(m.name || "") + '">' +
+          (m.poster ? '<img src="' + esc(m.poster) + '" alt="" loading="lazy" />' : '<video muted playsinline preload="metadata" src="' + esc(m.video) + '#t=0.1"></video>') +
+          "<span>" + esc(m.name || "Motion") + "</span></button>";
+      }).join("");
+      hintEl.textContent = pv.motion ? "Selected: " + (pv.motion.name || "motion") + ". Choose Motion transfer or Character swap." : "Optional: pick a clip, then choose Motion transfer or Character swap.";
+    } else {
+      var list = (PRESETS || []).map(function (p) { return { key: "p:" + p.id, name: p.name, thumb: IMG + "pv/" + p.id + "-close.jpg", ch: { url: presetFull(p), name: p.name, infId: null, crop: "" } }; });
+      var mine = [];
+      state.mine.forEach(function (c) { if (c.status === "done" && c.urls && c.urls.length) mine.push({ key: "m:" + c.urls[0], name: c.name || "My influencer", thumb: absUrl(c.urls[0]), ch: { url: c.urls[0], name: c.name, infId: realId(c.id), crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") } }); });
+      pv.list = mine.slice(0, 24).concat(list);
+      box.innerHTML = pv.list.map(function (r, i) {
+        return '<button type="button" class="inf-pv-pick is-char' + (pv.char && pv.char.key === r.key ? " is-on" : "") + '" data-pc="' + i + '" title="' + esc(r.name) + '"><img src="' + esc(r.thumb) + '" alt="" loading="lazy" /><span>' + esc(r.name) + "</span></button>";
+      }).join("");
+      hintEl.textContent = pv.char ? "Selected: " + pv.char.name + "." : (state.m.char ? "Or keep your current character: " + (state.m.char.name || "Character") + "." : "Pick who should perform this motion.");
+    }
+  }
+
+  async function loadMotionClip(m) {
+    mHint("Loading the motion clip…");
+    try {
+      var r = await fetch(m.video);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var b = await r.blob();
+      var type = b.type && /^video\//.test(b.type) ? b.type : "video/mp4";
+      setVideo(new File([b], slug(m.name || "motion") + (type === "video/webm" ? ".webm" : type === "video/quicktime" ? ".mov" : ".mp4"), { type: type }));
+      mHint("Ready. Pick a style if you like, then Generate.");
+    } catch (e) { mHint("Couldn't load that motion clip. Try again, or upload your own video.", true); }
+  }
+  function pvSend(mode) {
+    var cur = pv; if (!cur) return;
+    var ch = null, clip = null;
+    if (cur.kind === "inf") { ch = { url: presetFull(cur.data), name: cur.data.name, infId: null, crop: "" }; clip = cur.motion; }
+    else { ch = cur.char ? cur.char.ch : null; clip = cur.data; }
+    closePv();
+    if (ch) setChar(ch);
+    setPane("motion");
+    setMode(mode);
+    if (mode === "swap" && !$("mTarget").value.trim()) $("mTarget").value = (clip && clip.target) || "person";
+    $("paneMotion").scrollTop = 0;
+    if (window.matchMedia("(max-width: 720px)").matches) root.scrollIntoView({ behavior: "smooth" });
+    if (clip) loadMotionClip(clip);
+    else mHint(state.m.video ? "Ready. Pick a style if you like, then Generate." : "Now add a reference video, or pick one from Motion Presets.");
+    renderMotionPick();
+  }
+  function wirePresetViewer() {
+    if (!$("pViewer")) return;
+    Array.prototype.forEach.call(document.querySelectorAll("#pViewer [data-pclose]"), function (el) { el.addEventListener("click", closePv); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && pv && !$("pViewer").hidden) closePv(); });
+    $("pvMore").addEventListener("click", function () { pv.all = !pv.all; paintPvChips(); });
+    $("pvStrip").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-pm],[data-pc]"); if (!b || !pv) return;
+      if (b.hasAttribute("data-pm")) { var m = MPRESETS[+b.getAttribute("data-pm")]; pv.motion = pv.motion === m ? null : m; }
+      else { var r = pv.list[+b.getAttribute("data-pc")]; pv.char = pv.char && pv.char.key === r.key ? null : r; }
+      paintPvStrip();
+    });
+    $("pvRecreate").addEventListener("click", function () { var p = pv && pv.data; closePv(); if (p) loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); });
+    $("pvMotion").addEventListener("click", function () { pvSend("motion"); });
+    $("pvSwap").addEventListener("click", function () { pvSend("swap"); });
+    var ex = $("exploreTabs");
+    if (ex) ex.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-ex]"); if (!b) return; setExplore(b.getAttribute("data-ex"));
+    });
+    var hb = $("histBar");
+    if (hb) hb.addEventListener("click", function (e) { var b = e.target.closest("[data-hist]"); if (b) setStage(b.getAttribute("data-hist")); });
+    wireMotionWall();
+    fetchMotionPresets();
+  }
+  function setExplore(k) {
+    Array.prototype.forEach.call($("exploreTabs").querySelectorAll("[data-ex]"), function (b) { var on = b.getAttribute("data-ex") === k; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
+    $("exInf").hidden = k !== "inf"; $("exMotion").hidden = k !== "motion";
+    if (k === "inf") layoutPresetWall(true);
   }
 
   // ------------------------------------------------------------ motion pane
@@ -1110,9 +1277,16 @@
   }
 
   function setStage(s) {
+    if (s === "history") s = state.hist || "mine";
+    if (s === "mine" || s === "videos") state.hist = s;
+    var hist = s === "mine" || s === "videos";
     Array.prototype.forEach.call(document.querySelectorAll(".inf-stage-tabs [data-stage]"), function (b) {
-      var on = b.getAttribute("data-stage") === s; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on);
+      var k = b.getAttribute("data-stage"), on = k === s || (k === "history" && hist); b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on);
     });
+    if ($("histBar")) {
+      $("histBar").hidden = !hist;
+      Array.prototype.forEach.call($("histBar").querySelectorAll("[data-hist]"), function (b) { var on = b.getAttribute("data-hist") === s; b.classList.toggle("is-on", on); b.setAttribute("aria-selected", on); });
+    }
     $("stageExplore").hidden = s !== "explore";
     $("stageMine").hidden = s !== "mine";
     $("stageVideos").hidden = s !== "videos";

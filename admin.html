@@ -83,6 +83,7 @@
           <button class="admin-tab" data-admin-tab="analytics">Analytics</button>
           <button class="admin-tab" data-admin-tab="site">Site Settings</button>
           <button class="admin-tab" data-admin-tab="inforder">Influencer Order</button>
+          <button class="admin-tab" data-admin-tab="motionpresets">Motion Presets</button>
         </div>
 
         <!-- ACCESS REQUESTS -->
@@ -232,6 +233,26 @@
           <div class="io-grid" id="ioGrid"></div>
         </div>
 
+        <div class="admin-panel" id="admin-motionpresets">
+          <h3>Motion presets</h3>
+          <p class="model-note" style="margin:0 0 16px;">Clips people can drop their influencer into on the AI Influencer page (Explore &rarr; Motion Presets, and inside each character's popup). Use short clips, 4&ndash;15 seconds, of motion you have the rights to. Changes go live for everyone when you save.</p>
+          <form class="mp-add" id="mpForm">
+            <label class="mp-file" id="mpDrop"><input type="file" id="mpFile" accept="video/mp4,video/webm,video/quicktime" /><video id="mpPrev" muted loop playsinline hidden></video><span id="mpFileTxt"><strong>Choose a clip</strong><small>MP4, WebM or MOV, up to 100 MB</small></span></label>
+            <div class="mp-fields">
+              <label>Name<input type="text" id="mpName" maxlength="60" placeholder="e.g. Runway walk" required /></label>
+              <label>Best used for<select id="mpMode"><option value="motion">Motion transfer (copy the moves)</option><option value="swap">Character swap (replace the person)</option></select></label>
+              <label id="mpTargetRow" hidden>What to replace<input type="text" id="mpTarget" maxlength="40" value="person" /></label>
+              <label>Note (optional)<input type="text" id="mpNote" maxlength="160" placeholder="Shown in the popup" /></label>
+              <div class="io-bar" style="margin:4px 0 0;"><button type="submit" class="btn btn-primary" id="mpAdd">Upload and add</button><span class="mp-status" id="mpAddStatus"></span></div>
+            </div>
+          </form>
+          <div class="io-bar">
+            <button type="button" class="btn btn-primary" id="mpSave">Save for everyone</button>
+            <span class="mp-status" id="mpStatus"></span>
+          </div>
+          <div class="io-grid mp-grid" id="mpGrid"></div>
+        </div>
+
         <!-- ANALYTICS -->
         <div class="admin-panel" id="admin-analytics">
           <h3>Site analytics</h3>
@@ -307,6 +328,7 @@
 <script src="js/admin-site.js"></script>
 <script src="js/influencer-presets.js"></script>
 <script src="js/admin-inforder.js"></script>
+<script src="js/admin-motionpresets.js"></script>
 <script src="js/gpu-access-admin.js"></script>
 <script src="js/admin-gpu.js"></script>
 </body>

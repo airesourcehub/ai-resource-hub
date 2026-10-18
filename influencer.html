@@ -212,9 +212,12 @@
   <section class="vs-stage inf-stage">
     <div class="inf-stage-tabs" role="tablist">
       <button type="button" role="tab" class="is-on" data-stage="explore" aria-selected="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Explore</button>
-      <button type="button" role="tab" data-stage="mine" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>My influencers <span class="inf-count" id="mineCount"></span></button>
-      <button type="button" role="tab" data-stage="videos" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Videos <span class="inf-count" id="vidCount"></span></button>
+      <button type="button" role="tab" data-stage="history" aria-selected="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>History</button>
       <span class="inf-gpu" id="gpuLine"><span class="gpu-dot" id="gpuDot"></span><span id="gpuText">Your GPU</span></span>
+    </div>
+    <div class="inf-subtabs" id="histBar" role="tablist" hidden>
+      <button type="button" role="tab" data-hist="mine" class="is-on">Influencers <span class="inf-count" id="mineCount"></span></button>
+      <button type="button" role="tab" data-hist="videos">Videos <span class="inf-count" id="vidCount"></span></button>
     </div>
 
     <div id="stageExplore">
@@ -223,10 +226,15 @@
         <h2 class="vs-title inf-hero-title">Your influencer,<br />your viral hit</h2>
         <p>Build your AI influencer with the face, body and style you want. Then make them dance, talk or star in new shots, all rendered on your own GPU.</p>
       </div>
+      <div class="inf-subtabs is-center" id="exploreTabs" role="tablist">
+        <button type="button" role="tab" data-ex="inf" class="is-on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg>AI Influencers</button>
+        <button type="button" role="tab" data-ex="motion"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Motion Presets</button>
+      </div>
+      <div id="exInf">
       <div class="inf-feed-head inf-feed-head-row">
         <div>
           <h3>Start from a preset</h3>
-          <p>Tap <strong>Recreate</strong> to load every setting, then tweak and generate.</p>
+          <p>Tap a character to see the full sheet. <strong>Recreate</strong> loads every setting so you can tweak and generate.</p>
         </div>
         <div class="inf-viewtoggle" id="wallView" role="group" aria-label="Preset view">
           <button type="button" data-wall="photos" class="is-on" aria-pressed="true" title="Big photos"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="10" rx="1.5"/><rect x="14" y="3" width="7" height="6" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/></svg>Photos</button>
@@ -234,6 +242,18 @@
         </div>
       </div>
       <div class="inf-wall" id="presetWall"></div>
+      </div>
+      <div id="exMotion" hidden>
+        <div class="inf-feed-head">
+          <h3>Motion presets</h3>
+          <p>Tap a clip to preview it, then put any influencer into the moves or swap them into the scene.</p>
+        </div>
+        <div class="inf-mwall" id="motionWall"></div>
+        <div class="inf-empty" id="motionEmpty" hidden>
+          <h3>No motion presets yet</h3>
+          <p>New clips are on the way. You can still upload your own video in the Motion tab.</p>
+        </div>
+      </div>
     </div>
 
     <div id="stageMine" hidden>
@@ -299,6 +319,39 @@
         <button type="button" class="btn btn-primary" id="styleApply">Use this style</button>
       </div>
       <p class="m-modal-note">The style repaints your character before the video renders (Qwen Edit, about 15 s more).</p>
+    </div>
+  </div>
+
+  <div class="inf-viewer inf-pviewer" id="pViewer" hidden role="dialog" aria-modal="true" aria-labelledby="pvName">
+    <div class="inf-viewer-bg" id="pvBg" data-pclose></div>
+    <button type="button" class="inf-viewer-x inf-pv-mx" data-pclose aria-label="Close">&times;</button>
+    <div class="inf-viewer-body">
+      <div class="inf-viewer-media" id="pvMedia"><img id="pvImg" alt="" /><video id="pvVid" muted loop playsinline controls hidden></video></div>
+      <aside class="inf-viewer-side inf-pv-side">
+        <div class="inf-pv-head"><h3 id="pvName"></h3><button type="button" class="inf-pv-x" data-pclose aria-label="Close">&times;</button></div>
+        <div class="inf-pv-scroll">
+          <section class="inf-pv-sec" id="pvParams">
+            <h4><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Character parameters</h4>
+            <div class="inf-viewer-chips" id="pvChips"></div>
+            <button type="button" class="inf-pv-more" id="pvMore" hidden>See all</button>
+          </section>
+          <section class="inf-pv-sec" id="pvNoteSec" hidden>
+            <h4>About this motion</h4>
+            <p class="inf-pv-note" id="pvNote"></p>
+          </section>
+          <section class="inf-pv-sec" id="pvMotionSec">
+            <h4 id="pvMotionTitle"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg>Add a motion preset</h4>
+            <div class="inf-pv-strip" id="pvStrip"></div>
+            <p class="inf-pv-hint" id="pvStripHint"></p>
+          </section>
+        </div>
+        <div class="inf-pv-acts" id="pvActs">
+          <button type="button" class="btn btn-primary" id="pvRecreate"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button>
+          <button type="button" class="btn btn-secondary" id="pvMotion">Motion transfer</button>
+          <button type="button" class="btn btn-secondary" id="pvSwap">Character swap</button>
+          <a class="btn btn-secondary" id="pvDl" href="#" download hidden>Download</a>
+        </div>
+      </aside>
     </div>
   </div>
 
