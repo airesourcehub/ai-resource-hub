@@ -17,6 +17,7 @@
 
   // Mirrors the service registry (image_support.py).
   var MODELS = [
+    { id: "flux3", name: "FLUX 3 Klein", type: "create", category: "t2i", lora: false, family: "flux", note: "Newest (Oct 2026). Sharp, fast, great prompt following." },
     { id: "flux2", name: "FLUX.2", type: "create", category: "t2i", lora: true, family: "flux", note: "Best all-round quality. Built-in Turbo toggle." },
     { id: "qwen2512", name: "Qwen-Image 2512", type: "create", category: "t2i", lora: true, family: "qwen", note: "Strong prompt adherence and text." },
     { id: "krea2", name: "Krea 2 Turbo", type: "create", category: "t2i", lora: true, family: "flux", note: "Fast, stylish." },
