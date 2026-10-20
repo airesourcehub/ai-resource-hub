@@ -84,6 +84,7 @@
           <button class="admin-tab" data-admin-tab="site">Site Settings</button>
           <button class="admin-tab" data-admin-tab="inforder">Influencer Order</button>
           <button class="admin-tab" data-admin-tab="motionpresets">Motion Presets</button>
+          <button class="admin-tab" data-admin-tab="contentguard">Content Guard</button>
         </div>
 
         <!-- ACCESS REQUESTS -->
@@ -254,6 +255,20 @@
           <div class="io-grid mp-grid" id="mpGrid"></div>
         </div>
 
+        <div class="admin-panel" id="admin-contentguard">
+          <h3>Clothing guard</h3>
+          <p class="model-note" style="margin:0 0 16px;">Off: every render shows exactly what was prompted. On: the render server adds the words below to every image and video prompt, so a character stays dressed when the prompt doesn't say what they're wearing. Applies to all users and takes effect within 30 seconds of saving.</p>
+          <label class="cg-toggle" style="display:flex;align-items:center;gap:10px;font-weight:600;margin:0 0 14px;"><input type="checkbox" id="cgEnabled" style="width:20px;height:20px;" /> Guard on</label>
+          <div class="mp-fields" style="max-width:640px;">
+            <label>Added to the prompt<input type="text" id="cgPos" maxlength="200" placeholder="fully clothed" /></label>
+            <label>Added to the negative prompt<input type="text" id="cgNeg" maxlength="400" placeholder="nude, naked, topless, nipples, underwear, lingerie, bikini" /></label>
+          </div>
+          <div class="io-bar">
+            <button type="button" class="btn btn-primary" id="cgSave">Save</button>
+            <span class="mp-status" id="cgStatus"></span>
+          </div>
+        </div>
+
         <!-- ANALYTICS -->
         <div class="admin-panel" id="admin-analytics">
           <h3>Site analytics</h3>
@@ -330,6 +345,7 @@
 <script src="js/influencer-presets.js?v=20261017c"></script>
 <script src="js/admin-inforder.js"></script>
 <script src="js/admin-motionpresets.js?v=20261018c"></script>
+<script src="js/admin-contentguard.js?v=20261020a"></script>
 <script src="js/gpu-access-admin.js"></script>
 <script src="js/admin-gpu.js"></script>
 </body>
