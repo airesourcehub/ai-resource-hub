@@ -891,3 +891,14 @@
 .m-fit-btn:hover { filter: brightness(1.08); }
 .m-fit-shots { display: inline-block; margin-top: 4px; }
 .inf-mtile .inf-tile-meta small { display: block; margin-top: 2px; font-size: 0.68rem; opacity: 0.85; font-weight: 500; }
+
+/* Scene mode: signature characters (@Name) */
+.m-scene { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.m-scene-lbl { display: block; font-size: 0.74rem; color: var(--color-text-muted); margin: 0 2px 6px; }
+.m-scene-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.m-scene-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px;
+  border: 1px solid var(--color-border, rgba(127,127,127,.3)); background: var(--color-surface, transparent); color: inherit;
+  font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.m-scene-chip:hover { border-color: var(--color-primary, #8b5cf6); }
+.m-scene-chip img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; object-position: top; }
+#mScenePrompt { width: 100%; resize: vertical; }

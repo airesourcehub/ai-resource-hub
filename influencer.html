@@ -16,7 +16,7 @@
 <meta name="description" content="Build your own AI influencer: pick the face, body, hair and style, render them on your own GPU, then make them dance, talk or star in new shots." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/influencer.css?v=20261018c" />
+<link rel="stylesheet" href="css/influencer.css?v=20261020a" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -87,8 +87,31 @@
       <div class="inf-seg-sm inf-mode" id="mModeSeg" role="radiogroup" aria-label="Motion mode">
         <button type="button" data-mode="motion" class="is-on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke-dasharray="3 2.6"/><circle cx="12" cy="12" r="3"/></svg>Motion transfer</button>
         <button type="button" data-mode="swap"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Objects swap</button>
+        <button type="button" data-mode="scene" title="Put a signature character like @Auntie into any scene, from a prompt"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v12H3z"/><path d="m3 7 3-4h12l3 4"/><circle cx="12" cy="13" r="3"/></svg>Scene</button>
       </div>
       <p class="inf-mode-note" id="mModeNote">Your influencer copies every move from the video, in their own setting.</p>
+
+      <div class="m-scene" id="mSceneBox" hidden>
+        <div class="m-scene-chars" id="mSceneChars"><span class="m-scene-lbl">Signature characters</span><div class="m-scene-list" id="mSceneList"><small class="inf-note">Loading…</small></div></div>
+        <textarea id="mScenePrompt" rows="4" maxlength="800" placeholder="e.g. @Auntie walks a luxury fashion runway at night, photographers' camera flashes, wearing a long red gown"></textarea>
+        <small class="inf-field-note">Type @ and the name to bring a character in. Say what they wear and do. The prompt is used exactly as written.</small>
+        <div class="inf-row">
+          <span class="inf-row-lbl" title="How many camera angles of the same place to cut between">Camera angles</span>
+          <div class="inf-seg-sm" id="mShotsSeg">
+            <button type="button" data-shots="1" class="is-on">1</button>
+            <button type="button" data-shots="2">2</button>
+            <button type="button" data-shots="3">3</button>
+            <button type="button" data-shots="4">4</button>
+          </div>
+        </div>
+        <div class="inf-row">
+          <span class="inf-row-lbl">Shape</span>
+          <div class="inf-seg-sm" id="mShapeSeg">
+            <button type="button" data-shape="portrait" class="is-on">Vertical</button>
+            <button type="button" data-shape="landscape">Wide</button>
+          </div>
+        </div>
+      </div>
 
       <div class="m-slots">
         <label class="m-slot m-slot-video" id="mVideoDrop">
@@ -136,7 +159,7 @@
         <svg class="m-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       </button>
 
-      <div class="m-toggle-row">
+      <div class="m-toggle-row" id="mPromptRow">
         <span>Prompt <small>(optional)</small></span>
         <button type="button" class="m-switch" id="mPromptToggle" role="switch" aria-checked="false" aria-label="Add a prompt"><span></span></button>
       </div>
@@ -457,6 +480,6 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/influencer-presets.js?v=20261018c"></script>
-<script src="js/influencer.js?v=20261018c"></script>
+<script src="js/influencer.js?v=20261020a"></script>
 </body>
 </html>

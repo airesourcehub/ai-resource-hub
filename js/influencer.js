@@ -184,6 +184,7 @@
   ];
   var MODE_COPY = {
     motion: { note: "Your influencer copies every move from the video, in their own setting and with their own body shape.", title: "Add a reference video<br />to extract motion", hint: "Video duration: 4 to 30 seconds" },
+    scene: { note: "Write a scene with a signature character like @Auntie. Their trained look is used in every shot, and every camera angle stays in the same place.", title: "", hint: "" },
     swap: { note: "Your character takes the place of someone in the video. The scene and camera stay the same. Works best for characters with regular human proportions.", title: "Add a reference video<br />to edit", hint: "Video duration: 4 to 30 seconds" }
   };
   var NEGATIVE = "blurry, deformed, extra limbs, extra fingers, bad anatomy, watermark, text, logo, cropped head, child, minor, nsfw";
@@ -242,7 +243,8 @@
     motionPick: null,
     viewing: null,
     m: {
-      mode: prefs.mMode === "swap" ? "swap" : "motion",
+      mode: prefs.mMode === "swap" || prefs.mMode === "scene" ? prefs.mMode : "motion",
+      shots: 1, shape: "portrait", sceneChars: null,
       res: prefs.mRes === "480p" || prefs.mRes === "1080p" ? prefs.mRes : "720p",
       len: prefs.mLen === 10 ? 10 : 5,
       video: null,        // { blob, url, w, h, dur }
@@ -1637,8 +1639,14 @@
     $("mModeNote").textContent = MODE_COPY[mode].note;
     $("mVideoHint").textContent = MODE_COPY[mode].hint;
     if ($("mVideoTitle")) $("mVideoTitle").innerHTML = MODE_COPY[mode].title;
+    var sc = mode === "scene";
     $("mTargetField").hidden = mode !== "swap";
-    if ($("mSettingRow")) $("mSettingRow").hidden = mode === "swap";
+    if ($("mSettingRow")) $("mSettingRow").hidden = mode !== "motion";
+    $("mSceneBox").hidden = !sc;
+    document.querySelector("#paneMotion .m-slots").hidden = sc;
+    ["mStyleBtn", "mPromptRow"].forEach(function (id) { if ($(id)) $(id).hidden = sc; });
+    if (sc) { $("mPrompt").hidden = true; $("mFit").hidden = true; $("mPicker").hidden = true; loadSceneChars(); }
+    else $("mPrompt").hidden = !state.m.usePrompt;
     savePrefs(); syncMotionGo(); paintFit();
   }
 
@@ -1646,7 +1654,7 @@
     var b = $("mGenerateBtn"), m = state.m;
     var label = !state.user ? "Log in to generate " : "Generate ";
     b.firstChild.nodeValue = label;
-    b.classList.toggle("is-dim", !!state.user && !(m.video && m.char));
+    b.classList.toggle("is-dim", !!state.user && (m.mode === "scene" ? !/@[A-Za-z]/.test(($("mScenePrompt") || {}).value || "") : !(m.video && m.char)));
   }
 
   function styleLabel() {
@@ -1692,9 +1700,68 @@
     $("styleImgDrop").classList.add("has-file");
   }
 
+  // ---- Scene mode: signature characters (@Name) put into any scene from a prompt.
+  async function loadSceneChars() {
+    var m = state.m, list = $("mSceneList");
+    if (m.sceneChars) return paintSceneChars();
+    try {
+      var r = await fetch(RENDER() + "/characters");
+      var d = await r.json();
+      m.sceneChars = (d && d.characters) || [];
+    } catch (e) { m.sceneChars = null; list.innerHTML = '<small class="inf-note">The GPU server isn\'t reachable right now.</small>'; return; }
+    paintSceneChars();
+  }
+  function paintSceneChars() {
+    var list = $("mSceneList"), cs = state.m.sceneChars || [];
+    if (!cs.length) { list.innerHTML = '<small class="inf-note">No signature characters yet.</small>'; return; }
+    list.innerHTML = cs.map(function (c) {
+      return '<button type="button" class="m-scene-chip" data-handle="' + esc(c.handle) + '">' +
+        (c.thumb ? '<img alt="" src="' + esc(c.thumb) + '" />' : "") + "<span>@" + esc(c.handle) + "</span></button>";
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".m-scene-chip"), function (b) {
+      b.addEventListener("click", function () {
+        var ta = $("mScenePrompt"), tag = "@" + b.getAttribute("data-handle");
+        if (ta.value.indexOf(tag) < 0) {
+          var s = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+          var pre = ta.value.slice(0, s), post = ta.value.slice(s);
+          ta.value = pre + (pre && !/\s$/.test(pre) ? " " : "") + tag + " " + post;
+        }
+        ta.focus(); syncMotionGo();
+      });
+    });
+  }
+  async function onSceneGenerate() {
+    var m = state.m, prompt = $("mScenePrompt").value.trim();
+    var cs = m.sceneChars || [];
+    var used = cs.filter(function (c) { return new RegExp("@" + c.handle + "\\b", "i").test(prompt); });
+    if (!used.length) { mHint(cs.length ? "Bring a character in with @, e.g. @" + cs[0].handle + "." : "Mention a signature character with @.", true); return; }
+    var token = await freshToken();
+    if (!token) { mHint("Your session expired. Log in again.", true); return; }
+    var btn = $("mGenerateBtn"); btn.disabled = true; mHint("Sending…");
+    var vid = null;
+    try {
+      var fd = new FormData();
+      fd.append("prompt", prompt); fd.append("shots", String(m.shots)); fd.append("length", String(m.len));
+      fd.append("res", m.res); fd.append("orientation", m.shape);
+      vid = { id: "tmp-" + Date.now(), mode: "character_scene", prompt: prompt, status: "queued", pending: true, progress: 2,
+        stage: "Sending to the GPU…", created_at: new Date().toISOString(), meta: { res: m.res, length_secs: m.len, shots: m.shots },
+        thumb: used[0].thumb || "", portrait: m.shape !== "landscape" };
+      state.vids.unshift(vid); setStage("videos");
+      var r = await fetch(RENDER() + "/scene-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var d = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
+      vid.id = d.job_id; vid.stage = "Queued"; renderVideos(); pollVideo(vid, 0);
+      mHint("Sent. Your video shows up on the right when it's done.");
+    } catch (e) {
+      if (vid) { state.vids = state.vids.filter(function (x) { return x !== vid; }); renderVideos(); }
+      mHint(/Failed to fetch|NetworkError|HTTP 5/.test(e.message) ? "The GPU server isn't reachable right now. Check System status, then try again." : e.message, true);
+    } finally { btn.disabled = false; }
+  }
+
   async function onMotionGenerate() {
     var m = state.m;
     if (!state.user) { window.location.href = "auth.html"; return; }
+    if (m.mode === "scene") return onSceneGenerate();
     if (!m.video) { mHint("Add a reference video first.", true); return; }
     if (!m.char) { mHint("Pick the character first.", true); $("mPicker").hidden = false; renderMotionPick(); return; }
     if (m.mode === "swap" && !$("mTarget").value.trim()) { mHint("Say what to replace, e.g. person.", true); return; }
@@ -1805,7 +1872,7 @@
   function vidTitle(v) {
     var meta = v.meta || {};
     var st = meta.style ? (STYLES.filter(function (s) { return s[0] === meta.style; })[0] || [0, "Custom style"])[1] : "";
-    var kind = v.mode === "character_swap" ? "Character swap" : v.mode === "upscale_1080" ? "1080p upscale" : "Motion transfer";
+    var kind = v.mode === "character_scene" ? "Scene" + (meta.shots > 1 ? " · " + meta.shots + " angles" : "") : v.mode === "character_swap" ? "Character swap" : v.mode === "upscale_1080" ? "1080p upscale" : "Motion transfer";
     return [kind, st].filter(Boolean).join(" · ");
   }
 
@@ -1931,6 +1998,9 @@
     if ($("mSetSeg")) segWire("mSetSeg", "data-set", function (v) { state.m.setting = v === "clip" ? "clip" : "own"; paintFit(); });
     segWire("mLenSeg", "data-len", function (v) { state.m.len = Number(v); savePrefs(); paintVideoTag(); });
     segWire("mResSeg", "data-res", function (v) { state.m.res = v; savePrefs(); });
+    segWire("mShotsSeg", "data-shots", function (v) { state.m.shots = Number(v) || 1; });
+    segWire("mShapeSeg", "data-shape", function (v) { state.m.shape = v === "landscape" ? "landscape" : "portrait"; });
+    $("mScenePrompt").addEventListener("input", syncMotionGo);
     syncSeg("mLenSeg", "data-len", String(state.m.len));
     syncSeg("mResSeg", "data-res", state.m.res);
     setMode(state.m.mode);
