@@ -779,7 +779,7 @@
       img.onerror = function () { t.classList.add("is-missing"); };
       img.src = absUrl(url);
       t.appendChild(img);
-      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(c.name || "Influencer") + "</strong><span>" + esc(tierOf(c.tier).label) + "</span></div>" +
+      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(c.name || "Influencer") + "</strong><span>" + esc(mentionOf(c) ? "@" + mentionOf(c) : tierOf(c.tier).label) + "</span></div>" +
         '<button type="button" class="inf-check" data-act="sel" aria-label="Select" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></button>' +
         '<div class="inf-tile-acts"><button type="button" class="inf-recreate" data-act="recreate">Recreate</button></div>' +
         '<div class="inf-tile-side">' +
@@ -815,6 +815,23 @@
       t.querySelector("[data-act=recreate]").addEventListener("click", function () { loadRecipe(c.tier, c.traits, c.name); });
     }
     return t;
+  }
+
+  function mentionOf(c) { var h = String((c && c.name) || "").replace(/[^A-Za-z0-9_]/g, ""); return h.length >= 2 ? h : ""; }
+  async function renameChar(c) {
+    var nm = window.prompt("Name this influencer. Its @mention is the name without spaces (e.g. Miami Mike becomes @MiamiMike). Use a different name from your other influencers.", c.name || "");
+    if (nm == null) return;
+    nm = nm.trim().slice(0, 40);
+    if (nm.replace(/[^A-Za-z0-9_]/g, "").length < 2) { hint("Use at least two letters or numbers.", true); return; }
+    var clash = (state.mine || []).some(function (x) { return x !== c && mentionOf(x).toLowerCase() === nm.replace(/[^A-Za-z0-9_]/g, "").toLowerCase(); });
+    if (clash) { hint("Another of your influencers already uses @" + nm.replace(/[^A-Za-z0-9_]/g, "") + ". Pick a different name.", true); return; }
+    var old = c.name; c.name = nm; renderMine();
+    if (client && realId(c.id)) {
+      var r = await client.from("influencers").update({ name: nm }).eq("id", c.id);
+      if (r.error) { c.name = old; renderMine(); hint("Couldn't rename. Try again.", true); return; }
+    }
+    state.m.sceneChars = null;
+    hint("Renamed. Mention it as @" + mentionOf(c) + " in Scene mode or in Claude/ChatGPT.");
   }
 
   async function toggleFav(c) {
@@ -1490,6 +1507,7 @@
     else if (act === "recreate") loadRecipe(c.tier, c.traits, c.name);
     else if (act === "reference") location.href = "image-studio.html?model=qwen_edit2509&ref=" + encodeURIComponent(full);
     else if (act === "like") toggleFav(c);
+    else if (act === "rename") renameChar(c);
     else if (act === "copy") {
       try { await navigator.clipboard.writeText(full); hint("Image link copied."); } catch (e) { window.prompt("Copy this link:", full); }
     }
@@ -1705,7 +1723,9 @@
     var m = state.m, list = $("mSceneList");
     if (m.sceneChars) return paintSceneChars();
     try {
-      var r = await fetch(RENDER() + "/characters");
+      var tok = state.user ? await freshToken() : null;
+      var r = tok ? await fetch(RENDER() + "/my-characters", { headers: { Authorization: "Bearer " + tok } })
+                  : await fetch(RENDER() + "/characters");
       var d = await r.json();
       m.sceneChars = (d && d.characters) || [];
     } catch (e) { m.sceneChars = null; list.innerHTML = '<small class="inf-note">The GPU server isn\'t reachable right now.</small>'; return; }
@@ -1713,10 +1733,10 @@
   }
   function paintSceneChars() {
     var list = $("mSceneList"), cs = state.m.sceneChars || [];
-    if (!cs.length) { list.innerHTML = '<small class="inf-note">No signature characters yet.</small>'; return; }
+    if (!cs.length) { list.innerHTML = '<small class="inf-note">No characters yet.</small>'; return; }
     list.innerHTML = cs.map(function (c) {
       return '<button type="button" class="m-scene-chip" data-handle="' + esc(c.handle) + '">' +
-        (c.thumb ? '<img alt="" src="' + esc(c.thumb) + '" />' : "") + "<span>@" + esc(c.handle) + "</span></button>";
+        (c.thumb ? '<img alt="" src="' + esc(c.thumb.charAt(0) === "/" ? absUrl(c.thumb) : c.thumb) + '" />' : "") + "<span>@" + esc(c.handle) + "</span></button>";
     }).join("");
     Array.prototype.forEach.call(list.querySelectorAll(".m-scene-chip"), function (b) {
       b.addEventListener("click", function () {
