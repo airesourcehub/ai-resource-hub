@@ -227,6 +227,27 @@
         if ($("presetWall")) renderPresets();
       }).catch(function () {});
   }
+  // ---- stock @handles set by the admin (site_settings key "influencer_handles": { handles: { presetId: Handle } })
+  var STOCK_HANDLES = (function () { try { return JSON.parse(localStorage.getItem("airh-inf-handles") || "null") || {}; } catch (e) { return {}; } })();
+  function stockHandle(p) { return STOCK_HANDLES[p.id] || String(p.name || "").replace(/[^A-Za-z0-9_]/g, ""); }
+  function isStockHandle(h) {
+    h = String(h || "").toLowerCase();
+    return (window.AIRH_INF_PRESETS || []).some(function (p) { return stockHandle(p).toLowerCase() === h; });
+  }
+  function fetchStockHandles() {
+    if (!hasSupabase) return;
+    fetch(SUPABASE_URL + "/rest/v1/site_settings?key=eq.influencer_handles&select=value", { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }, cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        var h = (rows && rows[0] && rows[0].value && rows[0].value.handles) || {};
+        if (JSON.stringify(h) === JSON.stringify(STOCK_HANDLES)) return;
+        STOCK_HANDLES = h;
+        try { localStorage.setItem("airh-inf-handles", JSON.stringify(h)); } catch (e) {}
+        if ($("presetWall")) renderPresets();
+        if (state.mine && state.mine.length) renderMine();
+      }).catch(function () {});
+  }
+  fetchStockHandles();
   var prefs = loadPrefs();
   var state = {
     histF: "all",       // History filter: all / mine / videos
@@ -731,7 +752,7 @@
   // ------------------------------------------------------------ my influencers
   async function loadMine() {
     if (!client || !state.user) return;
-    var res = await client.from("influencers").select("id, name, tier, traits, view, model, prompt, job_id, from_photo, favorite, created_at")
+    var res = await client.from("influencers").select("id, name, handle, tier, traits, view, model, prompt, job_id, from_photo, favorite, created_at")
       .eq("user_id", state.user.id).order("created_at", { ascending: false }).range(state.offset, state.offset + PAGE - 1);
     var rows = res.data || [];
     var ids = rows.map(function (r) { return r.job_id; }).filter(Boolean);
@@ -817,21 +838,31 @@
     return t;
   }
 
-  function mentionOf(c) { var h = String((c && c.name) || "").replace(/[^A-Za-z0-9_]/g, ""); return h.length >= 2 ? h : ""; }
-  async function renameChar(c) {
-    var nm = window.prompt("Name this influencer. Its @mention is the name without spaces (e.g. Miami Mike becomes @MiamiMike). Use a different name from your other influencers.", c.name || "");
-    if (nm == null) return;
-    nm = nm.trim().slice(0, 40);
-    if (nm.replace(/[^A-Za-z0-9_]/g, "").length < 2) { hint("Use at least two letters or numbers.", true); return; }
-    var clash = (state.mine || []).some(function (x) { return x !== c && mentionOf(x).toLowerCase() === nm.replace(/[^A-Za-z0-9_]/g, "").toLowerCase(); });
-    if (clash) { hint("Another of your influencers already uses @" + nm.replace(/[^A-Za-z0-9_]/g, "") + ". Pick a different name.", true); return; }
-    var old = c.name; c.name = nm; renderMine();
-    if (client && realId(c.id)) {
-      var r = await client.from("influencers").update({ name: nm }).eq("id", c.id);
-      if (r.error) { c.name = old; renderMine(); hint("Couldn't rename. Try again.", true); return; }
-    }
+  // An influencer's @mention: its own handle, else its name without spaces (unless a stock influencer or
+  // another of yours already has it — the server skips those the same way).
+  function mentionOf(c) {
+    if (!c) return "";
+    if (c.handle) return c.handle;
+    var h = String(c.name || "").replace(/[^A-Za-z0-9_]/g, "");
+    if (h.length < 2 || isStockHandle(h)) return "";
+    var taken = (state.mine || []).some(function (x) { return x !== c && x.handle && x.handle.toLowerCase() === h.toLowerCase(); });
+    return taken ? "" : h;
+  }
+  async function changeHandle(c) {
+    var cur = mentionOf(c);
+    var h = window.prompt("Choose an @handle for " + (c.name || "this influencer") + ". Letters, numbers or _, starting with a letter. It must not match one of the site's stock influencers or another of your influencers.", cur || "");
+    if (h == null) return;
+    h = h.trim().replace(/^@/, "");
+    if (!/^[A-Za-z][A-Za-z0-9_]{1,29}$/.test(h)) { hint("A handle is 2 to 30 letters, numbers or _, starting with a letter (no spaces).", true); return; }
+    if (isStockHandle(h)) { hint("@" + h + " belongs to one of the site's stock influencers. Pick a different handle.", true); return; }
+    var clash = (state.mine || []).some(function (x) { return x !== c && mentionOf(x).toLowerCase() === h.toLowerCase(); });
+    if (clash) { hint("You already have an influencer called @" + h + ". Pick a different handle.", true); return; }
+    if (!client || !realId(c.id)) { hint("This influencer is still being saved. Try again in a moment.", true); return; }
+    var r = await client.from("influencers").update({ handle: h }).eq("id", c.id).select("handle").single();
+    if (r.error) { hint(r.error.message || "Couldn't save the handle. Try again.", true); return; }
+    c.handle = (r.data && r.data.handle) || h; renderMine();
     state.m.sceneChars = null;
-    hint("Renamed. Mention it as @" + mentionOf(c) + " in Scene mode or in Claude/ChatGPT.");
+    hint("Saved. Mention it as @" + c.handle + " in Scene mode or in Claude/ChatGPT.");
   }
 
   async function toggleFav(c) {
@@ -899,7 +930,7 @@
       img.onerror = function () { if (!img.dataset.fb) { img.dataset.fb = 1; t.style.aspectRatio = "1344 / 768"; img.src = IMG + "preset-" + p.id + ".jpg"; } else t.classList.add("is-missing"); };
       img.src = sheets ? IMG + "preset-" + p.id + ".jpg" : IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
-      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + esc(tierOf(p.tier).label) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
+      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>@" + esc(stockHandle(p)) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
       t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
       t.draggable = true;
       t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, t: p.t, tier: p.tier, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });
@@ -1507,7 +1538,7 @@
     else if (act === "recreate") loadRecipe(c.tier, c.traits, c.name);
     else if (act === "reference") location.href = "image-studio.html?model=qwen_edit2509&ref=" + encodeURIComponent(full);
     else if (act === "like") toggleFav(c);
-    else if (act === "rename") renameChar(c);
+    else if (act === "rename") changeHandle(c);
     else if (act === "copy") {
       try { await navigator.clipboard.writeText(full); hint("Image link copied."); } catch (e) { window.prompt("Copy this link:", full); }
     }

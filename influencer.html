@@ -16,7 +16,7 @@
 <meta name="description" content="Build your own AI influencer: pick the face, body, hair and style, render them on your own GPU, then make them dance, talk or star in new shots." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/influencer.css?v=20261020a" />
+<link rel="stylesheet" href="css/influencer.css?v=20261021c" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -92,7 +92,7 @@
       <p class="inf-mode-note" id="mModeNote">Your influencer copies every move from the video, in their own setting.</p>
 
       <div class="m-scene" id="mSceneBox" hidden>
-        <div class="m-scene-chars" id="mSceneChars"><span class="m-scene-lbl">Characters you can @mention (yours use their name without spaces)</span><div class="m-scene-list" id="mSceneList"><small class="inf-note">Loading…</small></div></div>
+        <div class="m-scene-chars" id="mSceneChars"><span class="m-scene-lbl">Characters you can @mention</span><div class="m-scene-list" id="mSceneList"><small class="inf-note">Loading…</small></div></div>
         <textarea id="mScenePrompt" rows="4" maxlength="800" placeholder="e.g. @Auntie walks a luxury fashion runway at night, photographers' camera flashes, wearing a long red gown"></textarea>
         <small class="inf-field-note">Type @ and the name to bring a character in (up to two). Say what they wear and do. The prompt is used exactly as written.</small>
         <div class="inf-row">
@@ -411,7 +411,7 @@
   </div>
   <div class="ctx-menu" id="ctxMenu" role="menu" hidden>
     <button type="button" role="menuitem" data-m="open"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M9 21H3v-6"/></svg><span>Open</span></button>
-    <button type="button" role="menuitem" data-m="rename"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg><span>Rename / @mention</span></button>
+    <button type="button" role="menuitem" data-m="rename"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg><span>Change @handle</span></button>
     <button type="button" role="menuitem" data-m="select" id="ctxSelect"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg><span>Select</span></button>
     <div class="ctx-sub">
       <button type="button" role="menuitem" class="has-sub" data-m="video" aria-haspopup="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3"/></svg><span>Turn to video</span><svg class="ctx-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
@@ -481,6 +481,6 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/influencer-presets.js?v=20261021a"></script>
-<script src="js/influencer.js?v=20261021b"></script>
+<script src="js/influencer.js?v=20261021c"></script>
 </body>
 </html>

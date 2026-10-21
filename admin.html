@@ -85,6 +85,7 @@
           <button class="admin-tab" data-admin-tab="inforder">Influencer Order</button>
           <button class="admin-tab" data-admin-tab="motionpresets">Motion Presets</button>
           <button class="admin-tab" data-admin-tab="contentguard">Content Guard</button>
+          <button class="admin-tab" data-admin-tab="handles">Influencer @handles</button>
         </div>
 
         <!-- ACCESS REQUESTS -->
@@ -269,6 +270,29 @@
           </div>
         </div>
 
+        <div class="admin-panel" id="admin-handles">
+          <h3>Stock influencer @handles</h3>
+          <p class="model-note" style="margin:0 0 16px;">How everyone mentions the site's stock influencers in Scene mode and in Claude/ChatGPT (e.g. @CrissP). Users' own influencers can't take any of these. Their handles only need to be unique inside their own account, so two people can both have an @Chris. If you give a stock influencer a handle a user already has, the user's copy is freed and they pick a new one.</p>
+          <div class="hd-list" id="hdList"><small class="inf-note">Loading…</small></div>
+          <div class="io-bar">
+            <button type="button" class="btn btn-primary" id="hdSave">Save handles</button>
+            <span class="mp-status" id="hdStatus"></span>
+          </div>
+        </div>
+        <style>
+          .hd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px 16px; margin: 0 0 16px; }
+          .hd-row { display: grid; grid-template-columns: 36px 1fr 150px; grid-template-rows: auto auto; align-items: center; gap: 2px 10px; }
+          .hd-row img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; object-position: top; grid-row: span 2; }
+          .hd-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .hd-in { display: flex; align-items: center; gap: 2px; }
+          .hd-in span { opacity: .6; }
+          .hd-in input { width: 100%; min-width: 0; padding: 6px 8px; }
+          .hd-in input[aria-invalid="true"] { border-color: #e5484d; }
+          .hd-err { grid-column: 2 / 4; color: #e5484d; font-size: 12px; min-height: 0; }
+          .hd-err:empty { display: none; }
+          @media (max-width: 420px) { .hd-row { grid-template-columns: 36px 1fr; } .hd-in { grid-column: 2; } }
+        </style>
+
         <!-- ANALYTICS -->
         <div class="admin-panel" id="admin-analytics">
           <h3>Site analytics</h3>
@@ -346,6 +370,7 @@
 <script src="js/admin-inforder.js"></script>
 <script src="js/admin-motionpresets.js?v=20261018c"></script>
 <script src="js/admin-contentguard.js?v=20261020a"></script>
+<script src="js/admin-handles.js?v=20261021a"></script>
 <script src="js/gpu-access-admin.js"></script>
 <script src="js/admin-gpu.js"></script>
 </body>

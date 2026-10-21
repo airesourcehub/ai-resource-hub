@@ -895,7 +895,7 @@
 /* Scene mode: signature characters (@Name) */
 .m-scene { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 .m-scene-lbl { display: block; font-size: 0.74rem; color: var(--color-text-muted); margin: 0 2px 6px; }
-.m-scene-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.m-scene-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 172px; overflow-y: auto; padding-right: 4px; }
 .m-scene-chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px;
   border: 1px solid var(--color-border, rgba(127,127,127,.3)); background: var(--color-surface, transparent); color: inherit;
   font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
