@@ -1,5 +1,5 @@
 // AI Resource Hub — Admin → Influencer @handles.
-// Edits the @mention handle of every stock influencer (site_settings key "influencer_handles":
+// Edits the @mention handle of each TRAINED character (site_settings key "influencer_handles":
 // { handles: { presetId: Handle } }). Saved through the save_stock_handles() database function, which
 // checks the format, keeps stock handles unique, and frees any user's own handle that now matches a
 // stock one (stock always wins). User handles are unique per account only.
@@ -32,20 +32,24 @@
   (async function load() {
     var r = await client.from("site_settings").select("value").eq("key", "influencer_handles").maybeSingle();
     var h = (r.data && r.data.value && r.data.value.handles) || {};
-    $("hdList").innerHTML = PRESETS.map(function (p) {
+    // Only trained characters have a handle; a character is added here when its training is wired in.
+    var trained = PRESETS.filter(function (p) { return h[p.id]; });
+    if (!trained.length) { $("hdList").innerHTML = '<small class="inf-note">No trained characters yet.</small>'; return; }
+    $("hdList").innerHTML = trained.map(function (p) {
       return '<div class="hd-row"><img alt="" loading="lazy" src="img/influencer/pv/' + esc(p.id) + '-close.jpg" />' +
         '<span class="hd-name">' + esc(p.name) + '</span><label class="hd-in"><span>@</span><input type="text" maxlength="30" spellcheck="false" autocomplete="off" data-id="' +
         esc(p.id) + '" data-name="' + esc(p.name) + '" value="' + esc(h[p.id] || def(p)) + '" aria-label="@handle for ' + esc(p.name) + '" /></label><small class="hd-err"></small></div>';
     }).join("");
     $("hdList").addEventListener("input", check);
     check();
-    status(PRESETS.length + " stock influencers.");
+    status(trained.length + " trained character" + (trained.length === 1 ? "" : "s") + ".");
   })();
 
   $("hdSave").addEventListener("click", async function () {
     if (!check()) return status("Fix the handles marked in red first.", true);
     var map = {};
     Array.prototype.forEach.call(document.querySelectorAll("#hdList input"), function (inp) { map[inp.getAttribute("data-id")] = inp.value.trim().replace(/^@/, ""); });
+    if (!Object.keys(map).length) return status("Nothing to save.", true);
     status("Saving…");
     var r = await client.rpc("save_stock_handles", { handles: map });
     if (r.error) return status("Couldn't save: " + r.error.message, true);

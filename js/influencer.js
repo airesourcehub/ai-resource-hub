@@ -229,10 +229,11 @@
   }
   // ---- stock @handles set by the admin (site_settings key "influencer_handles": { handles: { presetId: Handle } })
   var STOCK_HANDLES = (function () { try { return JSON.parse(localStorage.getItem("airh-inf-handles") || "null") || {}; } catch (e) { return {}; } })();
-  function stockHandle(p) { return STOCK_HANDLES[p.id] || String(p.name || "").replace(/[^A-Za-z0-9_]/g, ""); }
+  // Only TRAINED stock influencers have an @handle (the admin sets it); the rest are plain cards.
+  function stockHandle(p) { return STOCK_HANDLES[p.id] || ""; }
   function isStockHandle(h) {
     h = String(h || "").toLowerCase();
-    return (window.AIRH_INF_PRESETS || []).some(function (p) { return stockHandle(p).toLowerCase() === h; });
+    return Object.keys(STOCK_HANDLES).some(function (k) { return String(STOCK_HANDLES[k]).toLowerCase() === h; });
   }
   function fetchStockHandles() {
     if (!hasSupabase) return;
@@ -850,11 +851,11 @@
   }
   async function changeHandle(c) {
     var cur = mentionOf(c);
-    var h = window.prompt("Choose an @handle for " + (c.name || "this influencer") + ". Letters, numbers or _, starting with a letter. It must not match one of the site's stock influencers or another of your influencers.", cur || "");
+    var h = window.prompt("Choose an @handle for " + (c.name || "this influencer") + ". Letters, numbers or _, starting with a letter. It must not match one of the site's trained characters or another of your influencers.", cur || "");
     if (h == null) return;
     h = h.trim().replace(/^@/, "");
     if (!/^[A-Za-z][A-Za-z0-9_]{1,29}$/.test(h)) { hint("A handle is 2 to 30 letters, numbers or _, starting with a letter (no spaces).", true); return; }
-    if (isStockHandle(h)) { hint("@" + h + " belongs to one of the site's stock influencers. Pick a different handle.", true); return; }
+    if (isStockHandle(h)) { hint("@" + h + " belongs to one of the site's trained characters. Pick a different handle.", true); return; }
     var clash = (state.mine || []).some(function (x) { return x !== c && mentionOf(x).toLowerCase() === h.toLowerCase(); });
     if (clash) { hint("You already have an influencer called @" + h + ". Pick a different handle.", true); return; }
     if (!client || !realId(c.id)) { hint("This influencer is still being saved. Try again in a moment.", true); return; }
@@ -930,7 +931,7 @@
       img.onerror = function () { if (!img.dataset.fb) { img.dataset.fb = 1; t.style.aspectRatio = "1344 / 768"; img.src = IMG + "preset-" + p.id + ".jpg"; } else t.classList.add("is-missing"); };
       img.src = sheets ? IMG + "preset-" + p.id + ".jpg" : IMG + "pv/" + p.id + (full ? "-full" : "-close") + ".jpg";
       t.appendChild(img);
-      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>@" + esc(stockHandle(p)) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
+      t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + (stockHandle(p) ? '<b class="inf-trained">Trained</b> @' + esc(stockHandle(p)) : esc(tierOf(p.tier).label)) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
       t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
       t.draggable = true;
       t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, t: p.t, tier: p.tier, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });

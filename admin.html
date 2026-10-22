@@ -85,7 +85,7 @@
           <button class="admin-tab" data-admin-tab="inforder">Influencer Order</button>
           <button class="admin-tab" data-admin-tab="motionpresets">Motion Presets</button>
           <button class="admin-tab" data-admin-tab="contentguard">Content Guard</button>
-          <button class="admin-tab" data-admin-tab="handles">Influencer @handles</button>
+          <button class="admin-tab" data-admin-tab="handles">Trained @handles</button>
         </div>
 
         <!-- ACCESS REQUESTS -->
@@ -271,8 +271,8 @@
         </div>
 
         <div class="admin-panel" id="admin-handles">
-          <h3>Stock influencer @handles</h3>
-          <p class="model-note" style="margin:0 0 16px;">How everyone mentions the site's stock influencers in Scene mode and in Claude/ChatGPT (e.g. @CrissP). Users' own influencers can't take any of these. Their handles only need to be unique inside their own account, so two people can both have an @Chris. If you give a stock influencer a handle a user already has, the user's copy is freed and they pick a new one.</p>
+          <h3>Trained character @handles</h3>
+          <p class="model-note" style="margin:0 0 16px;">Only trained characters get an @handle. It's how everyone mentions them in Scene mode and in Claude/ChatGPT (e.g. @CrissP). Untrained stock influencers stay plain cards (Recreate or drag into Motion). Users' own influencers can't take a trained handle. Their handles only need to be unique inside their own account, so two people can both have an @Chris. If you give a trained character a handle a user already has, the user's copy is freed and they pick a new one.</p>
           <div class="hd-list" id="hdList"><small class="inf-note">Loading…</small></div>
           <div class="io-bar">
             <button type="button" class="btn btn-primary" id="hdSave">Save handles</button>
@@ -370,7 +370,7 @@
 <script src="js/admin-inforder.js"></script>
 <script src="js/admin-motionpresets.js?v=20261018c"></script>
 <script src="js/admin-contentguard.js?v=20261020a"></script>
-<script src="js/admin-handles.js?v=20261021a"></script>
+<script src="js/admin-handles.js?v=20261022a"></script>
 <script src="js/gpu-access-admin.js"></script>
 <script src="js/admin-gpu.js"></script>
 </body>

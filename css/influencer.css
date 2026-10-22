@@ -902,3 +902,5 @@
 .m-scene-chip:hover { border-color: var(--color-primary, #8b5cf6); }
 .m-scene-chip img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; object-position: top; }
 #mScenePrompt { width: 100%; resize: vertical; }
+
+.inf-trained { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--color-primary, #8b5cf6); color: #fff; vertical-align: 1px; }
