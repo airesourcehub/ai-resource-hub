@@ -1,0 +1,25 @@
+/* AI Resource Hub — Character Sheet */
+.as-hint { display: block; margin-top: 6px; font-size: 0.76rem; color: var(--color-text-muted); }
+.as-empty { color: var(--color-text-muted); padding: 24px 0; text-align: center; }
+.cs-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.cs-thumbs:empty { display: none; }
+.cs-thumb { position: relative; margin: 0; border-radius: 10px; overflow: hidden; background: var(--color-surface-2); aspect-ratio: 3 / 4; }
+.cs-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cs-thumb figcaption { position: absolute; left: 4px; top: 4px; font-size: 0.64rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: rgba(0,0,0,0.6); color: #fff; }
+.cs-thumb [data-rm] { position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; line-height: 1; }
+.cs-main { position: absolute; left: 4px; right: 4px; bottom: 4px; border: 0; border-radius: 6px; font: inherit; font-size: 0.66rem; font-weight: 600; padding: 3px; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; }
+.cs-check { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; font-size: 0.88rem; }
+.cs-check small { color: var(--color-text-muted); }
+.cs-result { margin: 8px 0 24px; }
+.cs-result > img { display: block; width: 100%; border-radius: 14px; background: #fff; }
+.cs-views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 12px; }
+.cs-view { display: block; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid var(--color-border); text-align: center; color: var(--color-text); }
+.cs-view img { display: block; width: 100%; aspect-ratio: 4 / 7; object-fit: contain; background: #fff; }
+.cs-view span { display: block; padding: 4px; font-size: 0.78rem; font-weight: 600; background: var(--color-surface); }
+.cs-lib h2 { font-size: 1.1rem; margin: 0 0 10px; }
+.cs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.cs-item { display: block; padding: 0; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #fff; cursor: pointer; text-align: left; }
+.cs-item img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; }
+.cs-item span { display: block; padding: 6px 8px; font-size: 0.76rem; color: var(--color-text-muted); background: var(--color-surface); }
+.cs-item:focus-visible, .cs-view:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+@media (max-width: 560px) { .cs-views { grid-template-columns: repeat(2, 1fr); } }
