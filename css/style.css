@@ -2554,3 +2554,9 @@ video.upload-preview {
 .image-pub { position: absolute; top: 8px; left: 8px; z-index: 2; border: 0; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 0.72rem;
   font-weight: 700; cursor: pointer; background: rgba(0,0,0,0.6); color: #fff; }
 .image-pub.is-on, .archive-pub.is-on { background: var(--color-accent); color: var(--color-on-accent, #fff); border-color: var(--color-accent); }
+
+/* ---------- Guest view: no AI influencer faces for visitors who aren't logged in ---------- */
+.is-guest img[src*="img/influencer/"] { filter: blur(16px) saturate(0.5); transform: scale(1.15); }
+.is-guest .mega-thumb[style*="img/influencer/"], .is-guest [style*="img/influencer/"]:not(img) {
+  background-image: linear-gradient(135deg, var(--color-surface-2), var(--color-accent-soft)) !important; }
+.is-guest .tile-media, .is-guest .mega-thumb { overflow: hidden; }

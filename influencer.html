@@ -9,6 +9,11 @@
     var dark = pref === "dark" || (pref === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   } catch(e) {}
+  // Visitors who aren't logged in get the guest view (influencer faces blurred, studios previewed).
+  try {
+    var signedIn = Object.keys(localStorage).some(function (k) { return /^sb-.*-auth-token$/.test(k); });
+    if (!signedIn) document.documentElement.classList.add("is-guest");
+  } catch(e) { document.documentElement.classList.add("is-guest"); }
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,7 +21,7 @@
 <meta name="description" content="Build your own AI influencer: pick the face, body, hair and style, render them on your own GPU, then make them dance, talk or star in new shots." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/influencer.css?v=20261022a" />
+<link rel="stylesheet" href="css/influencer.css?v=20261022b" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -45,6 +50,19 @@
   </nav>
 </header>
 
+<section class="guest-gate" aria-labelledby="ggTitle">
+  <div class="guest-card">
+    <p class="guest-kicker">Members only</p>
+    <h1 id="ggTitle">AI Influencer</h1>
+    <p class="guest-lead">Design your own AI character, keep the same face in every shot, then make them dance, talk or star in new scenes. Everything renders on the hub&rsquo;s GPU.</p>
+    <ol class="guest-steps">
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg><div><strong>Pick the look</strong><span>Face, body, hair, style and outfit, or start from your own photo.</span></div></li>
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg><div><strong>Get a character sheet</strong><span>A close-up and a full-body shot that match, saved to your account.</span></div></li>
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 9 5 3-5 3z"/><rect x="3" y="5" width="18" height="14" rx="3"/></svg><div><strong>Make them move</strong><span>Copy any dance, lip sync a song, or drop them into a scene with an @mention.</span></div></li>
+    </ol>
+    <div class="guest-acts"><a class="btn btn-primary" href="auth.html">Log in</a><a class="btn btn-secondary" href="auth.html#signup">Create an account</a></div>
+  </div>
+</section>
 <main class="vs inf" id="inf">
   <aside class="vs-panel inf-panel" aria-label="Build your influencer">
     <div class="inf-brand">

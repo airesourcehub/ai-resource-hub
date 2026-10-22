@@ -18,12 +18,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   render(null);
 
+  function setGuest(session) { document.documentElement.classList.toggle("is-guest", !(session && session.user)); }
+
   client.auth.getSession().then(function (result) {
-    render(result.data.session);
+    render(result.data.session); setGuest(result.data.session);
   });
 
   client.auth.onAuthStateChange(function (_event, session) {
-    render(session);
+    render(session); setGuest(session);
   });
 
   function render(session) {

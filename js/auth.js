@@ -39,6 +39,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  if (location.hash === "#signup") { var st = document.querySelector('.auth-tab[data-auth-tab="signup"]'); if (st) st.click(); }
+
   // ---------- Sign up ----------
   var signupForm = document.getElementById("signupForm");
   var signupStatus = document.getElementById("signupStatus");
