@@ -21,7 +21,7 @@
 <meta name="description" content="Upload a few photos of a character and get a matching turnaround sheet: front, three-quarter, side and back views on white." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/sheet.css?v=20261022b" />
+<link rel="stylesheet" href="css/sheet.css?v=20261022c" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -74,7 +74,8 @@
     <div class="cs-result" id="csResult" hidden>
       <img id="csSheet" alt="Character sheet" />
       <div class="cs-views" id="csViews"></div>
-      <div class="output-actions"><a class="btn btn-primary" id="csDl" download>Download sheet</a><a class="btn btn-secondary" href="image-gallery.html">Open My Images</a><button type="button" class="btn btn-danger" id="csTrash">Delete</button></div>
+      <div class="output-actions"><a class="btn btn-primary" id="csDl" download>Download sheet</a><a class="btn btn-secondary" href="image-gallery.html">Open My Images</a><a class="btn btn-secondary cs-train" id="csTrain" href="train-lora.html">Train this character</a><button type="button" class="btn btn-danger" id="csTrash">Delete</button></div>
+      <p class="cs-train-note">Training turns this sheet into an @handle you can use in Scene mode, Create Video and, soon, Image Studio and Lip Sync.</p>
     </div>
     <div class="cs-lib"><h2>Your character sheets</h2><div class="cs-list" id="csList"><p class="as-empty">Your sheets will show up here.</p></div></div>
   </section>
@@ -104,6 +105,6 @@
 <script src="js/vs.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/character-sheet.js?v=20261022b"></script>
+<script src="js/character-sheet.js?v=20261022c"></script>
 </body>
 </html>

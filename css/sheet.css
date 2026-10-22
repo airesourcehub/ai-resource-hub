@@ -27,3 +27,7 @@
 .cs-trash:hover { color: var(--color-red, #e5484d); background: var(--color-red-soft, rgba(229,72,77,0.12)); }
 .cs-open:focus-visible, .cs-trash:focus-visible, .cs-view:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 @media (max-width: 560px) { .cs-views { grid-template-columns: repeat(2, 1fr); } }
+.cs-train-note{font-size:.86rem;color:var(--color-text-muted);margin:8px 0 0}
+.cs-item-bar{gap:8px}
+.cs-item-train{margin-left:auto;font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent);text-decoration:none}
+.cs-item-train:hover{background:var(--color-accent);color:var(--color-on-accent)}

@@ -17,9 +17,11 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Train a LoRA — AI Resource Hub</title>
+<title>LoRA Training Center — AI Resource Hub</title>
 <meta name="description" content="Train your own custom LoRA from a handful of images with a trigger word, running on your own GPU — then use it in the Image Studio." />
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/sheet.css?v=20261022b" />
+<link rel="stylesheet" href="css/lora-center.css?v=20261022a" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -46,13 +48,55 @@
 </header>
 
 <main>
-  <div class="page-header">
+  <section class="lc">
     <div class="container">
-      <h1>Train a LoRA</h1>
-      <p>Give it <strong>15&ndash;30 images</strong> of a person, character, or style and a <strong>trigger word</strong>, and it trains a custom LoRA on your own GPU. When it&rsquo;s done, it drops straight into the Image Studio&rsquo;s custom-LoRA picker.</p>
-    </div>
-  </div>
+      <div class="lc-hero">
+        <h1>LoRA Training Center</h1>
+        <p>Train a character once and use it everywhere it fits. One set of pictures (a character sheet or your own photos) becomes a dataset, and from that dataset the hub trains a LoRA for each kind of model you pick. Each one plugs into the parts of the site that run on that model.</p>
+      </div>
 
+      <div class="lc-map">
+        <div class="lc-mapcard"><h3>Video &amp; scenes <em class="lc-tag lc-ready">Ready</em></h3><p>WAN 2.2 · the same LoRA type as @Auntie, @CrissP and @BlondeBree</p><ul><li>@mentions in Scene mode</li><li>Create Video</li><li>Claude connector</li></ul></div>
+        <div class="lc-mapcard"><h3>Images <em class="lc-tag lc-beta">Beta</em></h3><p>FLUX.2 · being tested now</p><ul><li>Image Studio (FLUX.2 and FLUX.2 Edit)</li></ul></div>
+        <div class="lc-mapcard"><h3>Lip sync <em class="lc-tag lc-soon">Coming soon</em></h3><p>LTX-2.3 · next test, for music videos</p><ul><li>Lip Sync</li><li>Dance + lip-sync music videos</li></ul></div>
+        <div class="lc-mapcard"><h3>No training needed</h3><p>These use your pictures directly:</p><ul><li>Motion Transfer and Swap</li><li>Character Sheets</li><li>Qwen image edits</li></ul></div>
+      </div>
+      <p class="lc-note">A LoRA only works with the model family it was trained on, so a WAN LoRA can’t be used in FLUX.2 and the other way round. That’s why the hub trains each family from the same dataset: you set it up once.</p>
+
+      <div id="lcGate" class="info-banner show" hidden>Training runs on the hub’s GPU. <a href="auth.html">Log in</a> to train a character.</div>
+
+      <div class="lc-panel" id="lcForm" hidden>
+        <h2>Train a character</h2>
+        <p class="lc-note" style="margin-top:0">Builds about 30 training pictures (new angles, outfits and places) from your source, then trains. Each family takes a few hours on the GPU, and other jobs wait their turn while it runs.</p>
+
+        <div class="lc-step">1 · Pictures</div>
+        <div class="lc-tabs" role="tablist"><button type="button" class="is-on" data-src="sheet" role="tab" aria-selected="true">From a character sheet</button><button type="button" data-src="photos" role="tab" aria-selected="false">Upload photos</button></div>
+        <div id="lcSheets"><div class="lc-sheetgrid" id="lcSheetGrid"><p class="as-empty">Loading your sheets…</p></div></div>
+        <div id="lcPhotos" hidden>
+          <label class="cs-drop" style="margin-top:12px"><input type="file" id="lcFiles" accept="image/*" multiple hidden /><span>Choose 3–12 photos of the same character. Clear faces, different angles; the first one is the main photo.</span></label>
+          <p class="lc-note" id="lcCount">0 / 12 photos (3 minimum)</p>
+          <div class="cs-thumbs" id="lcThumbs"></div>
+        </div>
+
+        <div class="lc-step">2 · Name it</div>
+        <div class="lc-row">
+          <div class="field"><label for="lcName">Name</label><input type="text" id="lcName" maxlength="60" placeholder="e.g. Nova" /></div>
+          <div class="field"><label for="lcHandle">@handle</label><input type="text" id="lcHandle" maxlength="24" placeholder="e.g. Nova" /></div>
+        </div>
+
+        <div class="lc-step">3 · What to train</div>
+        <div class="lc-fams" id="lcFams"></div>
+
+        <div class="output-actions" style="margin-top:20px"><button type="button" class="btn btn-primary" id="lcGo">Start training</button></div>
+        <div class="form-status" id="lcStatus"></div>
+      </div>
+
+      <div id="lcMineWrap" hidden>
+        <h2 style="margin-top:36px">Your trained characters</h2>
+        <div class="lc-mine" id="lcMine"><p class="as-empty">Loading…</p></div>
+      </div>
+
+      <details class="lc-adv"><summary>Advanced: train a style or object LoRA from raw images</summary>
   <section>
     <div class="container">
       <div class="blend-tool">
@@ -125,6 +169,10 @@
     </div>
   </section>
 
+      </details>
+    </div>
+  </section>
+
   <div class="ad-slot"><div class="ad-placeholder">Ad space &mdash; displays once Google AdSense is approved and connected</div></div>
 </main>
 
@@ -150,6 +198,7 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
+<script src="js/lora-center.js?v=20261022a"></script>
 <script src="js/train-lora.js"></script>
 </body>
 </html>

@@ -44,16 +44,21 @@
     loadIdentities();
   }
 
-  // ---- identities --------------------------------------------------------
+  // ---- identities: trained characters (hub + yours) and your saved influencers, by @handle --------------
   async function loadIdentities() {
-    var res = await client.from("training_jobs")
-      .select("name, trigger_word, base, lora_file, created_at")
-      .eq("user_id", user.id).eq("base", "wan").eq("status", "done")
-      .order("created_at", { ascending: false });
-    identities = (res.data || []).filter(function (t) {
-      return t.lora_file && !/[\\/]/.test(t.lora_file);
-    });
+    var token = await freshToken();
+    try {
+      var r = await fetch(RENDER_ENDPOINT() + "/my-characters", { headers: { "Authorization": "Bearer " + token } });
+      var d = await r.json();
+      identities = (d.characters || []).slice().sort(function (a, b) { return (b.trained ? 1 : 0) - (a.trained ? 1 : 0); });
+    } catch (e) { identities = []; }
     renderIdentities();
+  }
+
+  function thumbUrl(t) {
+    if (!t) return "";
+    if (/^https?:/i.test(t)) return t;
+    return t.charAt(0) === "/" ? RENDER_ENDPOINT() + t : t;      // "/files/..." lives on the GPU, "img/..." on the site
   }
 
   function renderIdentities() {
@@ -67,39 +72,42 @@
     empty.style.display = "none";
     host.innerHTML = identities.map(function (t, i) {
       var g = GRADIENTS[i % GRADIENTS.length].split(",");
-      var trig = (t.trigger_word || t.name || "").trim();
-      var on = !!selected[t.lora_file];
-      return '<button type="button" class="model-card' + (on ? " selected" : "") + '" data-file="' + esc(t.lora_file) + '">' +
-        '<span class="model-thumb" style="background-image:linear-gradient(135deg,#' + g[0] + ',#' + g[1] + ')">' +
-          (on ? '<span class="model-badge model-badge-lora">&#10003; selected</span>' : '') +
+      var on = !!selected[t.handle];
+      var bg = t.thumb ? "url('" + esc(thumbUrl(t.thumb)) + "') center/cover" : "linear-gradient(135deg,#" + g[0] + ",#" + g[1] + ")";
+      return '<button type="button" class="model-card' + (on ? " selected" : "") + '" data-h="' + esc(t.handle) + '">' +
+        '<span class="model-thumb" style="background:' + bg + '">' +
+          (on ? '<span class="model-badge model-badge-lora">&#10003; selected</span>' : (t.trained ? '<span class="model-badge">Trained</span>' : '')) +
         '</span>' +
-        '<span class="model-name">' + esc(t.name || trig) + '</span>' +
-        '<span class="model-note">' + (trig ? "trigger: " + esc(trig) : "no trigger word") + '</span>' +
+        '<span class="model-name">' + esc(t.name || t.handle) + '</span>' +
+        '<span class="model-note">@' + esc(t.handle) + (t.trained ? "" : " · picture only") + '</span>' +
       '</button>';
     }).join("");
     Array.prototype.forEach.call(host.querySelectorAll(".model-card"), function (c) {
-      c.addEventListener("click", function () { toggleIdentity(c.getAttribute("data-file")); });
+      c.addEventListener("click", function () { toggleIdentity(c.getAttribute("data-h")); });
     });
     document.getElementById("wanForm").style.display = "";
     updateTriggerHint();
   }
 
-  function toggleIdentity(file) {
-    if (selected[file]) delete selected[file]; else selected[file] = true;
+  function toggleIdentity(h) {
+    if (selected[h]) delete selected[h];
+    else {
+      if (selectedList().length >= 2) { setStatus("Up to 2 characters per video.", "error"); return; }
+      selected[h] = true;
+    }
     renderIdentities();
   }
 
   function selectedList() {
-    return identities.filter(function (t) { return selected[t.lora_file]; });
+    return identities.filter(function (t) { return selected[t.handle]; });
   }
 
   function updateTriggerHint() {
     var picked = selectedList();
-    var trigs = picked.map(function (t) { return (t.trigger_word || "").trim(); }).filter(Boolean);
     var hint = document.getElementById("wanTriggerHint");
-    hint.innerHTML = trigs.length
-      ? "Trigger words added automatically: <strong>" + trigs.map(esc).join(", ") + "</strong>"
-      : (picked.length ? "" : "Pick at least one identity above.");
+    hint.innerHTML = picked.length
+      ? "Starring <strong>" + picked.map(function (t) { return "@" + esc(t.handle); }).join(" and ") + "</strong>. You can also type @handles in the prompt."
+      : "Pick a character above, or type an @handle in your prompt.";
   }
 
   var ENHANCERS = ["highly detailed", "cinematic", "smooth motion", "professional lighting", "sharp focus"];
@@ -117,22 +125,22 @@
   // ---- generate ----------------------------------------------------------
   async function onGenerate() {
     var picked = selectedList();
-    if (!picked.length) { setStatus("Pick at least one identity first.", "error"); return; }
     var prompt = (document.getElementById("wanPrompt").value || "").trim();
     if (!prompt) { setStatus("Please write a prompt.", "error"); return; }
+    var missing = picked.filter(function (t) { return prompt.toLowerCase().indexOf("@" + t.handle.toLowerCase()) === -1; });
+    if (missing.length) prompt = missing.map(function (t) { return "@" + t.handle; }).join(" and ") + " " + prompt;
+    if (!/@[A-Za-z0-9_]{2,}/.test(prompt)) { setStatus("Pick a character first.", "error"); return; }
 
     var token = await freshToken();
     if (!token) { setStatus("Your session expired — please log in again.", "error"); return; }
 
-    var size = getRadio("wanSize", "832x480").split("x");
+    var size = getRadio("wanSize", "portrait");
     var fd = new FormData();
     fd.append("prompt", prompt);
-    fd.append("negative", (document.getElementById("wanNegative").value || "").trim());
-    fd.append("width", size[0]);
-    fd.append("height", size[1]);
-    fd.append("length_secs", getRadio("wanLength", "3"));
-    fd.append("loras", picked.map(function (t) { return t.lora_file; }).join(","));
-    fd.append("triggers", picked.map(function (t) { return (t.trigger_word || "").trim(); }).join(","));
+    fd.append("orientation", size === "landscape" ? "landscape" : "portrait");
+    fd.append("res", getRadio("wanRes", "480p"));
+    fd.append("length", getRadio("wanLength", "5"));
+    fd.append("shots", "1");
 
     setBusy(true);
     setStatus("Queued…");
@@ -140,7 +148,7 @@
 
     var jobId;
     try {
-      var r = await fetch(RENDER_ENDPOINT() + "/wan-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
+      var r = await fetch(RENDER_ENDPOINT() + "/scene-jobs", { method: "POST", headers: { "Authorization": "Bearer " + token }, body: fd });
       var data = await r.json().catch(function () { return {}; });
       if (r.status === 409) { setStatus("The GPU is busy with another job. It’ll start as soon as it’s free — or try again shortly.", "error"); setBusy(false); return; }
       if (!r.ok) throw new Error(data.detail || ("HTTP " + r.status));

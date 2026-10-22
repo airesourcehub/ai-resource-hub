@@ -57,7 +57,7 @@
 <p>These are the WAN identities you’ve trained. Tick one or more to feature them in the video — their trigger words are added to your prompt automatically.</p>
 </div>
 <div class="model-grid" id="identityPicker"></div>
-<p class="model-note" id="identityEmpty" style="display:none;">You haven’t trained any WAN identities yet. Head to <a href="train-lora.html">Train LoRA</a>, pick the <strong>WAN video</strong> base, and train one — it’ll appear here automatically.</p>
+<p class="model-note" id="identityEmpty" style="display:none;">No characters yet. Train one in the <a href="train-lora.html">LoRA Training Center</a> (pick <strong>Video &amp; scenes</strong>) and it shows up here automatically.</p>
 <div id="wanForm" style="display:none;">
 <div class="section-header" style="margin-top:34px;"><h2>2. Describe the video</h2></div>
 <div class="field">
@@ -69,23 +69,25 @@
 </div>
 </div>
 <div class="field">
-<label for="wanNegative">Negative prompt <span class="frame-res" style="margin:0;">— things to avoid (optional)</span></label>
-<textarea id="wanNegative" placeholder="e.g. blurry, low quality, distorted, extra limbs" rows="2"></textarea>
-</div>
-<div class="field">
 <label>Resolution</label>
 <div class="blend-mode" id="wanSizePicker">
-<label class="blend-radio"><input checked="" name="wanSize" type="radio" value="832x480"/> Landscape <span class="frame-res" style="margin:0;">832×480</span></label>
-<label class="blend-radio"><input name="wanSize" type="radio" value="480x832"/> Portrait <span class="frame-res" style="margin:0;">480×832</span></label>
-<label class="blend-radio"><input name="wanSize" type="radio" value="640x640"/> Square <span class="frame-res" style="margin:0;">640×640</span></label>
-<label class="blend-radio"><input name="wanSize" type="radio" value="1280x720"/> 720p <span class="frame-res" style="margin:0;">(heavier)</span></label>
+<label class="blend-radio"><input checked="" name="wanSize" type="radio" value="portrait"/> Portrait <span class="frame-res" style="margin:0;">9:16</span></label>
+<label class="blend-radio"><input name="wanSize" type="radio" value="landscape"/> Landscape <span class="frame-res" style="margin:0;">16:9</span></label>
+</div>
+</div>
+<div class="field">
+<label>Quality</label>
+<div class="blend-mode">
+<label class="blend-radio"><input checked="" name="wanRes" type="radio" value="480p"/> 480p <span class="frame-res" style="margin:0;">(fastest)</span></label>
+<label class="blend-radio"><input name="wanRes" type="radio" value="720p"/> 720p</label>
+<label class="blend-radio"><input name="wanRes" type="radio" value="1080p"/> 1080p <span class="frame-res" style="margin:0;">(upscaled)</span></label>
 </div>
 </div>
 <div class="field">
 <label>Length</label>
 <div class="blend-mode">
-<label class="blend-radio"><input checked="" name="wanLength" type="radio" value="3"/> 3 seconds</label>
-<label class="blend-radio"><input name="wanLength" type="radio" value="5"/> 5 seconds <span class="frame-res" style="margin:0;">(heavier — slower)</span></label>
+<label class="blend-radio"><input checked="" name="wanLength" type="radio" value="5"/> 5 seconds</label>
+<label class="blend-radio"><input name="wanLength" type="radio" value="10"/> 10 seconds <span class="frame-res" style="margin:0;">(slower)</span></label>
 </div>
 </div>
 <div class="output-actions">
@@ -102,7 +104,7 @@
   </aside>
   <section class="vs-stage">
     <header class="vs-stage-head"><div><h1 class="vs-title">Create Video</h1><p>Pick one or more identities you trained, describe the scene, and WAN puts them in motion on your GPU.</p></div></header>
-    <div class="vs-empty" id="vsEmpty"><h2 class="vh-title">Star your own characters in video</h2><div class="vs-steps"><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/qwen_edit2509.jpg)"><span>1</span></div><h3>Pick identities</h3><p>The faces or styles you trained in Train LoRA.</p></div><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/sd35.jpg)"><span>2</span></div><h3>Describe the scene</h3><p>Their trigger words are added for you.</p></div><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/zimage.jpg)"><span>3</span></div><h3>Get your video</h3><p>A 3 or 5 second clip, ready to download.</p></div></div></div>
+    <div class="vs-empty" id="vsEmpty"><h2 class="vh-title">Star your own characters in video</h2><div class="vs-steps"><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/qwen_edit2509.jpg)"><span>1</span></div><h3>Pick characters</h3><p>Trained characters from the LoRA Training Center, by @handle.</p></div><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/sd35.jpg)"><span>2</span></div><h3>Describe the scene</h3><p>Their looks and trigger words are added for you.</p></div><div class="vs-step"><div class="vs-step-art" style="background-image:url(img/models/zimage.jpg)"><span>3</span></div><h3>Get your video</h3><p>A 5 or 10 second clip, ready to download.</p></div></div></div>
     <div class="vs-output"><div class="form-status" id="wanStatus"></div><div class="blend-progress" id="wanProgress" style="display:none;">
 <div class="blend-progress-bar"><span id="wanProgressFill"></span></div>
 <p class="blend-progress-label" id="wanProgressLabel"></p>
@@ -121,7 +123,7 @@
 <h3>Your recent WAN videos</h3>
 <p>Every finished video is saved to your account. <a href="wan-video-archive.html">View all my WAN videos →</a></p>
 </div>
-<div class="archive-grid render-archive-strip" data-render-type="wan_video" data-tool="wan_video" id="wanArchive"></div>
+<div class="archive-grid render-archive-strip" data-render-type="motion_transfer" data-tool="wan_video" id="wanArchive"></div>
 </div>
     <div class="ad-slot"><div class="ad-placeholder">Ad space — displays once Google AdSense is approved and connected</div></div>
   </section>
@@ -154,7 +156,7 @@
 <script src="js/vs.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/wan-video.js"></script>
+<script src="js/wan-video.js?v=20261022a"></script>
 <script src="js/render-archive.js"></script>
 <script src="js/file-thumb.js"></script>
 </body>

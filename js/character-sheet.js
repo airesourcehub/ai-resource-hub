@@ -92,6 +92,7 @@
     $("csSheet").src = u[0]; $("csDl").href = u[0];
     $("csViews").innerHTML = u.slice(1).map(function (x, i) { return '<a class="cs-view" href="' + esc(x) + '" download title="Download ' + VIEWS[i] + ' view"><img alt="" src="' + esc(x) + '" /><span>' + VIEWS[i] + "</span></a>"; }).join("");
     $("csResult").hidden = false;
+    $("csTrain").href = "train-lora.html" + (st.shown ? "?sheet=" + encodeURIComponent(st.shown) : "");
   }
 
   // ---- history
@@ -101,7 +102,7 @@
     var rows = r.data || [];
     $("csList").innerHTML = rows.length ? rows.map(function (x) {
       return '<div class="cs-item" data-id="' + esc(x.id) + '"><button type="button" class="cs-open" data-u="' + esc(JSON.stringify(x.urls || [])) + '" data-id="' + esc(x.id) + '" aria-label="Open this sheet"><img alt="" loading="lazy" src="' + esc(abs((x.urls || [])[0])) + '" /></button>' +
-        '<div class="cs-item-bar"><span>' + new Date(x.created_at).toLocaleString() + '</span><button type="button" class="cs-trash" data-id="' + esc(x.id) + '" title="Delete this sheet" aria-label="Delete this sheet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></div></div>';
+        '<div class="cs-item-bar"><span>' + new Date(x.created_at).toLocaleString() + '</span><a class="cs-item-train" href="train-lora.html?sheet=' + encodeURIComponent(x.id) + '" title="Train this character">Train</a><button type="button" class="cs-trash" data-id="' + esc(x.id) + '" title="Delete this sheet" aria-label="Delete this sheet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></div></div>';
     }).join("") : '<p class="as-empty">Your sheets will show up here.</p>';
   }
   $("csList").addEventListener("click", async function (e) {
