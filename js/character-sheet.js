@@ -74,7 +74,7 @@
         var r = await fetch(RENDER() + "/jobs/" + st.job, { headers: { Authorization: "Bearer " + (await token()) } });
         if (r.status === 404) { status("The render PC restarted and this job was lost. Please try again.", "error"); return done(); }
         var j = await r.json(); st.fails = 0;
-        if (j.status === "done") { status("Your character sheet is ready.", "success"); done(); show(j.urls || [j.result_url]); loadList(); return; }
+        if (j.status === "done") { status("Your character sheet is ready.", "success"); done(); st.shown = st.job; show(j.urls || [j.result_url]); loadList(); return; }
         if (j.status === "error") { status("It failed: " + (j.error || "unknown error"), "error"); return done(); }
         if (j.status === "cancelled") { status("Cancelled.", "error"); return done(); }
         progress(Math.max(3, Math.min(99, j.progress || 0)), j.stage || "Working…"); poll();
@@ -100,11 +100,22 @@
     var r = await client.from("image_jobs").select("id, urls, prompt, created_at").eq("user_id", st.user.id).eq("model", "character_sheet").eq("status", "done").order("created_at", { ascending: false }).limit(24);
     var rows = r.data || [];
     $("csList").innerHTML = rows.length ? rows.map(function (x) {
-      return '<button type="button" class="cs-item" data-u="' + esc(JSON.stringify(x.urls || [])) + '"><img alt="" loading="lazy" src="' + esc(abs((x.urls || [])[0])) + '" /><span>' + new Date(x.created_at).toLocaleString() + "</span></button>";
+      return '<div class="cs-item" data-id="' + esc(x.id) + '"><button type="button" class="cs-open" data-u="' + esc(JSON.stringify(x.urls || [])) + '" data-id="' + esc(x.id) + '" aria-label="Open this sheet"><img alt="" loading="lazy" src="' + esc(abs((x.urls || [])[0])) + '" /></button>' +
+        '<div class="cs-item-bar"><span>' + new Date(x.created_at).toLocaleString() + '</span><button type="button" class="cs-trash" data-id="' + esc(x.id) + '" title="Delete this sheet" aria-label="Delete this sheet"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button></div></div>';
     }).join("") : '<p class="as-empty">Your sheets will show up here.</p>';
   }
-  $("csList").addEventListener("click", function (e) {
-    var b = e.target.closest(".cs-item"); if (!b) return;
-    try { show(JSON.parse(b.getAttribute("data-u"))); window.scrollTo({ top: 0, behavior: "smooth" }); } catch (x) {}
+  $("csList").addEventListener("click", async function (e) {
+    var t = e.target.closest(".cs-trash");
+    if (t) { await trash(t.getAttribute("data-id")); return; }
+    var b = e.target.closest(".cs-open"); if (!b) return;
+    try { st.shown = b.getAttribute("data-id"); show(JSON.parse(b.getAttribute("data-u"))); window.scrollTo({ top: 0, behavior: "smooth" }); } catch (x) {}
   });
+  async function trash(id) {
+    if (!id || !window.confirm("Delete this character sheet and its four views? This can't be undone.")) return;
+    try { await fetch(RENDER() + "/jobs/" + id + "?table=image_jobs", { method: "DELETE", headers: { Authorization: "Bearer " + (await token()) } }); } catch (e) {}
+    try { await client.from("image_jobs").delete().eq("id", id); } catch (e) {}
+    if (st.shown === id) { $("csResult").hidden = true; st.shown = null; }
+    status("Sheet deleted.", "success"); loadList();
+  }
+  $("csTrash").addEventListener("click", function () { trash(st.shown); });
 })();
