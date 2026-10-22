@@ -15,7 +15,9 @@
   var TOOLS = {
     ai_transition:  { archive: "render-archive.html", label: "AI Transition" },
     music_sync:     { archive: "render-archive.html", label: "Music Sync Transition" },
-    motion_transfer:{ archive: "motion-archive.html", label: "Motion Transfer" }
+    motion_transfer:{ archive: "motion-archive.html", label: "Motion Transfer" },
+    audio:          { archive: "audio-studio.html", label: "Audio" },
+    lipsync:        { archive: "lip-sync-archive.html", label: "Lip Sync" }
   };
   var STATUS_PAGE = "gpu-status.html";
 

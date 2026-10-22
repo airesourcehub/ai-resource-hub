@@ -1,5 +1,6 @@
 /* AI Resource Hub — Audio Studio */
-.as-tabs button { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px;
+.as-tabs { overflow: visible; }
+.as-tabs button { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 6px;
   border: 0; border-radius: 10px; background: none; font: inherit; font-size: 0.84rem; font-weight: 600; color: var(--color-text-muted); cursor: pointer; white-space: nowrap; }
 .as-tabs button:hover { color: var(--color-text); background: var(--color-surface-2); }
 .as-tabs button.is-on { color: var(--color-text); background: var(--color-surface-2); }
@@ -44,6 +45,7 @@
 .as-dl { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }
 .as-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .as-acts .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+@media (max-width: 1180px) { .as-tabs button svg { display: none; } }
 @media (max-width: 520px) {
   .as-row3 { grid-template-columns: 1fr 1fr; }
   .as-row3 .field:nth-child(2) { grid-column: span 2; order: -1; }
