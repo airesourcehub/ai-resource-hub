@@ -1,7 +1,9 @@
 /* AI Resource Hub — home page community feed */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.home-hero.is-compact { padding-bottom: 8px; }
-.feed-sec { padding: 0 clamp(12px, 2.4vw, 32px) 40px; }
+.home > .home-hero.is-compact { padding: 40px 0 8px; }
+.home > .feed-sec { max-width: 1440px; margin: 0 auto; padding: 0 24px 48px; }
+.feed-more .btn[hidden], .feed-empty[hidden] { display: none; }
+@media (max-width: 560px) { .home > .feed-sec { padding: 0 10px 32px; } }
 .feed-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 14px; }
 .feed-filter { display: flex; gap: 6px; }
 .feed-filter button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); font: inherit; font-size: 0.86rem;
