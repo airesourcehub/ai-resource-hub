@@ -2548,3 +2548,9 @@ video.upload-preview {
 .mp-grid .io-img video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mp-grid .io-acts .mp-del { width: auto; padding: 0 8px; color: var(--color-red); }
 @media (max-width: 640px) { .mp-add { grid-template-columns: 1fr; } .mp-file { aspect-ratio: 16 / 10; } }
+
+/* Public / Private sharing switch (My Images, video archives) */
+.image-cell-wrap { position: relative; }
+.image-pub { position: absolute; top: 8px; left: 8px; z-index: 2; border: 0; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 0.72rem;
+  font-weight: 700; cursor: pointer; background: rgba(0,0,0,0.6); color: #fff; }
+.image-pub.is-on, .archive-pub.is-on { background: var(--color-accent); color: var(--color-on-accent, #fff); border-color: var(--color-accent); }

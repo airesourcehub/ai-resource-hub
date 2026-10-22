@@ -825,7 +825,7 @@
     var btn = $("studioMore");
     btn.disabled = true;
     var res = await client.from("image_jobs")
-      .select("id, model, mode, prompt, negative, status, urls, width, height, batch, lora, error, created_at")
+      .select("id, model, mode, prompt, negative, status, urls, width, height, batch, lora, error, created_at, is_public")
       .eq("user_id", state.user.id).in("status", ["done", "error"])
       .order("created_at", { ascending: false })
       .range(state.offset, state.offset + PAGE - 1);
@@ -928,6 +928,7 @@
           '<button type="button" class="wtile-btn" data-act="edit" title="Edit this image" aria-label="Edit this image"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>' +
           '<button type="button" class="wtile-btn" data-act="up" title="Upscale to 4K" aria-label="Upscale to 4K"><span class="wtile-4k">4K</span></button>' +
           '<button type="button" class="wtile-btn" data-act="reuse" title="Reuse prompt" aria-label="Reuse prompt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>' +
+          '<button type="button" class="wtile-btn wtile-pub' + (job.is_public ? " is-on" : "") + '" data-act="pub" title="' + (job.is_public ? "Public: on the home page. Click to make private" : "Private. Click to share on the home page") + '" aria-pressed="' + (job.is_public ? "true" : "false") + '" aria-label="Share publicly"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>' +
           '<button type="button" class="wtile-btn" data-act="dl" title="Download" aria-label="Download"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg></button>' +
         "</div>" +
         '<div class="wtile-meta"><p class="wtile-prompt"></p><span class="wtile-sub"></span></div>';
@@ -959,6 +960,7 @@
         if ((e.key === "Enter" || e.key === " ") && e.target === t) { e.preventDefault(); openLightbox(src); }
       });
       t.querySelector('[data-act="dl"]').addEventListener("click", function () { download(src, job); });
+      t.querySelector('[data-act="pub"]').addEventListener("click", function () { togglePublic(job); });
       t.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(src); });
       t.querySelector('[data-act="reuse"]').addEventListener("click", function () { reuseJob(job); });
       var upBtn = t.querySelector('[data-act="up"]');
@@ -970,6 +972,21 @@
   }
 
   // Send one finished image to SeedVR2 for a 4K version (new tile in the feed).
+  // Private by default; Public puts the whole batch on the home page feed for everyone.
+  async function togglePublic(job) {
+    if (!client || !job || !job.id) return;
+    var want = !job.is_public;
+    var r = await client.rpc("set_public", { p_kind: "image", p_id: job.id, p_public: want });
+    if (r.error) { window.alert("Couldn\u2019t change sharing: " + r.error.message); return; }
+    job.is_public = want;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-job="' + cssEsc(String(job.id)) + '"] .wtile-pub, .wtile[data-jid="' + cssEsc(String(job.id)) + '"] .wtile-pub'), function (b) { paintPub(b, want); });
+    renderFeed();
+  }
+  function paintPub(b, on) {
+    b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.title = on ? "Public: on the home page. Click to make private" : "Private. Click to share on the home page";
+  }
+
   async function upscale(u, src) {
     if (!state.user) { window.location.href = "auth.html"; return; }
     var token = await freshToken();

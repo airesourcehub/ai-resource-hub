@@ -17,7 +17,7 @@
 
   async function load() {
     if (!user) { host.innerHTML = '<p class="model-note">Please <a href="auth.html">log in</a> to see your images.</p>'; return; }
-    var res = await client.from("image_jobs").select("id, model, prompt, urls, created_at")
+    var res = await client.from("image_jobs").select("id, model, prompt, urls, created_at, is_public")
       .eq("user_id", user.id).eq("status", "done").order("created_at", { ascending: false }).limit(200);
     if (res.error) { host.innerHTML = '<p class="model-note">Couldn’t load your images.</p>'; return; }
     var rows = res.data || [];
@@ -25,15 +25,16 @@
     var cells = [];
     rows.forEach(function (row) {
       (row.urls || []).forEach(function (u, i) {
-        cells.push(cell(absUrl(u), row.id, i === 0));
+        cells.push(cell(absUrl(u), row.id, i === 0, row.is_public));
       });
     });
     host.innerHTML = cells.join("");
     wire();
   }
 
-  function cell(url, jobId, allowDelete) {
+  function cell(url, jobId, allowDelete, pub) {
     return '<div class="image-cell-wrap">' +
+      '<button type="button" class="image-pub' + (pub ? " is-on" : "") + '" data-job="' + jobId + '" data-pub="' + (pub ? 1 : 0) + '" aria-pressed="' + (pub ? "true" : "false") + '" title="' + (pub ? "Public on the home page. Click to make private" : "Private. Click to share on the home page") + '">' + (pub ? "Public" : "Private") + '</button>' +
       '<a class="image-cell" href="' + url + '" download data-src="' + url + '"><img loading="lazy" src="' + url + '" alt="Generated image" /></a>' +
       (allowDelete ? '<button class="image-del" data-job="' + jobId + '" title="Delete">&times;</button>' : '') +
     '</div>';
@@ -42,6 +43,17 @@
   function wire() {
     Array.prototype.forEach.call(host.querySelectorAll(".image-cell"), function (a) {
       a.addEventListener("click", function (e) { e.preventDefault(); lightbox(a.getAttribute("data-src")); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll(".image-pub"), function (b) {
+      b.addEventListener("click", async function () {
+        var want = b.getAttribute("data-pub") !== "1";
+        var r = await client.rpc("set_public", { p_kind: "image", p_id: b.getAttribute("data-job"), p_public: want });
+        if (r.error) { window.alert("Couldn\u2019t change sharing: " + r.error.message); return; }
+        Array.prototype.forEach.call(host.querySelectorAll('.image-pub[data-job="' + b.getAttribute("data-job") + '"]'), function (x) {
+          x.setAttribute("data-pub", want ? 1 : 0); x.classList.toggle("is-on", want); x.textContent = want ? "Public" : "Private";
+          x.setAttribute("aria-pressed", want ? "true" : "false");
+        });
+      });
     });
     Array.prototype.forEach.call(host.querySelectorAll(".image-del"), function (b) {
       b.addEventListener("click", function () { del(b.getAttribute("data-job")); });

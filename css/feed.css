@@ -1,0 +1,47 @@
+/* AI Resource Hub — home page community feed */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.home-hero.is-compact { padding-bottom: 8px; }
+.feed-sec { padding: 0 clamp(12px, 2.4vw, 32px) 40px; }
+.feed-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 14px; }
+.feed-filter { display: flex; gap: 6px; }
+.feed-filter button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); font: inherit; font-size: 0.86rem;
+  font-weight: 600; padding: 7px 16px; border-radius: 999px; cursor: pointer; }
+.feed-filter button.is-on { color: var(--color-text); background: var(--color-surface-2); border-color: var(--color-text-muted); }
+.feed-filter button:focus-visible, .feed-tile:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.feed-grid { columns: 5 240px; column-gap: 10px; }
+.feed-tile { position: relative; display: block; width: 100%; margin: 0 0 10px; padding: 0; border: 0; border-radius: 14px; overflow: hidden;
+  background: var(--color-surface-2); cursor: zoom-in; break-inside: avoid; }
+.feed-tile img, .feed-tile video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.feed-tile.is-missing { display: none; }
+.feed-meta { position: absolute; inset: auto 0 0 0; display: flex; justify-content: space-between; gap: 8px; padding: 26px 10px 8px; font-size: 0.74rem;
+  color: #fff; background: linear-gradient(to top, rgba(0,0,0,0.65), transparent); opacity: 0; transition: opacity .18s; text-align: left; }
+.feed-tile:hover .feed-meta, .feed-tile:focus-visible .feed-meta { opacity: 1; }
+.feed-who { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-who img, .feed-box-who img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.feed-count { position: absolute; top: 8px; right: 8px; font-size: 0.72rem; font-weight: 700; color: #fff; background: rgba(0,0,0,0.55); padding: 2px 8px; border-radius: 999px; }
+.feed-play { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.55); }
+.feed-play::after { content: ""; position: absolute; left: 8px; top: 6px; border-left: 8px solid #fff; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.feed-empty { text-align: center; color: var(--color-text-muted); padding: 60px 16px; }
+.feed-more { text-align: center; margin-top: 8px; }
+@media (hover: none) { .feed-meta { opacity: 1; } }
+@media (max-width: 560px) { .feed-grid { columns: 2 140px; column-gap: 6px; } .feed-tile { margin-bottom: 6px; border-radius: 10px; } }
+
+.feed-box { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.86); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.feed-box[hidden] { display: none; }
+.feed-box-in { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; width: min(1280px, 100%); max-height: 100%;
+  background: var(--color-surface); border-radius: 16px; padding: 16px; }
+.feed-box-media { display: grid; gap: 8px; place-items: center; overflow: auto; max-height: calc(100vh - 64px); }
+.feed-box-media img, .feed-box-media video { max-width: 100%; max-height: calc(100vh - 64px); border-radius: 10px; }
+.feed-box-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 28px; }
+.feed-box-who { display: flex; align-items: center; gap: 8px; }
+.feed-box-who small { color: var(--color-text-muted); margin-left: auto; }
+.feed-box-tag { align-self: flex-start; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 3px 9px; border-radius: 999px; background: var(--color-accent-soft); }
+.feed-box-prompt { margin: 0; font-size: 0.9rem; line-height: 1.5; color: var(--color-text); max-height: 40vh; overflow: auto; white-space: pre-wrap; }
+.feed-box-acts, .feed-box-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.feed-box-nav { margin-top: auto; }
+.feed-x { position: absolute; top: 8px; right: 10px; border: 0; background: none; color: var(--color-text); font-size: 1.8rem; line-height: 1; cursor: pointer; }
+@media (max-width: 820px) {
+  .feed-box { padding: 0; }
+  .feed-box-in { grid-template-columns: 1fr; border-radius: 0; height: 100%; overflow: auto; }
+  .feed-box-media img, .feed-box-media video { max-height: 70vh; }
+}

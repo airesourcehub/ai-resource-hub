@@ -90,7 +90,7 @@
 
   async function loadRenders() {
     var q = client.from("render_jobs")
-      .select("id,status,mode,prompt,result_url,result_mov_url,created_at,folder_id")
+      .select("id,status,mode,prompt,result_url,result_mov_url,created_at,folder_id,is_public")
       .eq("user_id", user.id).eq("render_type", RENDER_TYPE).eq("status", "done")
       .order("created_at", { ascending: false });
     if (strip && !fullList) q = q.limit(RECENT_LIMIT);
@@ -156,8 +156,20 @@
         '<button type="button" class="btn btn-secondary btn-small archive-expand" data-src="' + mp4 + '">&#10530; Expand</button>' +
         '<a class="btn btn-primary btn-small" href="' + mp4 + '" download>MP4</a>' +
         (mov ? '<a class="btn btn-secondary btn-small" href="' + mov + '" download>MOV</a>' : '') +
+        '<button type="button" class="btn btn-secondary btn-small archive-pub' + (r.is_public ? " is-on" : "") + '" data-id="' + esc(r.id) + '" data-pub="' + (r.is_public ? 1 : 0) + '" aria-pressed="' + (r.is_public ? "true" : "false") + '" title="' + (r.is_public ? "Shown on the home page. Click to make private" : "Only you can see this. Click to share on the home page") + '">' + (r.is_public ? "Public" : "Private") + '</button>' +
         '<button type="button" class="btn btn-danger btn-small archive-del" data-id="' + esc(r.id) + '">Delete</button>' +
       '</div></div>';
+  }
+
+  async function onPublic(b) {
+    var want = b.getAttribute("data-pub") !== "1";
+    var r = await client.rpc("set_public", { p_kind: "video", p_id: b.getAttribute("data-id"), p_public: want });
+    if (r.error) { window.alert("Couldn\u2019t change sharing: " + r.error.message); return; }
+    Array.prototype.forEach.call(document.querySelectorAll('.archive-pub[data-id="' + b.getAttribute("data-id") + '"]'), function (x) {
+      x.setAttribute("data-pub", want ? 1 : 0); x.classList.toggle("is-on", want); x.textContent = want ? "Public" : "Private";
+      x.setAttribute("aria-pressed", want ? "true" : "false");
+      x.title = want ? "Shown on the home page. Click to make private" : "Only you can see this. Click to share on the home page";
+    });
   }
 
   function wire(container) {
@@ -166,6 +178,8 @@
     container.addEventListener("click", function (e) {
       var exp = e.target.closest(".archive-expand");
       if (exp) { window.openRenderLightbox(exp.getAttribute("data-src")); return; }
+      var pub = e.target.closest(".archive-pub");
+      if (pub) return onPublic(pub);
       var del = e.target.closest(".archive-del");
       if (del) return onDelete(del);
     });

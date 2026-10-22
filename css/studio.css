@@ -1258,3 +1258,6 @@ body.lib-open { overflow: hidden; }
 
 /* 4K upscale button on image tiles */
 .wtile-4k { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; line-height: 1; }
+
+.wtile-btn.wtile-pub.is-on { background: var(--color-accent, #f97316); color: #fff; }
+.wtile:has(.wtile-pub.is-on) .wtile-actions { opacity: 1; }

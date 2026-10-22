@@ -12,10 +12,11 @@
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Resource Hub — AI Tools, Resources &amp; Prompt Generators</title>
+<title>AI Resource Hub — Community AI Images &amp; Video</title>
 <meta name="description" content="AI Resource Hub is a free directory of AI tools plus prompt generators for text, image, and video AI — built to make working with AI easier, faster, and more enjoyable." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/home.css" />
+<link rel="stylesheet" href="css/feed.css?v=20261022a" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -46,19 +47,37 @@
 
 <main class="home">
 
-  <section class="home-hero">
+  <section class="home-hero is-compact">
     <div class="home-wrap">
       <div class="home-hero-head">
-        <h1>Make AI images and video on your own GPU.</h1>
+        <h1>Made with AI Resource Hub</h1>
         <div class="home-hero-side">
-          <p>Lip sync, motion transfer, WAN video and a dozen image models you can run right here, plus free prompt tools and guides to get better results from any AI.</p>
+          <p>Images and videos our members made on the hub&rsquo;s GPU and chose to share. Make your own with a dozen image models, motion transfer, lip sync and AI music.</p>
           <div class="hero-actions">
-            <a href="#studios" class="btn btn-primary">Open the studios</a>
-            <a href="prompt-generator.html" class="btn btn-secondary">Try the Prompt Generator</a>
+            <a href="image-studio.html" class="btn btn-primary">Start creating</a>
+            <a href="#studios" class="btn btn-secondary">See every studio</a>
           </div>
         </div>
       </div>
+    </div>
+  </section>
 
+  <section class="feed-sec" id="feed" aria-labelledby="feedTitle">
+    <div class="feed-head">
+      <h2 id="feedTitle" class="sr-only">Community creations</h2>
+      <div class="feed-filter" role="tablist" aria-label="Show">
+        <button type="button" role="tab" data-k="all" class="is-on" aria-selected="true">All</button>
+        <button type="button" role="tab" data-k="image" aria-selected="false">Images</button>
+        <button type="button" role="tab" data-k="video" aria-selected="false">Videos</button>
+      </div>
+    </div>
+    <div class="feed-grid" id="feedGrid" aria-live="polite"></div>
+    <p class="feed-empty" id="feedEmpty" hidden>Nothing shared yet. Make something in a studio and switch it to <strong>Public</strong> to put it here.</p>
+    <div class="feed-more"><button type="button" class="btn btn-secondary" id="feedMore" hidden>Load more</button></div>
+  </section>
+
+  <section class="home-block home-rail-sec">
+    <div class="home-wrap">
       <div class="rail" aria-label="Featured studios">
         <div class="rail-track" id="spotlightRail">
           <!-- js/home.js puts the most-liked community video first, when there is one -->
@@ -256,5 +275,6 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/home.js"></script>
+<script src="js/feed.js?v=20261022a"></script>
 </body>
 </html>
