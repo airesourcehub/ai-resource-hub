@@ -934,7 +934,7 @@
       t.insertAdjacentHTML("beforeend", '<div class="inf-tile-shade"></div><div class="inf-tile-meta"><strong>' + esc(p.name) + "</strong><span>" + (stockHandle(p) ? '<b class="inf-trained">Trained</b> @' + esc(stockHandle(p)) : esc(tierOf(p.tier).label)) + '</span></div><div class="inf-tile-acts"><button type="button" class="inf-recreate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/></svg>Recreate</button></div>');
       t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", p.name + ": view sheet");
       t.draggable = true;
-      t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, t: p.t, tier: p.tier, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });
+      t.addEventListener("dragstart", function (e) { dragChar(e, { url: presetFull(p), name: p.name, infId: null, handle: stockHandle(p), t: p.t, tier: p.tier, crop: "" }, IMG + "pv/" + p.id + "-close.jpg"); });
       t.addEventListener("click", function (e) {
         if (e.target.closest(".inf-recreate")) { e.stopPropagation(); loadRecipe(p.tier, p.t, p.name, p.x, p.view, p.chains); return; }
         openPresetViewer(p);
@@ -1118,7 +1118,7 @@
       }).join("");
       hintEl.textContent = pv.motion ? "Selected: " + (pv.motion.name || "motion") + ". Choose Turn to motion or Objects swap." : "Optional: pick a clip, then choose Turn to motion or Objects swap.";
     } else {
-      var list = (PRESETS || []).map(function (p) { return { key: "p:" + p.id, name: p.name, thumb: IMG + "pv/" + p.id + "-close.jpg", ch: { url: presetFull(p), name: p.name, infId: null, t: p.t, tier: p.tier, crop: "" } }; });
+      var list = (PRESETS || []).map(function (p) { return { key: "p:" + p.id, name: p.name, thumb: IMG + "pv/" + p.id + "-close.jpg", ch: { url: presetFull(p), name: p.name, infId: null, handle: stockHandle(p), t: p.t, tier: p.tier, crop: "" } }; });
       var mine = [];
       state.mine.forEach(function (c) { if (c.status === "done" && c.urls && c.urls.length) mine.push({ key: "m:" + c.urls[0], name: c.name || "My influencer", thumb: absUrl(c.urls[0]), ch: { url: c.urls[0], name: c.name, infId: realId(c.id), t: c.traits, tier: c.tier, crop: c.view === "card" ? "right" : (c.view === "sheet" ? "left" : "") } }); });
       pv.list = mine.slice(0, 24).concat(list);
@@ -1145,7 +1145,7 @@
   function pvSend(mode) {
     var cur = pv; if (!cur) return;
     var ch = null, clip = null;
-    if (cur.kind === "inf") { ch = { url: presetFull(cur.data), name: cur.data.name, infId: null, t: cur.data.t, tier: cur.data.tier, crop: "" }; clip = cur.motion; }
+    if (cur.kind === "inf") { ch = { url: presetFull(cur.data), name: cur.data.name, infId: null, handle: stockHandle(cur.data), t: cur.data.t, tier: cur.data.tier, crop: "" }; clip = cur.motion; }
     else { ch = cur.char ? cur.char.ch : null; clip = cur.data; }
     closePv();
     applyMotion(clip, mode, ch);
@@ -1852,6 +1852,7 @@
         }
       }
       if (m.char.infId) fd.append("influencer_id", m.char.infId);
+      if (m.char.handle && m.mode !== "swap") fd.append("character", m.char.handle);   // trained: adds its WAN 2.2 LoRA
 
       vid = { id: "tmp-" + Date.now(), mode: m.mode === "swap" ? "character_swap" : "motion_transfer", prompt: prompt, status: "queued",
         pending: true, progress: 2, stage: "Uploading to the GPU…", created_at: new Date().toISOString(),
