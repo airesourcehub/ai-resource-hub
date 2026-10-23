@@ -53,3 +53,4 @@
 .lc-pname{display:block;padding:6px 8px;font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lc-pbadge{position:absolute;top:6px;left:6px;font-size:.68rem;background:rgba(46,204,113,.9);color:#05210f;padding:2px 7px;border-radius:999px;font-weight:700}
 .lc-preset.is-on{border-color:var(--color-accent);box-shadow:0 0 0 3px rgba(139,124,255,.3)}
+.lc-tabs button.is-on .lc-admin{background:rgba(0,0,0,.28);color:#fff}
