@@ -27,6 +27,29 @@
   var dlMov = document.getElementById("lipDownloadMov");
 
   var currentUser = null, pollTimer = null, pollFails = 0, lastJobId = null;
+  var lipChar = "";
+
+  async function loadChars() {
+    var wrap = document.getElementById("lipCharsWrap"), row = document.getElementById("lipChars");
+    if (!wrap || !currentUser) return;
+    try {
+      var tok = await freshToken();
+      var d = await (await fetch(RENDER_ENDPOINT() + "/my-characters", { headers: { "Authorization": "Bearer " + tok } })).json();
+      var list = (d.characters || []).filter(function (c) { return (c.families || []).indexOf("ltx23") >= 0; });
+      if (!list.length) { wrap.hidden = true; return; }
+      row.innerHTML = list.map(function (c) {
+        var t = c.thumb ? (/^https?:/.test(c.thumb) ? c.thumb : (c.thumb.charAt(0) === "/" ? RENDER_ENDPOINT() + c.thumb : c.thumb)) : "";
+        return '<button type="button" class="lip-char" data-h="' + c.handle.replace(/"/g, "") + '">' + (t ? '<img alt="" src="' + t + '" />' : "") + "@" + c.handle + "</button>";
+      }).join("");
+      wrap.hidden = false;
+      row.onclick = function (e) {
+        var b = e.target.closest(".lip-char"); if (!b) return;
+        var h = b.getAttribute("data-h"); lipChar = lipChar === h ? "" : h;
+        Array.prototype.forEach.call(row.children, function (x) { x.classList.toggle("is-on", x.getAttribute("data-h") === lipChar); });
+        document.getElementById("lipCharNote").hidden = !lipChar;
+      };
+    } catch (e) { wrap.hidden = true; }
+  }
 
   init();
 
@@ -62,7 +85,7 @@
     var res = await client.from("render_seat").select("holder_id").eq("id", true).single();
     var holder = (!res.error && res.data) ? res.data.holder_id : null;
     if (!holder || holder === currentUser.id) {
-      gate.style.display = "none"; gate.classList.remove("show"); form.style.display = "";
+      gate.style.display = "none"; gate.classList.remove("show"); form.style.display = ""; loadChars();
     } else {
       showGate("The GPU is currently reserved by the admin for another user. You’ll be able to use it as soon as it’s free — no seat needed anymore, jobs just queue one at a time.");
     }
@@ -75,9 +98,9 @@
     var aud = document.getElementById("lipAudio").files[0];
     var prompt = (document.getElementById("lipPrompt").value || "").trim();
 
-    if (!img) { setStatus("Add a photo of the face.", "error"); return; }
-    if (img.type.indexOf("image/") !== 0) { setStatus("The photo must be an image.", "error"); return; }
-    if (img.size > MAX_IMG) { setStatus("Photo must be under 250 MB.", "error"); return; }
+    if (!img && !lipChar) { setStatus("Add a photo of the face, or pick a trained character.", "error"); return; }
+    if (img && img.type.indexOf("image/") !== 0) { setStatus("The photo must be an image.", "error"); return; }
+    if (img && img.size > MAX_IMG) { setStatus("Photo must be under 250 MB.", "error"); return; }
     if (!aud) { setStatus("Add an audio clip.", "error"); return; }
     if (aud.type.indexOf("audio/") !== 0) { setStatus("The audio must be an audio file (mp3, wav, m4a).", "error"); return; }
     if (aud.size > MAX_AUDIO) { setStatus("Audio must be under 60 MB.", "error"); return; }
@@ -94,7 +117,8 @@
     showProgress(2, "Uploading…");
 
     var fd = new FormData();
-    fd.append("image", img);
+    if (img) fd.append("image", img);
+    if (lipChar) fd.append("character", lipChar);
     fd.append("audio", aud);
     fd.append("prompt", prompt);
 

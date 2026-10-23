@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="css/video.css" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
+<style>.lip-chars-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.lip-char{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--color-border);background:none;color:inherit;font:inherit;cursor:pointer}.lip-char img{width:30px;height:30px;border-radius:50%;object-fit:cover}.lip-char.is-on{border-color:var(--color-accent);background:var(--color-accent-soft)}</style>
 </head>
 <body class="is-vs">
 
@@ -53,6 +54,11 @@
       <a class="vs-toolcard" href="video.html" style="background-image:url(img/models/qwen_edit.jpg)"><span class="vs-toolcard-kicker">Lip Sync</span><strong>LTX 2</strong><span class="vs-toolcard-change">Change</span></a>
       <div class="info-banner" id="lipGate" style="display:none;"></div>
       <div id="lipForm" style="display:none;">
+<div class="field lip-chars" id="lipCharsWrap" hidden>
+<span class="vs-label">Trained character <span class="frame-res" style="margin:0;">— optional. Uses their lip-sync training so the face stays theirs.</span></span>
+<div class="lip-chars-row" id="lipChars"></div>
+<p class="frame-res" id="lipCharNote" style="margin:6px 0 0;" hidden>Photo is optional now: leave it empty to use their own picture, or add one for a different outfit or place.</p>
+</div>
 <div class="blend-inputs">
 <div class="field">
 <span class="vs-label">Photo</span><label class="vs-drop" data-kind="image"><input accept="image/*" id="lipImage" type="file"/><span class="vs-drop-ui"><span class="vs-drop-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l4.6-4.6a2 2 0 0 1 2.8 0L16 16m-2-2 1.6-1.6a2 2 0 0 1 2.8 0L20 14"/><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9" r="1.5"/></svg></span><span class="vs-drop-txt"><strong>Upload photo</strong><small>Click or drop a file</small><span class="frame-res" style="margin:0;">— the face to animate</span></span></span><span class="vs-drop-file" aria-live="polite"></span></label>
@@ -128,7 +134,7 @@
 <script src="js/ref-intake.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/lip-sync.js"></script>
+<script src="js/lip-sync.js?v=20261023a"></script>
 <script src="js/render-archive.js"></script>
 <script src="js/file-thumb.js"></script>
 </body>
