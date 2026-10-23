@@ -21,7 +21,7 @@
 <meta name="description" content="Train your own custom LoRA from a handful of images with a trigger word, running on your own GPU — then use it in the Image Studio." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/sheet.css?v=20261022b" />
-<link rel="stylesheet" href="css/lora-center.css?v=20261022a" />
+<link rel="stylesheet" href="css/lora-center.css?v=20261023b" />
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
 </head>
@@ -70,8 +70,13 @@
         <p class="lc-note" style="margin-top:0">Builds about 30 training pictures (new angles, outfits and places) from your source, then trains. Each family takes a few hours on the GPU, and other jobs wait their turn while it runs.</p>
 
         <div class="lc-step">1 · Pictures</div>
-        <div class="lc-tabs" role="tablist"><button type="button" class="is-on" data-src="sheet" role="tab" aria-selected="true">From a character sheet</button><button type="button" data-src="photos" role="tab" aria-selected="false">Upload photos</button></div>
+        <div class="lc-tabs" role="tablist"><button type="button" class="is-on" data-src="sheet" role="tab" aria-selected="true">From a character sheet</button><button type="button" data-src="photos" role="tab" aria-selected="false">Upload photos</button><button type="button" data-src="preset" role="tab" aria-selected="false" id="lcTabPreset" hidden>Hub influencer <em class="lc-tag lc-admin">Admin</em></button></div>
         <div id="lcSheets"><div class="lc-sheetgrid" id="lcSheetGrid"><p class="as-empty">Loading your sheets…</p></div></div>
+        <div id="lcPresets" hidden>
+          <p class="lc-note">Only you see this. Pick one of the hub's influencers: it trains from its card pictures, and when it's done its @handle works for every user (Scene mode, Create Video, Image Studio).</p>
+          <input type="search" id="lcPresetFind" class="lc-find" placeholder="Search influencers…" aria-label="Search influencers" />
+          <div class="lc-presetgrid" id="lcPresetGrid"></div>
+        </div>
         <div id="lcPhotos" hidden>
           <label class="cs-drop" style="margin-top:12px"><input type="file" id="lcFiles" accept="image/*" multiple hidden /><span>Choose 3–12 photos of the same character. Clear faces, different angles; the first one is the main photo.</span></label>
           <p class="lc-note" id="lcCount">0 / 12 photos (3 minimum)</p>
@@ -198,7 +203,8 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/lora-center.js?v=20261022a"></script>
+<script src="js/influencer-presets.js"></script>
+<script src="js/lora-center.js?v=20261023b"></script>
 <script src="js/train-lora.js"></script>
 </body>
 </html>

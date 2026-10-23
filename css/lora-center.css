@@ -14,7 +14,8 @@
 .lc-tabs button{border:0;background:none;color:inherit;padding:7px 16px;border-radius:999px;cursor:pointer;font:inherit;font-size:.9rem}
 .lc-tabs button.is-on{background:var(--color-accent);color:var(--color-on-accent)}
 .lc-sheetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}
-.lc-sheet{border:2px solid transparent;border-radius:12px;padding:0;overflow:hidden;cursor:pointer;background:#fff;position:relative}
+.lc-sheet{border:2px solid transparent;border-radius:12px;overflow:hidden;background:#fff;position:relative}
+.lc-sheet-pick{display:block;width:100%;border:0;padding:0;margin:0;background:none;cursor:pointer}
 .lc-sheet img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
 .lc-sheet span{position:absolute;left:6px;bottom:6px;font-size:.72rem;background:rgba(0,0,0,.6);color:#fff;padding:2px 7px;border-radius:999px}
 .lc-sheet.is-on{border-color:var(--color-accent);box-shadow:0 0 0 3px rgba(139,124,255,.3)}
@@ -42,3 +43,13 @@
 .lc-use{margin:8px 0 0;font-size:.86rem}
 .lc-adv{margin:32px 0}
 .lc-adv summary{cursor:pointer;font-weight:600}
+.lc-x{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:1.1rem;line-height:1;cursor:pointer;display:grid;place-items:center}
+.lc-x:hover,.lc-x:focus-visible{background:#e74c3c}
+.lc-admin{background:rgba(139,124,255,.2);color:var(--color-accent);margin-left:6px;font-size:.62rem}
+.lc-find{width:100%;max-width:340px;margin-top:10px;padding:9px 12px;border-radius:10px;border:1px solid var(--color-border);background:transparent;color:inherit;font:inherit}
+.lc-presetgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-top:12px;max-height:440px;overflow:auto;padding:2px}
+.lc-preset{border:2px solid var(--color-border);border-radius:12px;padding:0;overflow:hidden;cursor:pointer;background:var(--color-surface);color:inherit;position:relative;text-align:left;font:inherit}
+.lc-preset img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:rgba(127,127,127,.15)}
+.lc-pname{display:block;padding:6px 8px;font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc-pbadge{position:absolute;top:6px;left:6px;font-size:.68rem;background:rgba(46,204,113,.9);color:#05210f;padding:2px 7px;border-radius:999px;font-weight:700}
+.lc-preset.is-on{border-color:var(--color-accent);box-shadow:0 0 0 3px rgba(139,124,255,.3)}

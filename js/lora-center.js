@@ -5,7 +5,7 @@
   var $ = function (id) { return document.getElementById(id); };
   if (!$("lcForm")) return;
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  var st = { user: null, sheet: null, files: [], timer: null, src: "sheet" };
+  var st = { user: null, sheet: null, files: [], timer: null, src: "sheet", admin: false, preset: null, hub: {} };
   var FAM = {
     wan22: { label: "Video & scenes", model: "WAN 2.2", uses: ["@mentions in Scene mode", "Create Video"], hours: "3–5 h", state: "ready" },
     flux2: { label: "Images", model: "FLUX.2 Klein 9B", uses: ["Image Studio (Klein 9B)"], hours: "1–2 h", state: "beta" },
@@ -34,7 +34,8 @@
     b.addEventListener("click", function () {
       st.src = b.getAttribute("data-src");
       document.querySelectorAll("[data-src]").forEach(function (x) { x.classList.toggle("is-on", x === b); x.setAttribute("aria-selected", x === b ? "true" : "false"); });
-      $("lcSheets").hidden = st.src !== "sheet"; $("lcPhotos").hidden = st.src !== "photos";
+      $("lcSheets").hidden = st.src !== "sheet"; $("lcPhotos").hidden = st.src !== "photos"; $("lcPresets").hidden = st.src !== "preset";
+      if (st.src === "preset") paintPresets();
     });
   });
   $("lcFiles").addEventListener("change", function () {
@@ -59,23 +60,61 @@
   })();
   function gate() {
     $("lcGate").hidden = !!st.user; $("lcForm").hidden = !st.user; $("lcMineWrap").hidden = !st.user;
-    if (st.user) { loadSheets(); loadMine(); }
+    if (st.user) { loadSheets(); loadMine(); checkAdmin(); }
   }
+  // ---- admin: train the hub's own influencers (stock cards) straight into the shared @mention list
+  async function checkAdmin() {
+    try { var r = await client.from("profiles").select("is_admin").eq("id", st.user.id).single(); st.admin = !!(r.data && r.data.is_admin); } catch (e) { st.admin = false; }
+    $("lcTabPreset").hidden = !st.admin || !window.AIRH_INF_PRESETS;
+    if (!st.admin) return;
+    try { var d = await (await fetch(RENDER() + "/characters")).json(); (d.characters || []).forEach(function (c) { if (c.preset) st.hub[c.preset] = c; }); } catch (e) {}
+    if (st.src === "preset") paintPresets();
+  }
+  function paintPresets() {
+    var q = ($("lcPresetFind").value || "").trim().toLowerCase();
+    var list = (window.AIRH_INF_PRESETS || []).filter(function (p) { return !q || p.name.toLowerCase().indexOf(q) >= 0; });
+    $("lcPresetGrid").innerHTML = list.length ? list.map(function (p) {
+      var h = st.hub[p.id], on = st.preset === p.id;
+      return '<button type="button" class="lc-preset' + (on ? " is-on" : "") + '" data-pid="' + esc(p.id) + '" aria-pressed="' + on + '">' +
+        '<img alt="" loading="lazy" src="img/influencer/pv/' + esc(p.id) + '-close.jpg" />' +
+        '<span class="lc-pname">' + esc(p.name) + "</span>" +
+        (h ? '<span class="lc-pbadge" title="Already trained: ' + esc((h.families || []).join(", ")) + '">@' + esc(h.handle) + "</span>" : "") + "</button>";
+    }).join("") : '<p class="as-empty">No influencer matches that.</p>';
+  }
+  $("lcPresetFind").addEventListener("input", paintPresets);
+  $("lcPresetGrid").addEventListener("click", function (e) {
+    var b = e.target.closest(".lc-preset"); if (!b) return;
+    st.preset = b.getAttribute("data-pid");
+    var p = (window.AIRH_INF_PRESETS || []).filter(function (x) { return x.id === st.preset; })[0] || {}, h = st.hub[st.preset];
+    $("lcName").value = p.name || ""; $("lcHandle").value = h ? h.handle : (p.name || "").replace(/[^A-Za-z0-9_]/g, "").slice(0, 24); delete $("lcHandle").dataset.touched;
+    paintPresets();
+    status(h ? "Already trained (" + (h.families || []).join(", ") + "). Training again replaces those LoRAs and keeps the rest." : "", "");
+  });
   async function loadSheets() {
     var r = await client.from("image_jobs").select("id, urls, created_at").eq("user_id", st.user.id).eq("model", "character_sheet").eq("status", "done").order("created_at", { ascending: false }).limit(24);
     var rows = r.data || [], want = new URLSearchParams(location.search).get("sheet");
     if (want && rows.some(function (x) { return x.id === want; })) st.sheet = want;
     $("lcSheetGrid").innerHTML = rows.length ? rows.map(function (x) {
       var u = x.urls || [];
-      return '<button type="button" class="lc-sheet' + (st.sheet === x.id ? " is-on" : "") + '" data-id="' + esc(x.id) + '" aria-pressed="' + (st.sheet === x.id) + '"><img alt="" loading="lazy" src="' + esc(abs(u[0])) + '" /><span>' + new Date(x.created_at).toLocaleDateString() + "</span></button>";
+      return '<div class="lc-sheet' + (st.sheet === x.id ? " is-on" : "") + '" data-id="' + esc(x.id) + '"><button type="button" class="lc-sheet-pick" aria-pressed="' + (st.sheet === x.id) + '"><img alt="" loading="lazy" src="' + esc(abs(u[0])) + '" /><span>' + new Date(x.created_at).toLocaleDateString() + '</span></button><button type="button" class="lc-x" title="Delete this sheet" aria-label="Delete this sheet">&times;</button></div>';
     }).join("") : '<p class="as-empty">No character sheets yet. <a href="character-sheet.html">Make one</a> from a few photos, or switch to “Upload photos”.</p>';
     if (want && st.sheet) $("lcForm").scrollIntoView({ behavior: "smooth" });
   }
   $("lcSheetGrid").addEventListener("click", function (e) {
     var b = e.target.closest(".lc-sheet"); if (!b) return;
-    st.sheet = b.getAttribute("data-id");
-    document.querySelectorAll(".lc-sheet").forEach(function (x) { x.classList.toggle("is-on", x === b); x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+    var id = b.getAttribute("data-id");
+    if (e.target.closest(".lc-x")) { delSheet(id); return; }
+    st.sheet = id;
+    document.querySelectorAll(".lc-sheet").forEach(function (x) { x.classList.toggle("is-on", x === b); x.querySelector(".lc-sheet-pick").setAttribute("aria-pressed", x === b ? "true" : "false"); });
   });
+  async function delSheet(id) {
+    if (!id || !window.confirm("Delete this character sheet and its four views? This can't be undone.")) return;
+    var tok = await token();
+    try { await fetch(RENDER() + "/jobs/" + id + "?table=image_jobs", { method: "DELETE", headers: { Authorization: "Bearer " + tok } }); } catch (e) {}
+    try { await client.from("image_jobs").delete().eq("id", id); } catch (e) {}
+    if (st.sheet === id) st.sheet = null;
+    status("Sheet deleted.", "success"); loadSheets();
+  }
 
   // ---- start
   $("lcGo").addEventListener("click", async function () {
@@ -86,10 +125,11 @@
     if (!fams.length) return status("Pick at least one training type.", "error");
     if (st.src === "sheet" && !st.sheet) return status("Pick one of your character sheets.", "error");
     if (st.src === "photos" && st.files.length < 3) return status("Add at least 3 photos of the same character.", "error");
+    if (st.src === "preset" && !st.preset) return status("Pick one of the hub's influencers.", "error");
     var tok = await token(); if (!tok) return status("Your session expired. Please log in again.", "error");
     var fd = new FormData();
     fd.append("name", name); fd.append("handle", handle); fd.append("families", fams.join(","));
-    if (st.src === "sheet") fd.append("sheet_id", st.sheet); else st.files.forEach(function (f) { fd.append("images", f); });
+    if (st.src === "sheet") fd.append("sheet_id", st.sheet); else if (st.src === "preset") fd.append("preset", st.preset); else st.files.forEach(function (f) { fd.append("images", f); });
     $("lcGo").disabled = true; status("Sending to the GPU…");
     try {
       var r = await fetch(RENDER() + "/train-character", { method: "POST", headers: { Authorization: "Bearer " + tok }, body: fd });
