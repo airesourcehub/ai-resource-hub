@@ -8,7 +8,7 @@
   var st = { user: null, sheet: null, files: [], timer: null, src: "sheet" };
   var FAM = {
     wan22: { label: "Video & scenes", model: "WAN 2.2", uses: ["@mentions in Scene mode", "Create Video"], hours: "3–5 h", state: "ready" },
-    flux2: { label: "Images", model: "FLUX.2", uses: ["Image Studio (FLUX.2 + Edit)"], hours: "2–4 h", state: "beta" },
+    flux2: { label: "Images", model: "FLUX.2 Klein 9B", uses: ["Image Studio (Klein 9B)"], hours: "1–2 h", state: "beta" },
     ltx23: { label: "Lip sync", model: "LTX-2.3", uses: ["Lip Sync", "Music videos"], hours: "tbd", state: "soon" }
   };
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
