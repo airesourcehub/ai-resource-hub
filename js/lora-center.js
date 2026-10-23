@@ -9,7 +9,7 @@
   var FAM = {
     wan22: { label: "Video & scenes", model: "WAN 2.2", uses: ["@mentions in Scene mode", "Create Video"], hours: "3–5 h", state: "ready" },
     flux2: { label: "Images", model: "FLUX.2 Klein 9B", uses: ["Image Studio (Klein 9B)"], hours: "1–2 h", state: "beta" },
-    ltx23: { label: "Lip sync", model: "LTX-2.3", uses: ["Lip Sync", "Music videos"], hours: "tbd", state: "soon" }
+    ltx23: { label: "Lip sync", model: "LTX-2.3", uses: ["Lip Sync", "Music videos"], hours: "3 h", state: "beta" }
   };
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function abs(u) { return !u ? u : /^https?:\/\//i.test(u) ? u : RENDER() + (u.charAt(0) === "/" ? "" : "/") + u; }
