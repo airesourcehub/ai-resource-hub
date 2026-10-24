@@ -531,3 +531,4 @@
 /* Bright thumbnails: keep the top caption readable on white backgrounds */
 .tile-recipe { z-index: 1; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 2px 12px rgba(0,0,0,.45); }
 .tile-media::after { content: ""; position: absolute; inset: 0 0 auto 0; height: 34%; background: linear-gradient(to bottom, rgba(0,0,0,.5), rgba(0,0,0,0)); pointer-events: none; }
+.studio-art .htag.is-top, .studio-art .htag.is-free, .tile .htag.is-top { background: rgba(10,10,14,.72); color: #fff; border-color: transparent; backdrop-filter: blur(4px); }
