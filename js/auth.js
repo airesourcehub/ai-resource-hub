@@ -21,9 +21,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
   client.auth.getSession().then(function (result) {
     if (result.data.session) {
-      showLoggedIn(result.data.session);
+      gate(result.data.session, document.getElementById("loginStatus"));
     }
   });
+
+  // Approval check (see supabase-config.js): approved -> logged-in view, otherwise signed out + waiting note
+  function gate(session, statusEl) {
+    if (!window.AIRH_ACCESS) { showLoggedIn(session); return; }
+    window.AIRH_ACCESS.afterSignIn(client, session).then(function (ok) {
+      if (ok) { showLoggedIn(session); return; }
+      if (loggedInView) loggedInView.style.display = "none";
+      if (authTabs) authTabs.style.display = "";
+      if (loggedOutView) loggedOutView.style.display = "";
+      showStatus(statusEl || document.getElementById("loginStatus"),
+        "Thanks! Your account is waiting for approval. Criss reviews new members by hand — log in again once you're approved.", "success");
+    });
+  }
+
+  // ---------- Continue with Google (shown when Google sign-in is enabled in Supabase) ----------
+  var gBtns = document.querySelectorAll("[data-google-signin]");
+  if (gBtns.length) {
+    fetch(SUPABASE_URL + "/auth/v1/settings", { headers: { apikey: SUPABASE_ANON_KEY } })
+      .then(function (r) { return r.json(); })
+      .then(function (st) {
+        if (!(st && st.external && st.external.google)) return;
+        gBtns.forEach(function (b) {
+          b.style.display = "flex";
+          b.addEventListener("click", function () {
+            client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
+          });
+        });
+        var or = document.getElementById("googleOr"); if (or) or.style.display = "";
+      }).catch(function () {});
+  }
+
 
   // ---------- Tabs ----------
   var tabs = document.querySelectorAll(".auth-tab");
@@ -85,9 +116,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (result.data.session) {
-        showLoggedIn(result.data.session);
+        gate(result.data.session, signupStatus);
       } else {
-        showStatus(signupStatus, "Account created. Check your email to confirm, then log in.", "success");
+        showStatus(signupStatus, "Account created. Check your email to confirm, then log in. New members are approved by Criss before they can create.", "success");
         signupForm.reset();
       }
     });
@@ -142,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
         showStatus(loginStatus, result.error.message, "error");
         return;
       }
-      showLoggedIn(result.data.session);
+      gate(result.data.session, loginStatus);
     });
   }
 
