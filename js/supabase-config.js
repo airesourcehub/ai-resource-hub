@@ -80,3 +80,14 @@ const SUPABASE_BUCKET = "gallery-images";
     document.body.appendChild(bar);
   });
 })();
+
+// ---------- Support tickets ----------
+// Help button on every page. Tickets land in crisspofficial.com/admin → Support, together with The Lab tools.
+(function () {
+  if (window.CrisspSupport || /\/admin\.html$/.test(location.pathname)) return;
+  var s = document.createElement("script");
+  s.src = "https://www.crisspofficial.com/support/widget.js?v=1";
+  s.defer = true;
+  s.setAttribute("data-area", "airesourcehub");
+  (document.head || document.documentElement).appendChild(s);
+})();
