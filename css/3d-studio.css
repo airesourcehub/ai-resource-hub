@@ -30,3 +30,4 @@
 .t3-card-body small { color: var(--color-text-muted); font-size: 0.74rem; }
 .t3-card .as-acts .btn-sm { padding: 5px 9px; font-size: 0.74rem; }
 .t3-pub.is-on { border-color: var(--color-accent); color: var(--color-text); }
+.t3-picked[hidden] { display: none; }
