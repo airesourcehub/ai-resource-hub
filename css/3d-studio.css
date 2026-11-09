@@ -1,0 +1,32 @@
+/* AI Resource Hub — 3D Studio */
+.t3-check { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 12px; font-size: 0.88rem; cursor: pointer; }
+.t3-check input { margin-top: 3px; accent-color: var(--color-accent); }
+.t3-check small { color: var(--color-text-muted); }
+.t3-picked { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.t3-picked img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid var(--color-border); }
+.t3-mine { margin-top: 8px; font-size: 0.85rem; }
+.t3-mine summary { cursor: pointer; color: var(--color-text-muted); font-weight: 600; }
+.t3-mine-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; max-height: 260px; overflow: auto; }
+.t3-mine-grid button { padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: var(--color-surface-2); cursor: pointer; aspect-ratio: 1; }
+.t3-mine-grid button.is-on { border-color: var(--color-accent); }
+.t3-mine-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.t3-viewer { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 16px; overflow: hidden; margin-bottom: 18px; }
+.t3-viewer model-viewer { width: 100%; height: min(62vh, 560px); background: radial-gradient(circle at 50% 40%, #34343b, #18181c); --poster-color: transparent; }
+[data-theme="light"] .t3-viewer model-viewer { background: radial-gradient(circle at 50% 40%, #ffffff, #e6e6ea); }
+.t3-viewer-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--color-border); }
+.t3-viewer-info { display: grid; gap: 2px; min-width: 0; }
+.t3-viewer-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t3-viewer-info small { color: var(--color-text-muted); font-size: 0.78rem; }
+.t3-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.t3-grid .as-empty { grid-column: 1 / -1; }
+.t3-card { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 14px; overflow: hidden; display: grid; }
+.t3-card.is-new, .t3-card.is-open { border-color: var(--color-accent); }
+.t3-card-media { position: relative; aspect-ratio: 1; background: #1d1d22; cursor: pointer; border: 0; padding: 0; }
+.t3-card-media img, .t3-card-media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.t3-card-media video { opacity: 0; transition: opacity .2s; }
+.t3-card-media:hover video, .t3-card-media:focus-visible video { opacity: 1; }
+.t3-card-body { padding: 10px 12px; display: grid; gap: 8px; }
+.t3-card-body strong { font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t3-card-body small { color: var(--color-text-muted); font-size: 0.74rem; }
+.t3-card .as-acts .btn-sm { padding: 5px 9px; font-size: 0.74rem; }
+.t3-pub.is-on { border-color: var(--color-accent); color: var(--color-text); }

@@ -11,7 +11,7 @@
   var MODEL = { flux2: "FLUX.2", flux2_edit: "FLUX.2 Edit", zimage: "Z-Image Turbo", qwen2512: "Qwen-Image 2512", qwen_edit2509: "Qwen Edit 2509", krea2: "Krea 2",
     hidream: "HiDream", motion_transfer: "Motion Transfer", ai_transition: "AI Transition", lipsync: "Lip Sync" };
   var MODE = { motion_transfer: "Motion Transfer", character_swap: "Character Swap", character_scene: "Character Scene", upscale_1080: "Upscaled video",
-    stitched: "AI Transition", transform: "AI Transition", music_sync: "Beat-synced edit", lipsync: "Lip Sync", wan_video: "WAN Video" };
+    stitched: "AI Transition", transform: "AI Transition", music_sync: "Beat-synced edit", lipsync: "Lip Sync", wan_video: "WAN Video", model_3d: "3D Model" };
 
   function abs(u) { if (!u) return ""; return /^https?:\/\//i.test(u) ? u : HUB + (u.charAt(0) === "/" ? "" : "/") + u; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -20,6 +20,7 @@
     if (r.kind === "image") return "image-studio.html?" + new URLSearchParams({ prompt: r.prompt || "", model: r.model || "" }).toString();
     if (/motion|swap|scene/.test(r.mode || "")) return "motion-transfer.html";
     if (r.mode === "lipsync") return "lip-sync.html";
+    if (r.mode === "model_3d") return "3d-studio.html";
     return "video.html";
   }
 
