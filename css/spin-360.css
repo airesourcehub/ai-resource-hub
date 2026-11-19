@@ -62,3 +62,6 @@
 .sp-empty-ring::after { content: "360°"; position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; color: var(--color-accent); font-size: 1.1rem; }
 .sp-card-media { background: #fff; }
 .sp-card-media img { object-fit: contain !important; }
+.sp-sym { margin-top: 2px; }
+.sp-sym small { display: block; margin-top: 2px; line-height: 1.35; }
+.sp-mir { font-style: normal; font-size: 0.64rem; font-weight: 700; padding: 1px 5px; border-radius: 5px; background: var(--color-accent-soft, rgba(255,106,31,.12)); color: var(--color-accent); margin-left: 4px; }

@@ -65,6 +65,7 @@
     var sp = Object.assign({ mv3d: true, defaultViews: 8 }, cur.spin360 || {});
     $("ssSpinMv").checked = sp.mv3d !== false;
     $("ssSpinViews").value = sp.defaultViews === 4 ? "4" : "8";
+    $("ssSpinSym").checked = sp.symmetric === true;
     preview();
   }
 
@@ -89,7 +90,7 @@
       model: $("ssBgFast").checked ? $("ssBgModel").value : "best",
       maxBatch: Math.max(1, Math.min(100, parseInt($("ssBgBatch").value, 10) || 20))
     };
-    cur.spin360 = { mv3d: $("ssSpinMv").checked, defaultViews: $("ssSpinViews").value === "4" ? 4 : 8 };
+    cur.spin360 = { mv3d: $("ssSpinMv").checked, defaultViews: $("ssSpinViews").value === "4" ? 4 : 8, symmetric: $("ssSpinSym").checked };
     return cur;
   }
 

@@ -22,7 +22,7 @@
     return s ? s.access_token : null;
   }
   function cfg() {
-    var d = { mv3d: true, defaultViews: 8 };
+    var d = { mv3d: true, defaultViews: 8, symmetric: false };
     try { var s = JSON.parse(localStorage.getItem("airh-site-settings") || "null"); if (s && s.spin360) d = Object.assign(d, s.spin360); } catch (e) {}
     return d;
   }
@@ -79,7 +79,7 @@
   });
 
   (async function init() {
-    var c = cfg(); st.views = c.defaultViews === 4 ? 4 : 8;
+    var c = cfg(); st.views = c.defaultViews === 4 ? 4 : 8; $("spSym").checked = !!c.symmetric;
     var q = new URLSearchParams(location.search);
     paint();
     try { var r = await fetch(RENDER() + "/spin-info", { cache: "no-store" }); if (r.ok) st.info = await r.json(); } catch (e) {}
@@ -109,6 +109,7 @@
       if (f) { if (f.size > MAX_UP) { status("Pictures must be under 40 MB.", "error"); return; } fd.append("image", f); }
       else fd.append("source_job", st.pick);
       fd.append("views", String(st.views));
+      fd.append("symmetric", $("spSym").checked ? "1" : "0");
       fd.append("title", ($("spTitle").value || "").trim());
     } else {
       if (st.ownFiles.length < 2) { status("Add at least 2 photos taken around the object.", "error"); return; }
@@ -186,7 +187,7 @@
     st.frames.forEach(function (u) { var im = new Image(); im.src = u; });
     $("spEmpty").hidden = true; $("spViewer").hidden = false;
     $("spName").textContent = m.title || "360 set";
-    $("spStats").textContent = st.frames.length + " views" + (m.own ? " · from your photos" : " · AI views") + " · " + new Date(x.created_at).toLocaleDateString();
+    $("spStats").textContent = st.frames.length + " views" + (m.own ? " · from your photos" : m.symmetric ? " · perfect symmetry" : " · AI views") + " · " + new Date(x.created_at).toLocaleDateString();
     var a = [];
     if (m.zip) a.push('<a class="btn btn-primary btn-sm" href="' + esc(absUrl(m.zip)) + '" download="' + esc(m.zip_name || "360-views.zip") + '">Download all (ZIP)</a>');
     if (m.spin) a.push('<a class="btn btn-secondary btn-sm" href="' + esc(absUrl(m.spin)) + '" download>Spin video (MP4)</a>');
@@ -195,7 +196,7 @@
     $("spActs").innerHTML = a.join(""); $("spActs").setAttribute("data-id", x.id);
     $("spGrid").innerHTML = st.frames.map(function (u, i) {
       return '<figure class="sp-cell" data-i="' + i + '"><button type="button" class="sp-cell-img" data-show="' + i + '" aria-label="Show ' + esc((m.labels || [])[i] || "view") + '"><img loading="lazy" src="' + esc(u) + '" alt=""/></button>' +
-        '<figcaption><span>' + esc((m.labels || [])[i] || "") + '</span>' +
+        '<figcaption><span>' + esc((m.labels || [])[i] || "") + ((m.mirrored || []).indexOf(i) >= 0 ? ' <em class="sp-mir" title="Mirror image of the other side">Mirrored</em>' : "") + '</span>' +
         '<a href="' + esc(absUrl((m.cuts || [])[i] || u)) + '" download title="Transparent PNG">PNG</a>' +
         (!m.own && i > 0 ? '<button type="button" data-redo="' + i + '">Redo</button>' : "") + "</figcaption></figure>";
     }).join("");
@@ -218,7 +219,8 @@
       var i = +r.getAttribute("data-redo"), m = st.open.meta || {};
       var angle = (m.angles || [])[i];
       if (angle == null) return;
-      if (!window.confirm("Make the “" + ((m.labels || [])[i] || "this") + "” view again? You'll get a new set with every other view kept.")) return;
+      var mir = (m.mirrored || []).length > 0;
+      if (!window.confirm("Make the “" + ((m.labels || [])[i] || "this") + "” view again?" + (mir ? " Its mirrored partner on the other side changes with it." : "") + " You'll get a new set with every other view kept.")) return;
       submit({ from: st.open.id, angle: angle, title: m.title || "" });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }

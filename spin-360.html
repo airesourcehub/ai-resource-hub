@@ -23,7 +23,7 @@
 <link rel="stylesheet" href="css/video.css" />
 <link rel="stylesheet" href="css/audio-studio.css?v=20261022b" />
 <link rel="stylesheet" href="css/3d-studio.css?v=20261109b" />
-<link rel="stylesheet" href="css/spin-360.css?v=20261119b" />
+<link rel="stylesheet" href="css/spin-360.css?v=20261119c" />
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
@@ -73,6 +73,8 @@
           <button type="button" role="radio" class="as-model is-on" aria-checked="true" data-n="8"><strong>8 views · smooth spin</strong><span>Every 45°. About 3–4 minutes.</span></button>
           <button type="button" role="radio" class="as-model" aria-checked="false" data-n="4"><strong>4 views · quick</strong><span>Front, left, back, right. About 2 minutes. Enough for the 3D step.</span></button>
         </div></div>
+
+        <label class="t3-check sp-sym" data-for="ai"><input type="checkbox" id="spSym"/> <span><strong>Perfect symmetry</strong> <small>The AI makes one side, the other side is its mirror image: both sides match exactly and it's faster. Best for objects that are the same left and right (helmets, cars, shoes, bottles). Writing or logos on one side will show backwards on the other.</small></span></label>
 
         <div class="field"><label for="spTitle">Name <small>(optional)</small></label><input type="text" id="spTitle" maxlength="80" placeholder="e.g. Red race helmet"/></div>
         <div class="output-actions">
@@ -155,7 +157,7 @@
 <script src="js/vs.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/spin-360.js?v=20261119a"></script>
+<script src="js/spin-360.js?v=20261119c"></script>
 <script src="js/file-thumb.js"></script>
 </body>
 </html>
