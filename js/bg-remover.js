@@ -10,7 +10,8 @@
   var TJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/dist/transformers.min.js";
   var JSZIP = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
   var MODELS = {
-    best: { id: "onnx-community/BiRefNet_lite-ONNX", label: "Best quality" },
+    // BiRefNet needs a graphics card; on the processor it runs out of memory, so ORMBG (ISNet, Apache-2.0) is used there.
+    best: { id: "onnx-community/BiRefNet_lite-ONNX", cpuId: "d30social/ormbg-ortweb", label: "Best quality" },
     fast: { id: "Xenova/modnet", label: "Fast (people)" }
   };
   var MAX_PIXELS = 40e6;      // larger pictures are scaled down to this
@@ -201,6 +202,7 @@
     var tries = key === "best"
       ? (gpu ? [["webgpu", "fp16"], ["webgpu", "fp32"], ["wasm", "fp32"]] : [["wasm", "fp32"], ["wasm", "q8"]])
       : (gpu ? [["webgpu", "fp32"], ["wasm", null]] : [["wasm", null]]);
+    if (key === "best" && !gpu) tries = [["wasm", "fp32"], ["wasm", "fp16"]];
     var last = null;
     for (var i = 0; i < tries.length; i++) {
       var files = {};
@@ -215,10 +217,11 @@
       };
       if (tries[i][1]) opts.dtype = tries[i][1];
       try {
-        var seg = await T.pipeline("background-removal", MODELS[key].id, opts);
+        var mid = tries[i][0] === "wasm" && MODELS[key].cpuId ? MODELS[key].cpuId : MODELS[key].id;
+        var seg = await T.pipeline("background-removal", mid, opts);
         progress(100, "Warming up…");
         // Run the model once on a test picture: some graphics cards load it but can't run it.
-        var ok = await selfTest(seg);
+        var ok = tries[i][0] === "webgpu" ? await selfTest(seg) : true;
         if (!ok && tries[i][0] === "webgpu" && key === "best") throw new Error("model output check failed");
         device = tries[i][0];
         return seg;
@@ -393,7 +396,7 @@
     $("brName").textContent = it.name;
     var working = it.status === "queued" || it.status === "working";
     $("brBusy").hidden = !working && it.status !== "error";
-    $("brBusyTxt").textContent = it.status === "error" ? it.err : it.status === "queued" ? "Waiting…" : "Removing the background…";
+    $("brBusyTxt").textContent = it.status === "error" ? it.err : it.status === "queued" ? "Waiting…" : "Removing the background…" + (device === "wasm" ? " (about 15 seconds without a graphics card)" : "");
     $("brBusy").classList.toggle("is-err", it.status === "error");
     var before = $("brBefore"), after = $("brOut");
     ["brDl", "brCopy"].forEach(function (id) { $(id).disabled = it.status !== "done"; });
