@@ -27,6 +27,7 @@
     items: [], cur: null, busy: false, user: null, admin: false, allowed: true, nextId: 1
   };
   var segs = {};          // model key -> Promise<pipeline>
+  var noGpu = {};         // model key -> true once WebGPU failed for it on this computer
   var device = null;      // "webgpu" | "wasm" once a model is loaded
 
   // ---------------------------------------------------------------- helpers
@@ -168,15 +169,15 @@
     try { if (!navigator.gpu) return false; var a = await navigator.gpu.requestAdapter(); return !!a; } catch (e) { return false; }
   }
   function getSeg(key) {
-    if (!segs[key]) segs[key] = loadSeg(key).catch(function (e) { delete segs[key]; throw e; });
+    if (!segs[key]) segs[key] = loadSeg(key, !!noGpu[key]).catch(function (e) { delete segs[key]; throw e; });
     return segs[key];
   }
-  async function loadSeg(key) {
+  async function loadSeg(key, cpuOnly) {
     progress(1, "Loading the AI…");
     var T;
     try { T = await import(TJS); } catch (e) { throw new Error("Couldn't load the AI library. Check your connection (or an ad blocker) and try again."); }
     T.env.allowLocalModels = false;
-    var gpu = await hasWebGPU();
+    var gpu = !cpuOnly && (await hasWebGPU());
     var tries = key === "best"
       ? (gpu ? [["webgpu", "fp16"], ["webgpu", "fp32"], ["wasm", "fp32"]] : [["wasm", "fp32"], ["wasm", "q8"]])
       : (gpu ? [["webgpu", "fp32"], ["wasm", null]] : [["wasm", null]]);
@@ -196,7 +197,9 @@
       try {
         var seg = await T.pipeline("background-removal", MODELS[key].id, opts);
         progress(100, "Warming up…");
-        if (tries[i][1] === "fp16" && !(await selfTest(seg))) throw new Error("model output check failed");
+        // Run the model once on a test picture: some graphics cards load it but can't run it.
+        var ok = await selfTest(seg);
+        if (!ok && tries[i][0] === "webgpu" && key === "best") throw new Error("model output check failed");
         device = tries[i][0];
         return seg;
       } catch (e) { last = e; if (window.console) console.warn("[bg-remover] " + tries[i].join("/") + " failed:", e); }
@@ -228,7 +231,17 @@
       progress(total > 1 ? (n - 1) / total * 100 : 60, total > 1 ? "Removing backgrounds: " + n + " of " + total : "Removing the background…");
       var t0 = performance.now();
       var src = canvas(it.w, it.h); src.getContext("2d").drawImage(it.bmp, 0, 0, it.w, it.h);
-      var out = await seg(src);
+      var out;
+      try { out = await seg(src); }
+      catch (e) {
+        if (device !== "webgpu" || noGpu[key]) throw e;
+        // The graphics card couldn't run it: switch this model to the processor and try again.
+        if (window.console) console.warn("[bg-remover] WebGPU run failed, using the processor instead:", e);
+        noGpu[key] = true; delete segs[key];
+        progress(5, "Your graphics card can't run this model, switching to your processor…");
+        seg = await getSeg(key);
+        out = await seg(src);
+      }
       var ch = out.channels || 4, d = out.data, m = new Uint8ClampedArray(it.w * it.h);
       if (out.width !== it.w || out.height !== it.h) throw new Error("unexpected output size");
       for (var i = 0, j = ch - 1; i < m.length; i++, j += ch) m[i] = d[j];
