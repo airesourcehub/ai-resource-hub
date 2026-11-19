@@ -165,8 +165,28 @@
   });
 
   // ---------------------------------------------------------------- the model
+  var CPU_FLAG = "airh-bg-cpu";
+  function cpuForced() {
+    try { if (/[?&]cpu=1\b/.test(location.search)) return true; return localStorage.getItem(CPU_FLAG) === "1"; } catch (e) { return false; }
+  }
+  // WebGPU only when the card can actually run BiRefNet (it needs 17+ storage buffers per shader).
   async function hasWebGPU() {
-    try { if (!navigator.gpu) return false; var a = await navigator.gpu.requestAdapter(); return !!a; } catch (e) { return false; }
+    if (cpuForced()) return false;
+    try {
+      if (!navigator.gpu) return false;
+      var a = await navigator.gpu.requestAdapter(); if (!a) return false;
+      var lim = a.limits || {};
+      if ((lim.maxStorageBuffersPerShaderStage || 0) < 17) return false;
+      return true;
+    } catch (e) { return false; }
+  }
+  // Once the library has touched a graphics card it keeps using it, so the only clean way to
+  // switch to the processor is a fresh page. Remember the choice for this computer.
+  function restartOnCpu(msg) {
+    try { localStorage.setItem(CPU_FLAG, "1"); } catch (e) {}
+    status(msg + " Reloading in processor mode…", "error");
+    var q = new URLSearchParams(location.search); q.set("cpu", "1");
+    setTimeout(function () { location.search = q.toString(); }, 1800);
   }
   function getSeg(key) {
     if (!segs[key]) segs[key] = loadSeg(key, !!noGpu[key]).catch(function (e) { delete segs[key]; throw e; });
@@ -202,7 +222,13 @@
         if (!ok && tries[i][0] === "webgpu" && key === "best") throw new Error("model output check failed");
         device = tries[i][0];
         return seg;
-      } catch (e) { last = e; if (window.console) console.warn("[bg-remover] " + tries[i].join("/") + " failed:", e); }
+      } catch (e) {
+        last = e; if (window.console) console.warn("[bg-remover] " + tries[i].join("/") + " failed:", e);
+        if (tries[i][0] === "webgpu" && (!tries[i + 1] || tries[i + 1][0] !== "webgpu")) {
+          restartOnCpu("Your graphics card can't run this model.");
+          throw new Error("Switching to processor mode…");
+        }
+      }
     }
     throw new Error("The AI model couldn't start in this browser" + (last && last.message ? " (" + last.message + ")" : "") + ". Try Chrome or Edge on a computer.");
   }
@@ -234,13 +260,10 @@
       var out;
       try { out = await seg(src); }
       catch (e) {
-        if (device !== "webgpu" || noGpu[key]) throw e;
-        // The graphics card couldn't run it: switch this model to the processor and try again.
-        if (window.console) console.warn("[bg-remover] WebGPU run failed, using the processor instead:", e);
-        noGpu[key] = true; delete segs[key];
-        progress(5, "Your graphics card can't run this model, switching to your processor…");
-        seg = await getSeg(key);
-        out = await seg(src);
+        if (device !== "webgpu") throw e;
+        if (window.console) console.warn("[bg-remover] WebGPU run failed:", e);
+        restartOnCpu("Your graphics card can't run this model.");
+        throw new Error("Switching to processor mode…");
       }
       var ch = out.channels || 4, d = out.data, m = new Uint8ClampedArray(it.w * it.h);
       if (out.width !== it.w || out.height !== it.h) throw new Error("unexpected output size");
