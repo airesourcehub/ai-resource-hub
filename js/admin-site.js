@@ -18,6 +18,7 @@
   ];
   var DEF = window.AIRH_SITE ? JSON.parse(JSON.stringify(window.AIRH_SITE.defaults)) :
     { accent: "#ff6a1f", accentLight: "", navOrder: SECTIONS.map(function (s) { return s[0]; }), nav: {}, cta: { label: "Start creating", href: "image-studio.html", visible: true }, showStatus: true, signupsOpen: false, hostGpuName: "" };
+  var BG_DEF = { enabled: true, guests: true, fast: true, model: "best", maxBatch: 20 };
   var cur = JSON.parse(JSON.stringify(DEF));
 
   load();
@@ -55,6 +56,12 @@
     $("ssStatusShow").checked = cur.showStatus !== false;
     $("ssSignups").checked = cur.signupsOpen === true;
     $("ssHostName").value = cur.hostGpuName || "";
+    var bg = Object.assign({}, BG_DEF, cur.bgRemover || {});
+    $("ssBgOn").checked = bg.enabled !== false;
+    $("ssBgGuests").checked = bg.guests !== false;
+    $("ssBgFast").checked = bg.fast !== false;
+    $("ssBgModel").value = bg.model === "fast" ? "fast" : "best";
+    $("ssBgBatch").value = bg.maxBatch || 20;
     preview();
   }
 
@@ -74,6 +81,11 @@
     cur.showStatus = $("ssStatusShow").checked;
     cur.signupsOpen = $("ssSignups").checked;
     cur.hostGpuName = $("ssHostName").value.trim().slice(0, 40);
+    cur.bgRemover = {
+      enabled: $("ssBgOn").checked, guests: $("ssBgGuests").checked, fast: $("ssBgFast").checked,
+      model: $("ssBgFast").checked ? $("ssBgModel").value : "best",
+      maxBatch: Math.max(1, Math.min(100, parseInt($("ssBgBatch").value, 10) || 20))
+    };
     return cur;
   }
 

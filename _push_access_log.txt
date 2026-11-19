@@ -1,0 +1,18 @@
+==== AIRH support tickets push Fri 10/30/2026 18:33:49.46 ==== 
+(old lock moved aside) 
+warning: in the working copy of 'about.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'auth.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'js/supabase-config.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'privacy-policy.html', LF will be replaced by CRLF the next time Git touches it
+[main 2b542d3] Support: Help button on every page (tickets go to the crisspofficial.com admin Support inbox); email links replaced with support tickets
+ 4 files changed, 15 insertions(+), 5 deletions(-)
+[commit exit 0] 
+From https://github.com/airesourcehub/ai-resource-hub
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+[pull exit 0] 
+To https://github.com/airesourcehub/ai-resource-hub.git
+   f72e680..2b542d3  HEAD -> main
+[push exit 0] 
+2b542d3 Support: Help button on every page (tickets go to the crisspofficial.com admin Support inbox); email links replaced with support tickets
+==== done ==== 

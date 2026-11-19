@@ -1118,7 +1118,8 @@
         '<button type="button" class="btn btn-primary" data-act="dl">Download</button>' +
         '<button type="button" class="btn btn-secondary" data-act="edit">Edit this image</button>' +
         '<button type="button" class="btn btn-secondary" data-act="reuse">Reuse prompt</button>' +
-        '<button type="button" class="btn btn-secondary" data-act="up">Upscale to 4K</button></aside>';
+        '<button type="button" class="btn btn-secondary" data-act="up">Upscale to 4K</button>' +
+        '<button type="button" class="btn btn-secondary" data-act="bg">Remove background</button></aside>';
       document.body.appendChild(lb);
       lb.querySelector(".lb-close").addEventListener("click", closeLightbox);
       lb.querySelector(".lb-prev").addEventListener("click", function () { stepLightbox(-1); });
@@ -1128,6 +1129,7 @@
       lb.querySelector('[data-act="edit"]').addEventListener("click", function () { useAsRef(lbList[lbIdx].src); });
       lb.querySelector('[data-act="reuse"]').addEventListener("click", function () { var s = lbList[lbIdx]; closeLightbox(); reuseJob(s.job); });
       lb.querySelector('[data-act="up"]').addEventListener("click", function () { var s = lbList[lbIdx]; closeLightbox(); upscale(s.raw || s.src, s.job); });
+      lb.querySelector('[data-act="bg"]').addEventListener("click", function () { var s = lbList[lbIdx]; var u = s.src; location.href = "bg-remover.html?image=" + encodeURIComponent(u); });
       document.addEventListener("keydown", function (e) {
         if (!lb || lb.hidden) return;
         if (e.key === "ArrowLeft") stepLightbox(-1);
