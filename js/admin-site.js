@@ -66,6 +66,10 @@
     $("ssSpinMv").checked = sp.mv3d !== false;
     $("ssSpinViews").value = sp.defaultViews === 4 ? "4" : "8";
     $("ssSpinSym").checked = sp.symmetric === true;
+    var bd = Object.assign({ enabled: true, heightMin: 51, heightMax: 65, heightDefault: 58, exagDefault: 80, view: "sheet", engine: "zimage", maxBatch: 4 }, cur.baddies || {});
+    $("ssBdOn").checked = bd.enabled !== false;
+    $("ssBdHMin").value = bd.heightMin; $("ssBdHMax").value = bd.heightMax; $("ssBdHDef").value = bd.heightDefault;
+    $("ssBdExag").value = bd.exagDefault; $("ssBdView").value = bd.view; $("ssBdEngine").value = bd.engine; $("ssBdBatch").value = bd.maxBatch;
     preview();
   }
 
@@ -91,6 +95,10 @@
       maxBatch: Math.max(1, Math.min(100, parseInt($("ssBgBatch").value, 10) || 20))
     };
     cur.spin360 = { mv3d: $("ssSpinMv").checked, defaultViews: $("ssSpinViews").value === "4" ? 4 : 8, symmetric: $("ssSpinSym").checked };
+    var n = function (id, d, lo, hi) { var v = parseInt($(id).value, 10); return Math.max(lo, Math.min(hi, isNaN(v) ? d : v)); };
+    var hMin = n("ssBdHMin", 51, 40, 80), hMax = Math.max(hMin + 1, n("ssBdHMax", 65, 41, 84));
+    cur.baddies = { enabled: $("ssBdOn").checked, heightMin: hMin, heightMax: hMax, heightDefault: Math.max(hMin, Math.min(hMax, n("ssBdHDef", 58, 40, 84))),
+      exagDefault: n("ssBdExag", 80, 0, 100), view: $("ssBdView").value, engine: $("ssBdEngine").value === "flux2" ? "flux2" : "zimage", maxBatch: n("ssBdBatch", 4, 1, 4) };
     return cur;
   }
 
