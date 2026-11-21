@@ -290,12 +290,12 @@ function init() {
       else if (k === "cl_boots") o.material = tintMat(src, 3.2, 0.5, 0.6, { roughness: 0.4 });
       else if (k === "cl_sneakers") o.material = new THREE.MeshStandardMaterial({ map: src.map, roughness: 0.6 });
       else if (/^cl_/.test(k)) o.material = new THREE.MeshStandardMaterial({ map: camoTex("snow"), roughness: 0.85, side: THREE.DoubleSide });
-      else if (k === "eyes_hp") o.material = new THREE.MeshStandardMaterial({ map: src.map, roughness: 0.12, emissive: 0xffffff, emissiveMap: src.map, emissiveIntensity: 0.1 });
+      else if (k === "eyes_hp") o.material = new THREE.MeshStandardMaterial({ color: 0xece8e2, roughness: 0.15 });
       if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
     }
   }
   const eyeTexCache = {};
-  let eyeTexName = "brown";
+  let eyeTexName = "";
   function setEyeTex(name) {
     const f = EYE_TEX[name] || "brown";
     if (f === eyeTexName) return; eyeTexName = f;
@@ -428,7 +428,7 @@ function init() {
     if (headInfo) H.position.copy(headInfo.c); else H.position.copy(headB).add(v3(0, 0.085, 0.01));
     // irises on the eyeballs
     const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
-    if (eyeInfo && !M.eyes_hp) for (const c of [eyeInfo.l, eyeInfo.r]) {
+    if (eyeInfo) for (const c of [eyeInfo.l, eyeInfo.r]) {
       const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x, c.y, eyeInfo.front + 0.0004); extras.add(ir);
       const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x, c.y, eyeInfo.front + 0.0008); extras.add(pu);
     }
@@ -444,7 +444,6 @@ function init() {
       const want = HAIRMAP[style] || "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
       for (const k in M) if (/^hair_/.test(k)) { M[k].visible = k === want && !(capped && (k === "hair_afro" || k === "hair_bob" || k === "hair_pixie")); M[k].material.userData.uTint.value.copy(tint); }
       if (M.brows) M.brows.material.userData.uTint.value.copy(tint).multiplyScalar(0.7);
-      if (eyes && M.eyes_hp) setEyeTex(one("eyes") || "brown");
     }
     if (realHair) { /* real hair meshes handle the main styles */ }
     else if (hairCap) { hairCap.visible = !capped; hairCap.material = hairM.clone(); }
