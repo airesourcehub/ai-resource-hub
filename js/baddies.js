@@ -15,7 +15,7 @@
   var POLL_MS = 3000, PAGE = 24, PREFS = "airh-baddies";
 
   // ------------------------------------------------------------ admin settings
-  var CFG = { enabled: true, heightMin: 51, heightMax: 65, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "zimage", view: "sheet" };
+  var CFG = { enabled: true, preview: true, heightMin: 51, heightMax: 65, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "zimage", view: "sheet" };
   try { var ss = JSON.parse(localStorage.getItem("airh-site-settings") || "null"); if (ss && ss.baddies) CFG = Object.assign(CFG, ss.baddies); } catch (e) {}
 
   // ------------------------------------------------------------ catalog
@@ -249,6 +249,7 @@
     $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
     $("bdPrompt").textContent = buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
     savePrefs();
+    try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
   }
 
   // ------------------------------------------------------------ wiring
@@ -632,6 +633,7 @@
   function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engine: state.engine, batch: state.batch, last: snapshot() })); } catch (e) {} }
 
   // ------------------------------------------------------------ boot
+  if (CFG.preview === false && $("bdPreview")) { $("bdPreview").remove(); $("bd").classList.add("no-preview"); }
   renderPanel();
   if (state._extra) { $("bdExtra").value = state._extra; delete state._extra; }
   state.height = clampN(state.height, +$("bdHeight").min, +$("bdHeight").max);

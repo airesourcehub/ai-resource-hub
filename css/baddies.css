@@ -122,3 +122,28 @@
   .bd-stage-head { flex-direction: column; }
 }
 .bd-wall [hidden], .bd-more [hidden], .bd-signin[hidden], .bd-empty[hidden] { display: none !important; }
+
+/* live 3D preview */
+.bd-stage-body { display: grid; grid-template-columns: minmax(320px, 440px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.no-preview .bd-stage-body { grid-template-columns: 1fr; }
+.bd-preview { position: sticky; top: 74px; border: 1px solid var(--color-border); border-radius: 20px; background: radial-gradient(120% 80% at 50% 10%, var(--color-surface-2, var(--color-surface)) 0%, var(--color-surface) 55%, var(--color-bg) 100%); overflow: hidden; }
+.bd-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 0; }
+.bd-preview-title { display: inline-flex; align-items: center; gap: 7px; font-size: 0.78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.bd-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-soft); animation: bdpulse 1.6s ease-in-out infinite; }
+@keyframes bdpulse { 50% { opacity: .35; } }
+.bd-preview-btns { display: inline-flex; gap: 4px; }
+.bd-preview-btns button { border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); border-radius: 999px; padding: 4px 9px; font-size: 0.72rem; cursor: pointer; display: inline-grid; place-items: center; }
+.bd-preview-btns button:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+.bd-preview-btns button.is-on { color: var(--color-on-accent); background: var(--color-accent); border-color: var(--color-accent); }
+.bd-preview-canvas { position: relative; height: min(64vh, 600px); min-height: 380px; cursor: grab; touch-action: none; }
+.bd-preview-canvas:active { cursor: grabbing; }
+.bd-preview-canvas canvas { display: block; width: 100% !important; height: 100% !important; }
+.bd-preview-load { position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.8rem; color: var(--color-text-muted); }
+.bd-preview.is-ready .bd-preview-load { display: none; }
+.bd-preview-note { margin: 0; padding: 0 14px 12px; font-size: 0.7rem; color: var(--color-text-muted); }
+.bd-stage-list .bd-wall { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+@media (max-width: 1200px) {
+  .bd-stage-body { grid-template-columns: 1fr; }
+  .bd-preview { position: relative; top: 0; }
+  .bd-preview-canvas { height: 460px; }
+}
