@@ -10,10 +10,12 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
 const box = document.getElementById("bdPreview");
 const canvasWrap = document.getElementById("bdPreviewCanvas");
-const MODEL_URL = "models/baddie_base.glb?v=2";
+const MODEL_URL = "models/baddie_full.glb?v=1";
+const EYE_TEX = { brown: "brown", hazel: "brownlight", green: "green", grey: "grey", blue: "blue" };
 const BASE_H = 1.60;            // the model's height in metres (5'3")
 const IN = 0.0254;
 if (box && canvasWrap) init();
@@ -141,7 +143,8 @@ function init() {
   const U = {
     uSkin: { value: new THREE.Color(SKIN.caramel) }, uBoot: { value: new THREE.Color("#efefea") },
     uDark: { value: new THREE.Color("#3a3f2a") }, uBlack: { value: new THREE.Color("#141416") },
-    uCamo: { value: camoTex("snow") }, uInk: { value: inkTex("color") }
+    uCamo: { value: camoTex("snow") }, uInk: { value: inkTex("color") },
+    uSkinTex: { value: null }, uHasSkin: { value: 0 }
   };
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.52, metalness: 0 });
   bodyMat.onBeforeCompile = (sh) => {
@@ -150,10 +153,11 @@ function init() {
       .replace("#include <common>", "#include <common>\nattribute float aCls;\nattribute float aInk;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;")
       .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCls = aCls; vInk = aInk; vUv2 = uv;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk, uSkinTex;\nuniform float uHasSkin;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;")
       .replace("#include <color_fragment>", `#include <color_fragment>
         float cls = floor(vCls + 0.5);
         vec3 col = uSkin;
+        if (uHasSkin > 0.5) { vec3 st = texture2D(uSkinTex, vUv2).rgb; float sl = dot(st, vec3(0.299, 0.587, 0.114)); col = uSkin * clamp(sl / 0.6, 0.55, 1.35); }
         if (cls < 0.5) {
           if (vInk > 0.5) { vec4 t = texture2D(uInk, vUv2 * 3.0); col = mix(col, t.rgb * 0.85, t.a * 0.9); }
         } else if (cls < 1.5) col = texture2D(uCamo, vUv2 * 3.0).rgb;
@@ -166,6 +170,8 @@ function init() {
 
   // ------------------------------------------------------------ load model
   let body = null, skel = null, part = null, rest = null, morphIdx = {}, hairCap = null, eyes = null, headInfo = null, eyeInfo = null;
+  const M = {};          // asset meshes by name: cl_*, hair_*, brows, lashes, eyes_hp
+  const skinned = [];    // every skinned mesh (they all share the body's morph names)
   const B = {};      // bones by name
   const restQ = {};  // rest quaternions
   let pendingState = window.BADDIES_STATE || null;
@@ -174,14 +180,19 @@ function init() {
     const root = gltf.scene;
     root.traverse((o) => {
       if (o.isSkinnedMesh) {
+        skinned.push(o); o.frustumCulled = false;
         const nm = (o.name + " " + (o.parent ? o.parent.name : "")).toLowerCase();
-        if (/haircap/.test(nm)) hairCap = o; else if (/eyes/.test(nm)) eyes = o; else if (!body) body = o;
+        const key = (nm.match(/\b(cl_[a-z]+|hair_[a-z]+|brows|lashes|eyes_hp)\b/) || [])[1];
+        if (key) M[key] = o;
+        else if (/haircap/.test(nm)) hairCap = o; else if (/\beyes\b/.test(nm)) eyes = o; else if (!body) body = o;
       }
       if (o.isBone) { B[o.name] = o; restQ[o.name] = o.quaternion.clone(); }
     });
+    if (!eyes && M.eyes_hp) eyes = M.eyes_hp;
+    setupAssetMaterials();
     if (eyes) {
       eyes.frustumCulled = false;
-      eyes.material = new THREE.MeshStandardMaterial({ color: 0xf2efe9, roughness: 0.2 });
+      if (eyes !== M.eyes_hp) eyes.material = new THREE.MeshStandardMaterial({ color: 0xf2efe9, roughness: 0.2 });
       const P = eyes.geometry.attributes.position, L = new THREE.Vector3(), Rr = new THREE.Vector3(); let nl = 0, nr = 0, zmax = -9;
       for (let i = 0; i < P.count; i++) { const x = P.getX(i); if (x > 0) { L.add(new THREE.Vector3(x, P.getY(i), P.getZ(i))); nl++; } else { Rr.add(new THREE.Vector3(x, P.getY(i), P.getZ(i))); nr++; } zmax = Math.max(zmax, P.getZ(i)); }
       L.divideScalar(nl || 1); Rr.divideScalar(nr || 1);
@@ -215,6 +226,7 @@ function init() {
                          : { c: bb.getCenter(new THREE.Vector3()), r: 0.092, top: bb.max.y };
     }
     if (!body) return fail("No body in the model");
+    if (body.material && body.material.map) { U.uSkinTex.value = body.material.map; U.uHasSkin.value = 1; }
     body.material = bodyMat;
     body.frustumCulled = false;
     skel = body.skeleton;
@@ -254,6 +266,44 @@ function init() {
     g.setAttribute("aInk", new THREE.BufferAttribute(new Float32Array(n), 1));
   }
 
+  // Materials for the real asset meshes: hair, brows and lashes are alpha cards tinted by colour;
+  // shoes keep their texture detail but take the chosen colour; bottoms use the camo pattern.
+  function tintMat(src, gain, base, amt, opts = {}) {
+    const m = new THREE.MeshStandardMaterial({ map: src && src.map, roughness: opts.roughness ?? 0.5, metalness: 0,
+      alphaTest: opts.alpha ? 0.35 : 0, transparent: false, side: opts.alpha ? THREE.DoubleSide : THREE.FrontSide });
+    m.userData.uTint = { value: new THREE.Color(1, 1, 1) };
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uTint = m.userData.uTint;
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uTint;")
+        .replace("#include <map_fragment>", `#include <map_fragment>
+          float lum = clamp(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)) * ${gain.toFixed(2)}, 0.0, 1.0);
+          diffuseColor.rgb = uTint * (${base.toFixed(2)} + ${amt.toFixed(2)} * lum);`);
+    };
+    return m;
+  }
+  function setupAssetMaterials() {
+    for (const k in M) {
+      const o = M[k], src = o.material;
+      if (/^hair_/.test(k)) o.material = tintMat(src, 1.6, 0.35, 1.0, { alpha: true, roughness: 0.42 });
+      else if (k === "brows") o.material = tintMat(src, 1.2, 0.4, 0.8, { alpha: true });
+      else if (k === "lashes") { o.material = tintMat(src, 1.0, 0.0, 0.25, { alpha: true }); o.material.userData.uTint.value.set(0x111111); }
+      else if (k === "cl_boots") o.material = tintMat(src, 3.2, 0.5, 0.6, { roughness: 0.4 });
+      else if (k === "cl_sneakers") o.material = new THREE.MeshStandardMaterial({ map: src.map, roughness: 0.6 });
+      else if (/^cl_/.test(k)) o.material = new THREE.MeshStandardMaterial({ map: camoTex("snow"), roughness: 0.85, side: THREE.DoubleSide });
+      else if (k === "eyes_hp") o.material = new THREE.MeshStandardMaterial({ map: src.map, roughness: 0.12, emissive: 0xffffff, emissiveMap: src.map, emissiveIntensity: 0.1 });
+      if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+    }
+  }
+  const eyeTexCache = {};
+  let eyeTexName = "brown";
+  function setEyeTex(name) {
+    const f = EYE_TEX[name] || "brown";
+    if (f === eyeTexName) return; eyeTexName = f;
+    const apply = (t) => { eyes.material.map = t; eyes.material.emissiveMap = t; eyes.material.needsUpdate = true; };
+    if (eyeTexCache[f]) return apply(eyeTexCache[f]);
+    new THREE.TextureLoader().load(new URL("models/eyes/" + f + ".webp", document.baseURI).href, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; eyeTexCache[f] = t; if (eyeTexName === f) apply(t); });
+  }
+
   // ------------------------------------------------------------ apply settings
   const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
   function build(s) {
@@ -264,8 +314,10 @@ function init() {
     const k = 0.55 + exag * 1.45;                        // how far the "up" morphs go
     const sh = s.shape || {};
     const e = (key, def = 5) => ((sh[key] == null ? def : sh[key]) - 5) / 5;   // -1 … 1
-    const inf = body.morphTargetInfluences;
-    const set = (name, val) => { const i = morphIdx[name]; if (i != null) inf[i] = Math.max(0, Math.min(2.4, val)); };
+    const set = (name, val) => {
+      const v = Math.max(0, Math.min(2.4, val));
+      for (const m of skinned) { const d = m.morphTargetDictionary; if (d && d[name] != null) m.morphTargetInfluences[d[name]] = v; }
+    };
     const pair = (up, dn, x, boost = k) => { set(up, x > 0 ? x * boost : 0); set(dn, x < 0 ? -x : 0); };
     pair("hips_up", "hips_dn", e("hips"));
     pair("glutes_up", "glutes_dn", e("glutes"), k * 1.15);
@@ -286,7 +338,7 @@ function init() {
     const legInk = tat === "legs" || tat === "full" || tat === "accents", armInk = tat === "arms" || tat === "full" || tat === "accents";
     const cls = body.geometry.attributes.aCls.array, ink = body.geometry.attributes.aInk.array;
     // heights on the rest mesh (model is 1.60 m)
-    const bootTop = sneakers ? 0.13 : 0.3, shortsLow = bottom === "cargo" ? 0.62 : 0.68, kneeY = 0.46;
+    const bootTop = M.cl_boots ? (sneakers || bottom === "leggings" || bottom === "pants" ? 0 : 0.28) : (sneakers ? 0.13 : 0.3), shortsLow = bottom === "cargo" ? 0.62 : 0.68, kneeY = 0.46;
     for (let i = 0; i < part.length; i++) {
       const p = part[i], y = rest.getY(i), x = Math.abs(rest.getX(i)), z = rest.getZ(i);
       let c = 0, inked = 0;
@@ -376,7 +428,7 @@ function init() {
     if (headInfo) H.position.copy(headInfo.c); else H.position.copy(headB).add(v3(0, 0.085, 0.01));
     // irises on the eyeballs
     const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
-    if (eyeInfo) for (const c of [eyeInfo.l, eyeInfo.r]) {
+    if (eyeInfo && !M.eyes_hp) for (const c of [eyeInfo.l, eyeInfo.r]) {
       const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x, c.y, eyeInfo.front + 0.0004); extras.add(ir);
       const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x, c.y, eyeInfo.front + 0.0008); extras.add(pu);
     }
@@ -386,10 +438,20 @@ function init() {
     // hair
     const style = one("hair") || "straight";
     const capped = has("gear", "beanie") || has("gear", "cap");
-    if (hairCap) { hairCap.visible = !capped; hairCap.material = hairM.clone(); }
+    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie" };
+    const realHair = !!M.hair_long;
+    if (realHair) {
+      const want = HAIRMAP[style] || "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
+      for (const k in M) if (/^hair_/.test(k)) { M[k].visible = k === want && !(capped && (k === "hair_afro" || k === "hair_bob" || k === "hair_pixie")); M[k].material.userData.uTint.value.copy(tint); }
+      if (M.brows) M.brows.material.userData.uTint.value.copy(tint).multiplyScalar(0.7);
+      if (eyes && M.eyes_hp) setEyeTex(one("eyes") || "brown");
+    }
+    if (realHair) { /* real hair meshes handle the main styles */ }
+    else if (hairCap) { hairCap.visible = !capped; hairCap.material = hairM.clone(); }
     else if (style !== "bob" && !capped) { const cap = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.55), hairM); cap.position.set(0, 0.008, -0.012); cap.rotation.x = -0.32; H.add(cap); }
     const backLen = { straight: 0.5, wave: 0.45, curly: 0.38, knotless: 0.52, butterfly: 0.48, pony: 0.45 }[style] || 0;
-    if (style === "straight" || style === "wave") {
+    if (realHair && !(style === "knotless" || style === "butterfly" || style === "buns")) { /* nothing extra */ }
+    else if (style === "straight" || style === "wave") {
       const panel = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, backLen, 8, 24), hairM);
       panel.position.set(0, -backLen / 2 - 0.03, -0.075); panel.scale.set(1.15, 1, 0.3); panel.rotation.x = 0.1; H.add(panel);
       for (const sd of [-1, 1]) {   // side curtains framing the face, down past the shoulders
@@ -436,9 +498,21 @@ function init() {
     if (has("gear", "holster")) { const t = bonePos("thigh_r"); extras.add(boxM(0.055, 0.16, 0.05, dark, t.x - 0.1, t.y - 0.14, t.z)); }
     if (has("gear", "chest")) { const sp = bonePos("spine_02"); extras.add(boxM(0.22, 0.09, 0.04, dark, sp.x, sp.y + 0.03, sp.z + 0.13)); }
 
-    // boots: a shaft around the ankle and a rounded foot
-    const bootM = std({ color: BOOTS[one("boots")] || BOOTS.white, roughness: 0.45 });
+    // shoes and bottoms: real fitted meshes when the model has them
     const sneaker = one("boots") === "sneakers";
+    if (M.cl_boots) {
+      const bt = new THREE.Color(BOOTS[one("boots")] || BOOTS.white);
+      M.cl_boots.visible = !sneaker; M.cl_sneakers.visible = sneaker;
+      M.cl_boots.material.userData.uTint.value.copy(bt);
+      const bottom = one("bottom") || "bodysuit";
+      M.cl_leggings.visible = bottom === "leggings";
+      M.cl_jeans.visible = bottom === "pants";
+      M.cl_shorts.visible = bottom === "shorts" || bottom === "cargo";
+      const cm = camoTex(one("camo") || "snow");
+      for (const k of ["cl_leggings", "cl_jeans", "cl_shorts"]) { M[k].material.map = cm; M[k].material.needsUpdate = true; }
+    }
+    const bootM = std({ color: BOOTS[one("boots")] || BOOTS.white, roughness: 0.45 });
+    if (!M.cl_boots) {
     const thick = 1 + Math.max(0, ((s.shape && s.shape.thighs) || 5) - 5) * 0.03 * (0.5 + (s.exag || 0) / 100);
     for (const sd of ["l", "r"]) {
       const an = bonePos("foot_" + sd), ball = bonePos("ball_" + sd);
@@ -448,11 +522,33 @@ function init() {
       extras.add(f);
       extras.add(boxM(0.078, 0.012, toe.z - heel.z + 0.07, std({ color: 0x1a1a1c, roughness: 0.8 }), (heel.x + toe.x) / 2, 0.006, (heel.z + toe.z) / 2));
     }
+    }
     if (armed) extras.add(weapon(w, hold, pistol, black));
   }
 
+  // Real weapon models (made on the hub's GPU: FLUX.2 picture -> TRELLIS.2 3D), +Z = muzzle, origin at the grip.
+  const WEAPON_GLB = { ak47: "models/weapons/ak47.glb", m4a1: "models/weapons/m4a1.glb", glock: "models/weapons/glock.glb" };
+  const weaponCache = {}, weaponLoading = {};
+  let draco = null;
+  function loadWeapon(w) {
+    if (weaponCache[w] || weaponLoading[w] || !WEAPON_GLB[w]) return;
+    weaponLoading[w] = true;
+    if (!draco) { draco = new DRACOLoader(); draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/"); }
+    const l = new GLTFLoader(); l.setDRACOLoader(draco);
+    l.load(new URL(WEAPON_GLB[w], document.baseURI).href, (g) => {
+      g.scene.traverse((o) => { if (o.isMesh && o.material) { o.material.roughness = Math.min(0.7, o.material.roughness ?? 0.6); o.material.metalness = 0.35; } });
+      weaponCache[w] = g.scene;
+      if (pendingState && pendingState.weapon === w) build(pendingState);
+    });
+  }
   function weapon(w, hold, pistol, black) {
     const g = new THREE.Group();
+    if (WEAPON_GLB[w]) loadWeapon(w);
+    if (weaponCache[w]) {
+      g.add(weaponCache[w].clone());
+      placeWeapon(g, hold, pistol);
+      return g;
+    }
     const wood = std({ color: 0x7a4a22, roughness: 0.55 }), metal = black, isAK = w === "ak47", furn = isAK ? wood : metal;
     const long = pistol ? 0.2 : w === "barrett" ? 1.25 : w === "remington" ? 1.0 : w === "mp5" || w === "uzi" ? 0.6 : 0.88;
     if (pistol) {
@@ -468,6 +564,11 @@ function init() {
       if (w !== "remington" && w !== "barrett") g.add(boxM(0.028, 0.15, 0.05, metal, 0, -0.1, long * 0.14, isAK || w === "akm" ? -0.35 : -0.12));
       if (w === "m4a1" || w === "hk416" || w === "scar") g.add(boxM(0.03, 0.035, 0.07, metal, 0, 0.055, long * 0.08));
     }
+    placeWeapon(g, hold, pistol);
+    return g;
+  }
+
+  function placeWeapon(g, hold, pistol) {
     // the grip sits in the right hand; the barrel points along where the hands point
     const hr = bonePos("hand_r"), hl = bonePos("hand_l");
     if (hold === "sling") {
@@ -477,12 +578,14 @@ function init() {
     } else {
       g.position.copy(hr).add(v3(0, -0.02, 0.03));
       const dir = pistol || hold === "side" ? null : hl.clone().sub(hr);
-      if (dir && dir.length() > 0.05) g.quaternion.setFromUnitVectors(v3(0, 0, 1), dir.normalize());
+      if (dir && dir.length() > 0.05) {   // aim along the hands, keep the gun upright (no roll)
+        const z = dir.normalize(), x = new THREE.Vector3(0, 1, 0).cross(z).normalize(), y = z.clone().cross(x).normalize();
+        g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+      }
       else if (hold === "side") g.rotation.set(1.25, 0, 0);
       else if (hold === "shoulder") g.rotation.set(0, 0, 0);
       else g.rotation.set(0.35, 0, 0);
     }
-    return g;
   }
 
   // ------------------------------------------------------------ height ruler
