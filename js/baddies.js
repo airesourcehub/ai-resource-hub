@@ -141,6 +141,28 @@
     ["glock", "Glock 19", "a real Glock 19 pistol", "pistol"],
     ["deagle", "Desert Eagle", "a real IMI Desert Eagle .50 pistol", "pistol"]
   ];
+  // Poses (ids shared with js/baddies-3d.js POSE_PRESETS). Hands-busy poses sling the gun.
+  var POSES = [
+    ["hold", "Gun hold", ""],
+    ["hips", "Hands on hips", "standing with both hands on her hips"],
+    ["hippop", "Hip pop", "standing with a confident hip pop, one hip pushed out, hands on her hips"],
+    ["lookback", "Looking back", "standing slightly turned away, looking back over her shoulder at the camera"],
+    ["crossed", "Arms crossed", "standing with her arms crossed"],
+    ["peace", "Peace sign", "throwing a peace sign near her face with one hand, the other hand on her hip"],
+    ["walk", "Walking", "walking toward the camera mid-stride"],
+    ["squat", "Squat", "in a low squat with her hands resting on her knees"],
+    ["kneel", "Kneeling aim", "kneeling on one knee"],
+    ["custom", "Custom (drag)", ""]
+  ];
+  var DUO = [
+    ["side", "Side by side", "standing side by side, shoulder to shoulder, facing the camera"],
+    ["arm", "Arm around", "standing close together, her arm around their shoulders, both facing the camera"],
+    ["back", "Back to back", "standing back to back with arms crossed, both looking at the camera"],
+    ["squad", "Squad pose", "posing together like a squad, confident, facing the camera"]
+  ];
+  function poseId() { return (state.pose && state.pose.preset) || "hold"; }
+  function handsBusy() { var p = poseId(); return p !== "hold" && p !== "kneel" && p !== "custom"; }
+  function poseWords() { return fromList(POSES, poseId())[2]; }
   var HOLDS = [
     ["low", "Low ready", "holding it at low ready across her body"],
     ["shoulder", "Shouldered", "holding it shouldered and aimed"],
@@ -191,7 +213,8 @@
     pick: { hair: ["straight"], haircolor: ["black"], makeup: ["glam"], eyes: ["brown"], expr: ["confident"],
       camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], boots: ["white"],
       tattoos: ["legs"], inkstyle: ["color"], jewelry: ["studs"] },
-    weapon: "ak47", hold: "low", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white"
+    weapon: "ak47", hold: "low", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
+    pose: { preset: "hold", custom: null, match: false }, duo: "side"
   };
 
   // ------------------------------------------------------------ state
@@ -201,7 +224,8 @@
   state.batch = clampN(prefs.batch || 1, 1, CFG.maxBatch || 4);
   if (prefs.last) applySettings(prefs.last, true);
   state.user = null; state.mine = []; state.offset = 0;
-  state.chars = []; state.char = (prefs.last && prefs.last.char) || null;
+  state.chars = []; state.char = (prefs.last && prefs.last.char) || null; state["with"] = (prefs.last && prefs.last["with"]) || null;
+  if (!state.pose) state.pose = clone(DEFAULTS.pose);
 
   var hasSb = !!(window.supabase && typeof SUPABASE_URL !== "undefined");
   var client = hasSb ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
@@ -224,6 +248,9 @@
     $("bdGear").innerHTML = GEAR.map(groupHtml).join("");
     $("bdInk").innerHTML = INK.map(groupHtml).join("");
     $("bdWeapon").innerHTML = chipRow("weapon", "Model", WEAPONS) + chipRow("hold", "How she holds it", HOLDS);
+    $("bdPose").innerHTML = '<div class="bd-group"><div class="bd-chips">' + POSES.map(function (o) { return '<button type="button" data-pose="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
+      '<label class="bd-toggle"><input type="checkbox" id="bdPoseMatch" /> <span>Match my 3D pose exactly in the AI render</span></label>';
+    $("bdDuo").innerHTML = '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
       chipRow("style", "Look", STYLES) + chipRow("bg", "Background", BGS);
   }
@@ -264,11 +291,21 @@
     $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
     charFace();
     each(document.querySelectorAll('#bd [data-opt="own"]'), function (b) { b.hidden = !state.char; });
+    var pid = poseId();
+    each(document.querySelectorAll("#bdPose [data-pose]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-pose") === pid); });
+    var pm = $("bdPoseMatch"); if (pm) { pm.checked = poseMatch(); pm.disabled = pid === "custom"; }
+    $("bdPoseNote").textContent = pid === "custom" ? "Drag the colored dots in the 3D preview: blue = hands, green = feet, orange = hips. The AI render copies this pose."
+      : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the gun goes on a sling across her back. " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
+    each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
+    $("bdDuo").hidden = !state["with"];
+    var holdG = document.querySelector('[data-single="hold"]'); if (holdG) holdG.closest(".bd-group").classList.toggle("is-dim", state.weapon === "none" || handsBusy());
+    var viewG = document.querySelector('[data-single="view"]'); if (viewG) viewG.closest(".bd-group").classList.toggle("is-dim", singleShot());
     $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
     $("bdSkin").classList.toggle("is-dim", !!state.char);
-    if (state.char) {
-      var s2 = buildCharStep2(), who = state.char.handle ? "@" + state.char.handle : state.char.name;
-      $("bdPrompt").textContent = "Step 1 (edit " + who + "'s own photo): " + buildCharEdit() + (s2 ? "\n\nStep 2 (" + VIEWS[state.view].label + "): " + s2 : "") + (postEdit() ? "\n\nFinal touch-up: " + postEdit() : "");
+    if (state.char || singleShot()) {
+      $("bdPrompt").textContent = planSteps().map(function (st, i, a) {
+        return (a.length > 1 ? "Step " + (i + 1) + (st.label ? " (" + st.label + ")" : "") + ": " : "") + st.prompt + (st.post ? "\n  Touch-up: " + st.post : "");
+      }).join("\n\n") + (singleShot() ? "\n\n(One shot: turnaround is off with a matched pose or a second person.)" : "");
     } else $("bdPrompt").textContent = buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
     savePrefs();
     try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
@@ -308,6 +345,21 @@
     $("bdReset").addEventListener("click", function () { var e = state.engine, n = state.batch; applySettings(DEFAULTS); state.engine = e; state.batch = n; state.hairTouched = false;
       if (state.char) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; } $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
     $("bdGo").addEventListener("click", onGenerate);
+    $("bdPose").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-pose]"); if (!b) return;
+      var id = b.getAttribute("data-pose");
+      state.pose = { preset: id, custom: id === "custom" ? (state.pose && state.pose.custom) || null : null, match: id === "custom" ? true : !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
+      if (id === "custom") { var sp = $("bdPreview"); if (sp && sp.scrollIntoView) sp.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      sync();
+    });
+    $("bdPose").addEventListener("change", function (e) { if (e.target.id === "bdPoseMatch") { state.pose.match = e.target.checked; sync(); } });
+    $("bdWith").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-with]"); if (!b) return;
+      var k = b.getAttribute("data-with");
+      state["with"] = k ? state.chars.filter(function (c) { return c.key === k; })[0] || null : null;
+      renderChars(); sync();
+    });
+    $("bdDuo").addEventListener("click", function (e) { var b = e.target.closest("[data-duo]"); if (b) { state.duo = b.getAttribute("data-duo"); sync(); } });
     $("bdChars").addEventListener("click", function (e) {
       var b = e.target.closest("[data-char]"); if (!b) return;
       var k = b.getAttribute("data-char");
@@ -397,8 +449,10 @@
       if (w[3] === "pistol" && state.hold === "sling") hold = "with it holstered on her thigh";
       if (w[3] === "pistol" && state.hold === "shoulder") hold = "aiming it with both hands at eye level in a two-handed grip";
       if (w[3] === "pistol" && state.hold === "low") hold = "holding it in both hands, pointed down at a low ready";
+      if (handsBusy()) hold = w[3] === "pistol" ? "with it holstered on her thigh" : "with it slung across her back on a tactical sling";
       ch.push("she is armed with " + w[2] + ", " + hold + ", an accurate, true-to-life model of the real firearm");
     }
+    if (poseWords()) ch.push("pose her " + poseWords());
     var extra = $("bdExtra").value.trim(); if (extra) ch.push(extra);
     parts.push("Change only: " + ch.join("; "));
     parts.push("Full body head to toe, standing, facing the camera, whole body in frame including boots");
@@ -453,8 +507,10 @@
       if (w[3] === "pistol" && state.hold === "sling") hold = "with it holstered on her thigh";
       if (w[3] === "pistol" && state.hold === "shoulder") hold = "aiming it with both hands at eye level in a two-handed grip";
       if (w[3] === "pistol" && state.hold === "low") hold = "holding it in both hands, pointed down at a low ready";
+      if (handsBusy()) hold = w[3] === "pistol" ? "with it holstered on her thigh" : "with it slung across her back on a tactical sling";
       parts.push("armed with " + w[2] + ", " + hold + ", an accurate, true-to-life model of the real firearm with correct details and proportions");
     }
+    if (poseWords()) parts.push("POSE: " + poseWords());
     var extra = $("bdExtra").value.trim(); if (extra) parts.push(extra);
     parts.push(V.tail);
     if (C) parts.push("Most important: the face in every view is clearly the same person as in the photo, same age and same skin color");
@@ -523,6 +579,7 @@
     }
     state.chars = list;
     if (state.char) { var fresh = list.filter(function (c) { return c.key === state.char.key; })[0]; if (fresh) state.char = fresh; }
+    if (state["with"]) { var fw = list.filter(function (c) { return c.key === state["with"].key; })[0]; if (fw) state["with"] = fw; }
     if (state.char && (state.user || /^p:/.test(state.char.key)) && list.length && !list.some(function (c) { return c.key === state.char.key; })) state.char = null;
     renderChars(); sync();
   }
@@ -537,6 +594,13 @@
     }).join("");
     if (!state.chars.length) html += '<p class="bd-note">' + (state.user ? "No characters yet. Make one on the AI Influencer page." : '<a href="auth.html">Log in</a> to use your influencers.') + "</p>";
     box.innerHTML = html;
+    var wb = $("bdWith"); if (!wb) return;
+    var wc = state["with"] ? state["with"].key : "";
+    wb.innerHTML = '<button type="button" class="bd-char' + (wc ? "" : " is-on") + '" data-with="" role="radio" aria-checked="' + !wc + '"><span class="bd-char-none">Just her</span><b>Nobody</b></button>' +
+      state.chars.map(function (c) {
+        return '<button type="button" class="bd-char' + (c.key === wc ? " is-on" : "") + '" data-with="' + esc(c.key) + '" role="radio" aria-checked="' + (c.key === wc) + '" title="' + esc(c.name) + '">' +
+          '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" /><b>' + (c.handle ? "@" + esc(c.handle) : esc(c.name)) + '</b><small>' + esc(c.kind) + "</small></button>";
+      }).join("");
   }
   // Hair when a character is picked: a fresh design takes the character's own hair;
   // mid-design (hair already chosen) keeps the current hair. "Their own hair" is always selectable.
@@ -559,8 +623,11 @@
   }
   function charFace() {
     var t = $("bdFaceTag"); if (!t) return;
-    if (state.char) { t.hidden = false; t.innerHTML = '<img src="' + esc(state.char.thumb) + '" alt="" /><span>Face: <b>' + esc(state.char.handle ? "@" + state.char.handle : state.char.name) + "</b> (used in the AI render)</span>"; }
-    else t.hidden = true;
+    var bits = [];
+    if (state.char) bits.push('<img src="' + esc(state.char.thumb) + '" alt="" /><span>Face: <b>' + esc(whoName(state.char)) + "</b></span>");
+    if (state["with"]) bits.push('<img src="' + esc(state["with"].thumb) + '" alt="" /><span>With: <b>' + esc(whoName(state["with"])) + "</b></span>");
+    if (poseMatch()) bits.push("<span>Pose: <b>matched from 3D</b></span>");
+    t.hidden = !bits.length; t.innerHTML = bits.join('<i class="bd-face-sep"></i>') + (bits.length ? '<span class="bd-face-note">(used in the AI render)</span>' : "");
   }
   async function charBlob(c) {
     var r = await fetch(c.url, { mode: "cors", cache: "force-cache" });
@@ -570,58 +637,122 @@
   }
 
   // ------------------------------------------------------------ generate
+  // ---- the render plan: one or more GPU jobs run one after another.
+  // inputs: "face" (character photo), "pose" (3D pose snapshot), "with" (second person's photo),
+  // "prev" (previous step's picture). Several inputs are placed side by side on one canvas.
+  function whoName(c) { return c ? (c.handle ? "@" + c.handle : c.name) : ""; }
+  function poseMatch() { return !!(state.pose && (state.pose.preset === "custom" || state.pose.match)); }
+  function singleShot() { return poseMatch() || !!state.with; }
+  function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
+  function planSteps() {
+    var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
+    if (C) {
+      steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
+      if (poseMatch()) steps.push({ label: "matching your pose", inputs: ["prev", "pose"], w: F.w, h: F.h, prompt: posePrompt(true) });
+      else if (!single) { var s2 = buildCharStep2(); if (s2) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); }
+    } else if (poseMatch()) {
+      steps.push({ label: "matching your pose", inputs: ["pose"], w: F.w, h: F.h, prompt: posePrompt(false) });
+    } else {
+      var pv = single ? "full" : state.view;
+      steps.push({ label: "", inputs: [], w: VIEWS[pv].w, h: VIEWS[pv].h, prompt: single ? promptAs("full") : buildPrompt(), post: single ? bodyEdit() : postEdit() });
+    }
+    if (state.with) steps.push({ label: "adding " + whoName(state.with), inputs: ["prev", "with"], w: 1216, h: 832, prompt: duoPrompt() });
+    if (steps.length === 1 && C && !steps[0].post) steps[0].post = bodyEdit();
+    steps[steps.length - 1].batch = state.batch;
+    return steps;
+  }
+  function posePrompt(fromLeft) {
+    var look = fromList(STYLES, state.style)[2], bg = fromList(BGS, state.bg)[2];
+    if (fromLeft) return "This picture has two panels. Show the woman from the LEFT panel, alone, in exactly the pose, body angle, arm, hand, leg and head positions and camera angle of the 3D figure in the RIGHT panel. Keep her face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon exactly the same. Full body head to toe, one person only, the 3D figure itself must not appear. " + bg + ". " + look + ".";
+    return "Use the 3D figure in this picture as the pose and camera reference: create the following character with exactly the same pose, body angle, arm, hand, leg and head positions and the same camera angle and framing, rendered with full real detail (real skin, fabric and metal), not a plain 3D preview. " + promptAs("full");
+  }
+  function duoPrompt() {
+    var d = fromList(DUO, state.duo || "side")[2];
+    return "This picture shows two people side by side. Make one new photo of both of them together in the same scene: on the LEFT the woman soldier (keep her exact face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon); on the RIGHT the other person (keep their exact face, age, skin color, hair, body and clothes). They are " + d +
+      ", both full body head to toe and both clearly recognizable, exactly two people. " + fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ".";
+  }
+  async function composite(blobs) {
+    var imgs = await Promise.all(blobs.map(function (b) { return createImageBitmap(b); }));
+    var H = 1024, gap = 32, ws = imgs.map(function (im) { return Math.round(im.width * H / im.height); });
+    var c = document.createElement("canvas"); c.width = ws.reduce(function (a, b) { return a + b; }, 0) + gap * (imgs.length - 1); c.height = H;
+    var g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, H);
+    var x = 0; imgs.forEach(function (im, i) { g.drawImage(im, x, 0, ws[i], H); x += ws[i] + gap; });
+    var b = await new Promise(function (res) { c.toBlob(res, "image/png"); });
+    return new File([b], "combo.png", { type: "image/png" });
+  }
+  async function urlBlob(u, name) {
+    var r = await fetch(absUrl(u), { mode: "cors" }); if (!r.ok) throw new Error("Couldn't load the previous picture.");
+    var b = await r.blob(); return new File([b], name || "prev.png", { type: b.type || "image/png" });
+  }
+
   async function onGenerate() {
     if (!state.user) { location.href = "auth.html"; return; }
     if (CFG.enabled === false && !isAdmin()) { hint("The Baddies Generator is switched off right now.", true); return; }
     var token = await freshToken();
     if (!token) { hint("Your session expired. Log in again to keep creating.", true); return; }
-    var V = VIEWS[state.view], prompt = buildPrompt(), pe = postEdit();
     var name = $("bdName").value.trim() || autoName();
-    var model = state.char ? "qwen_edit2509" : state.engine;
-    var face = null;
-    if (state.char) {
-      try { face = await charBlob(state.char); }
-      catch (e) { hint(e.message + " Pick another character or None.", true); return; }
-    }
-    var fd = new FormData(), step2 = face ? buildCharStep2() : "";
-    fd.append("model", model);
-    fd.append("mode", face ? "edit" : "create");
-    fd.append("prompt", prompt);
-    fd.append("negative", NEGATIVE);
-    if (face) {
-      // step 1 keeps the photo's own size and framing; one dressed picture, step 2 makes the variations
-      fd.append("batch", step2 ? "1" : String(state.batch));
-      fd.append("image", face, face.name);
-      if (!step2 && pe) fd.append("post_edit", pe);
-    } else {
-      fd.append("batch", String(state.batch));
-      fd.append("width", String(V.w));
-      fd.append("height", String(V.h));
-      if (pe) fd.append("post_edit", pe);
-    }
-    if (model === "flux2" || model === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
-
-    var settings = snapshot();
-    var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: prompt,
-      created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: V.w, h: V.h };
-    if (step2) card.step2 = { prompt: step2, post: pe, batch: state.batch, w: V.w, h: V.h, started: false };
-    state.mine.unshift(card); renderMine();
+    var plan = planSteps(), blobs = {};
     $("bdGo").disabled = true; hint("");
     try {
-      var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
-      var d = await r.json().catch(function () { return {}; });
-      if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
-      card.job_id = d.job_id; card.stage = card.step2 ? "Step 1 of 2 · dressing " + (state.char.handle ? "@" + state.char.handle : state.char.name) : "Queued";
-      if (client) {
-        var ins = await client.from("baddies").insert({ user_id: state.user.id, name: name, settings: settings, view: state.view, model: model, prompt: prompt, job_id: d.job_id }).select("id").single();
-        if (ins.data) card.id = ins.data.id;
+      if (state.char) blobs.face = await charBlob(state.char);
+      if (state.with) blobs["with"] = await charBlob(state.with);
+      if (poseMatch()) {
+        if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
+        var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
+        blobs.pose = new File([pb], "pose.png", { type: "image/png" });
       }
-      renderMine(); poll(card, 0);
-    } catch (e) {
+    } catch (e) { hint(e.message, true); $("bdGo").disabled = false; return; }
+    var last = VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
+    var settings = snapshot(), model = plan[0].inputs.length ? "qwen_edit2509" : state.engine;
+    var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: plan.map(function (x) { return x.prompt; }).join("\n\n"),
+      created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
+      plan: plan, si: -1, blobs: blobs };
+    state.mine.unshift(card); renderMine();
+    try { await runStep(card, 0, token); }
+    catch (e) {
       card.pending = false; card.status = "error";
       card.error = /Failed to fetch|NetworkError|HTTP 5/.test(e.message) ? "The GPU server isn't reachable right now. Check System Status, then try again." : e.message;
       renderMine();
     } finally { $("bdGo").disabled = false; }
+  }
+
+  async function runStep(card, i, token) {
+    var st = card.plan[i]; card.si = i;
+    token = token || await freshToken();
+    var ins = [];
+    for (var k = 0; k < st.inputs.length; k++) {
+      var key = st.inputs[k];
+      ins.push(key === "prev" ? await urlBlob(card.urls[0], "prev.png") : card.blobs[key]);
+    }
+    var img = ins.length > 1 ? await composite(ins) : ins[0];
+    var fd = new FormData();
+    fd.append("model", img ? "qwen_edit2509" : state.engine);
+    fd.append("mode", img ? "edit" : "create");
+    fd.append("prompt", st.prompt);
+    fd.append("negative", NEGATIVE + (img && i > 0 ? ", different person, extra people, mannequin" : ""));
+    fd.append("batch", String(st.batch || 1));
+    if (st.w) { fd.append("width", String(st.w)); fd.append("height", String(st.h)); if (img) fd.append("size", "custom"); }
+    if (img) fd.append("image", img, img.name || "input.png");
+    var mdl = img ? "qwen_edit2509" : state.engine;
+    if (mdl === "flux2" || mdl === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
+    if (st.post) fd.append("post_edit", st.post);
+    var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
+    card.job_id = d.job_id;
+    card.stage = stepLabel(card) + "Queued";
+    if (client) {
+      if (i === 0) {
+        var row = await client.from("baddies").insert({ user_id: state.user.id, name: card.name, settings: card.settings, view: card.view, model: card.model, prompt: card.prompt, job_id: d.job_id }).select("id").single();
+        if (row.data) card.id = row.data.id;
+      } else if (realId(card.id)) await client.from("baddies").update({ job_id: d.job_id }).eq("id", card.id);
+    }
+    renderMine(); poll(card, 0);
+  }
+  function stepLabel(card) {
+    if (!card.plan || card.plan.length < 2) return "";
+    var st = card.plan[card.si] || {};
+    return "Step " + (card.si + 1) + " of " + card.plan.length + (st.label ? " (" + st.label + ")" : "") + " · ";
   }
 
   function poll(card, fails) {
@@ -634,45 +765,25 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         var j = await r.json();
         if (j.status === "done") {
-          if (card.step2 && !card.step2.started && (j.urls || []).length) return startStep2(card, j.urls[0]);
+          if (card.plan && card.si < card.plan.length - 1 && (j.urls || []).length) {
+            card.urls = [j.urls[0]];
+            try { await runStep(card, card.si + 1, token); }
+            catch (e) { done(card, "done", [j.urls[0]]); hint("The next step couldn't start (" + e.message + "). You still have the picture so far.", true); }
+            return;
+          }
           return done(card, "done", j.urls || []);
         }
         if (j.status === "cancelled") return done(card, "cancelled");
         if (j.status === "error") return done(card, "error", null, j.error || "The render failed.");
-        card.progress = Math.max(2, Math.min(99, j.progress || 0));
-        card.stage = (card.step2 ? (card.step2.started ? "Step 2 of 2 · " : "Step 1 of 2 · ") : "") + (j.stage || (j.status === "queued" ? "Waiting in the queue" : "Generating")) + (j.eta_seconds > 0 ? " · about " + fmtDur(j.eta_seconds) + " left" : "");
+        var n = card.plan ? card.plan.length : 1, base = card.si / n * 100;
+        card.progress = Math.max(2, Math.min(99, Math.round(base + (j.progress || 0) / n)));
+        card.stage = stepLabel(card) + (j.stage || (j.status === "queued" ? "Waiting in the queue" : "Generating")) + (j.eta_seconds > 0 ? " · about " + fmtDur(j.eta_seconds) + " left" : "");
         updateTile(card); poll(card, 0);
       } catch (e) {
         if (fails + 1 >= 6) { card.stage = "Lost touch with the GPU server. It may still finish; refresh in a minute."; updateTile(card); return; }
         poll(card, fails + 1);
       }
     }, POLL_MS);
-  }
-  // Character mode, step 2: the dressed picture from step 1 becomes the chosen shot.
-  async function startStep2(card, url) {
-    var S = card.step2; S.started = true;
-    card.progress = 50; card.stage = "Step 2 of 2 · making the " + (VIEWS[card.view] ? VIEWS[card.view].label.toLowerCase() : "shot"); card.urls = [url]; updateTile(card);
-    try {
-      var token = await freshToken();
-      var img = await fetch(absUrl(url), { mode: "cors" }); if (!img.ok) throw new Error("step 1 picture");
-      var b = await img.blob();
-      var fd = new FormData();
-      fd.append("model", "qwen_edit2509"); fd.append("mode", "edit"); fd.append("prompt", S.prompt); fd.append("negative", NEGATIVE + ", different person, extra people");
-      fd.append("batch", String(S.batch)); fd.append("width", String(S.w)); fd.append("height", String(S.h)); fd.append("size", "custom");
-      fd.append("image", new File([b], "step1.png", { type: b.type || "image/png" }), "step1.png");
-      fd.append("lora", ""); fd.append("lora_strength", "1.0");
-      if (S.post) fd.append("post_edit", S.post);
-      var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
-      var d = await r.json().catch(function () { return {}; });
-      if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
-      card.job_id = d.job_id;
-      if (client && realId(card.id)) await client.from("baddies").update({ job_id: d.job_id }).eq("id", card.id);
-      poll(card, 0);
-    } catch (e) {
-      // keep the dressed step-1 picture rather than losing the render
-      done(card, "done", [url]);
-      hint("Step 2 couldn't start (" + e.message + "). You still have the full-body picture.", true);
-    }
   }
   function done(card, status, urls, err) {
     card.pending = false; card.status = status;
@@ -763,6 +874,8 @@
     if (!s || !s.shape) return [];
     var out = [];
     if (s.char) out.push(["Character", s.char.handle ? "@" + s.char.handle : (s.char.name || "Influencer")]);
+    if (s["with"]) out.push(["With", (s["with"].handle ? "@" + s["with"].handle : (s["with"].name || "Influencer")) + " · " + fromList(DUO, s.duo || "side")[1]]);
+    if (s.pose && s.pose.preset && s.pose.preset !== "hold") out.push(["Pose", fromList(POSES, s.pose.preset)[1] + (s.pose.match || s.pose.preset === "custom" ? " (matched)" : "")]);
     out.push(["Skin", s.char ? "Their own" : fromList(SKIN, s.skin)[1]], ["Height", ftIn(s.height)], ["Exaggeration", exagLabel(s.exag) + " (" + s.exag + ")"]);
     var hh = s.pick && s.pick.hair ? fromList(LOOK[0].opts, s.pick.hair[0])[1] : "", hcol = s.pick && s.pick.haircolor ? fromList(LOOK[1].opts, s.pick.haircolor[0])[1] : "";
     if (hh) out.push(["Hair", hh + (hcol && s.pick.haircolor[0] !== "own" ? " · " + hcol : "")]);
@@ -787,7 +900,8 @@
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
       weapon: state.weapon, hold: state.hold, view: state.view, style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
-      hairTouched: !!state.hairTouched,
+      hairTouched: !!state.hairTouched, pose: clone(state.pose || DEFAULTS.pose), duo: state.duo || "side",
+      "with": state["with"] ? { key: state["with"].key, name: state["with"].name, handle: state["with"].handle, kind: state["with"].kind, thumb: state["with"].thumb, url: state["with"].url } : null,
       char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
@@ -799,6 +913,8 @@
     if (!quiet && $("bdExtra")) $("bdExtra").value = s.extra || "";
     else if (quiet && s.extra != null) state._extra = s.extra;
     if ("char" in s) state.char = s.char || null;
+    if ("with" in s) state["with"] = s["with"] || null;
+    state.pose = s.pose ? clone(s.pose) : clone(DEFAULTS.pose); if (s.duo) state.duo = s.duo;
     var hairDiff = (state.pick.hair || [])[0] !== DEFAULTS.pick.hair[0] || (state.pick.haircolor || [])[0] !== DEFAULTS.pick.haircolor[0];
     state.hairTouched = s.hairTouched != null ? !!s.hairTouched : (!quiet || hairDiff);
   }
@@ -875,6 +991,7 @@
 
   // ------------------------------------------------------------ boot
   window.BADDIES_STYLES = STYLES;
+  window.BADDIES_SET_POSE = function (custom) { state.pose = { preset: "custom", custom: custom, match: true }; sync(); };
   window.BADDIES_SET_STYLE = function (id) { if (STYLES.some(function (x) { return x[0] === id; })) { state.style = id; sync(); } };
   if (CFG.preview === false && $("bdPreview")) { $("bdPreview").remove(); $("bd").classList.add("no-preview"); }
   renderPanel();

@@ -176,6 +176,8 @@ function init() {
   const M = {};          // asset meshes by name: cl_*, hair_*, brows, lashes, eyes_hp
   const skinned = [];    // every skinned mesh (they all share the body's morph names)
   const B = {};      // bones by name
+  const restP = {};   // rest positions (pelvis moves for squats / kneeling)
+  let headRestM = null;   // head bone at rest (holder space): head add-ons follow the posed head
   const restQ = {};  // rest quaternions
   let pendingState = window.BADDIES_STATE || null;
 
@@ -189,9 +191,10 @@ function init() {
         if (key) M[key] = o;
         else if (/haircap/.test(nm)) hairCap = o; else if (/\beyes\b/.test(nm)) eyes = o; else if (!body) body = o;
       }
-      if (o.isBone) { B[o.name] = o; restQ[o.name] = o.quaternion.clone(); }
+      if (o.isBone) { B[o.name] = o; restQ[o.name] = o.quaternion.clone(); restP[o.name] = o.position.clone(); }
     });
     if (!eyes && M.eyes_hp) eyes = M.eyes_hp;
+    if (B.head) { holder.updateMatrixWorld(true); headRestM = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld); }
     setupAssetMaterials();
     if (eyes) {
       eyes.frustumCulled = false;
@@ -370,9 +373,20 @@ function init() {
     body.geometry.attributes.aCls.needsUpdate = true; body.geometry.attributes.aInk.needsUpdate = true;
 
     // ---- pose the arms for the weapon hold
-    const w = s.weapon || "none", hold = s.hold || "low", armed = w !== "none", pistol = w === "glock" || w === "deagle";
+    const PZ = s.pose || { preset: "hold" }, preset = PZ.preset || "hold";
+    const handsBusy = preset !== "hold" && preset !== "kneel" && preset !== "custom";
+    const w = s.weapon || "none", armed = w !== "none", pistol = w === "glock" || w === "deagle";
+    const hold = armed && handsBusy ? "sling" : (preset === "custom" ? "free" : (s.hold || "low"));
     for (const n in restQ) B[n].quaternion.copy(restQ[n]);
+    if (B.pelvis && restP.pelvis) B.pelvis.position.copy(restP.pelvis);
     holder.updateMatrixWorld(true);
+    const feet0 = { l: bonePos("foot_l"), r: bonePos("foot_r") }, footQ0 = { l: worldQ("foot_l"), r: worldQ("foot_r") };
+    const PR = POSE_PRESETS[preset] || {};
+    const cust = preset === "custom" ? PZ.custom : null;
+    const pdy = cust ? (cust.pdy || 0) : (PR.pdy || 0);
+    if (pdy || PR.pdx) movePelvis(v3(PR.pdx || 0, pdy, PR.pdz || 0));
+    if (PR.yaw) { yawBone("spine_01", PR.yaw * 0.25); yawBone("spine_02", PR.yaw * 0.35); yawBone("spine_03", PR.yaw * 0.4); }
+    if (PR.head) { yawBone("neck_01", PR.head * 0.5); yawBone("head", PR.head * 0.5); }
     const POSES = {
       rest:     { ua_l: v3(0.16, -1, 0.02), la_l: v3(0.06, -1, 0.12), ua_r: v3(-0.16, -1, 0.02), la_r: v3(-0.06, -1, 0.12) },
       low:      { ua_l: v3(0.3, -0.8, 0.5), la_l: v3(-0.55, 0.12, 0.85), ua_r: v3(-0.35, -0.92, 0.15), la_r: v3(0.12, -0.2, 1) },
@@ -393,6 +407,19 @@ function init() {
       aim("upperarm_l", "lowerarm_l", pose.ua_l); aim("lowerarm_l", "hand_l", pose.la_l);
       aim("upperarm_r", "lowerarm_r", pose.ua_r); aim("lowerarm_r", "hand_r", pose.la_r);
     }
+    // ---- pose presets and custom (dragged) hands and feet
+    if (cust) { if (cust.hr) ik("r", v3(...cust.hr)); if (cust.hl) ik("l", v3(...cust.hl)); }
+    else if (PR.hr && !curRig) { ik("r", v3(...PR.hr), PR.elbow); if (PR.hl) ik("l", v3(...PR.hl), PR.elbow); }
+    const fT = {
+      l: cust && cust.fl ? v3(...cust.fl) : feet0.l.clone().add(v3(...(PR.fl || [0, 0, 0]))),
+      r: cust && cust.fr ? v3(...cust.fr) : feet0.r.clone().add(v3(...(PR.fr || [0, 0, 0])))
+    };
+    if (pdy || PR.pdx || PR.fl || PR.fr || cust) {
+      ikLeg("l", fT.l, PR.knee); ikLeg("r", fT.r, PR.knee);
+      setWorldQ("foot_l", footQ0.l); setWorldQ("foot_r", footQ0.r);
+      if (PR.kneelR) { const fb = B.foot_r; if (fb) fb.rotateX(0.9); }
+    }
+    lastTargets = { hr: bonePos("hand_r").toArray(), hl: bonePos("hand_l").toArray(), fl: bonePos("foot_l").toArray(), fr: bonePos("foot_r").toArray(), pdy: pdy };
     // relax the fingers a little
     for (const n in B) if (/^(index|middle|ring|pinky)_0[123]/.test(n)) B[n].rotateZ(armed ? 0.5 : 0.2);
 
@@ -409,6 +436,7 @@ function init() {
 
     buildExtras(s, one, has, armed, pistol, w, hold);
     drawRuler(hIn);
+    placeHandles(preset === "custom");
     applyLook(s.style || "game");
     paintLookStrip(s.style || "game");
   }
@@ -473,6 +501,35 @@ function init() {
     hl = G.clone().add(b.z.clone().multiplyScalar(fore * k)).add(b.y.clone().multiplyScalar(-0.07 * k)).add(b.x.clone().multiplyScalar(0.02 * k));
     return { G, q: b.q, k, hr, hl };
   }
+  // Pose presets (body space: model 1.60 m, facing +Z, her right = -X). hr/hl = wrist targets,
+  // fl/fr = foot offsets from standing, pdy = pelvis drop. Hands-busy presets sling the gun.
+  const POSE_PRESETS = {
+    hold: {},
+    hips:    { hr: [-0.2, 0.98, 0.03], hl: [0.2, 0.98, 0.03], elbow: 1.4 },
+    hippop:  { hr: [-0.2, 0.98, 0.03], hl: [0.22, 1.0, 0.02], elbow: 1.4, pdx: 0.045, pdy: -0.02, fr: [0.06, 0, 0.07] },
+    lookback:{ yaw: 0.55, head: 0.65, fr: [0, 0, 0.06] },
+    crossed: { hr: [0.13, 1.13, 0.15], hl: [-0.13, 1.1, 0.16], elbow: 0.6 },
+    peace:   { hr: [-0.13, 1.46, 0.12], hl: [0.2, 0.98, 0.03], elbow: 1.3 },
+    walk:    { fr: [0, 0, 0.2], fl: [0, 0.035, -0.17], pdy: -0.03, hr: [-0.16, 0.86, -0.12], hl: [0.17, 0.86, 0.16] },
+    squat:   { pdy: -0.36, fl: [0.09, 0, 0.02], fr: [-0.09, 0, 0.02], knee: 0.9, hr: [-0.22, 0.58, 0.3], hl: [0.22, 0.58, 0.3] },
+    kneel:   { pdy: -0.38, fl: [0, 0, 0.3], fr: [0, 0.02, -0.4], kneelR: true }
+  };
+  let lastTargets = null;
+  function worldQ(name) { const q = new THREE.Quaternion(); if (B[name]) { holder.updateMatrixWorld(true); B[name].getWorldQuaternion(q); } return q; }
+  function setWorldQ(name, q) {
+    const b = B[name]; if (!b) return; holder.updateMatrixWorld(true);
+    const pw = new THREE.Quaternion(); b.parent.getWorldQuaternion(pw);
+    b.quaternion.copy(pw.invert().multiply(q)); b.updateMatrixWorld(true);
+  }
+  function movePelvis(d) {
+    const b = B.pelvis; if (!b) return; holder.updateMatrixWorld(true);
+    const wp = new THREE.Vector3(); b.getWorldPosition(wp);
+    const lp = holder.worldToLocal(wp.clone()).add(d), t = holder.localToWorld(lp);
+    b.parent.worldToLocal(t); b.position.copy(t); b.updateMatrixWorld(true);
+  }
+  function ikLeg(side, T, kneeOut) {
+    ikChain("thigh_" + side, "calf_" + side, "foot_" + side, T, v3((side === "r" ? -1 : 1) * (kneeOut || 0.15), 0, 1));
+  }
   function yawBone(name, ang) {
     const b = B[name]; if (!b) return;
     holder.updateMatrixWorld(true);
@@ -482,8 +539,11 @@ function init() {
     b.quaternion.copy(pw.invert().multiply(q).multiply(bw)); b.updateMatrixWorld(true);
   }
   // Two-bone IK: bend the arm so the wrist reaches T, elbow pointing down and out.
-  function ik(side, T) {
-    const ua = "upperarm_" + side, la = "lowerarm_" + side, h = "hand_" + side;
+  function ik(side, T, elbowOut) {
+    const e = elbowOut == null ? 0.75 : elbowOut;
+    ikChain("upperarm_" + side, "lowerarm_" + side, "hand_" + side, T, v3(side === "r" ? -e : e, -1, -0.25));
+  }
+  function ikChain(ua, la, h, T, pole) {
     if (!B[ua] || !B[la] || !B[h]) return;
     const S = bonePos(ua), Lp = bonePos(la), Hp = bonePos(h);
     const L1 = S.distanceTo(Lp), L2 = Lp.distanceTo(Hp);
@@ -491,8 +551,7 @@ function init() {
     dd = Math.max(Math.abs(L1 - L2) + 1e-3, Math.min(dd, (L1 + L2) * 0.999));
     const u = D.normalize();
     const a = (L1 * L1 - L2 * L2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-    const pole = v3(side === "r" ? -0.75 : 0.75, -1, -0.25);
-    const pp = pole.sub(u.clone().multiplyScalar(pole.dot(u))).normalize();
+    const pp = pole.clone().sub(u.clone().multiplyScalar(pole.dot(u))).normalize();
     const E = S.clone().add(u.clone().multiplyScalar(a)).add(pp.multiplyScalar(hh));
     aim(ua, la, E.clone().sub(S));
     const T2 = S.clone().add(u.clone().multiplyScalar(dd));
@@ -515,10 +574,19 @@ function init() {
     if (headInfo) H.position.copy(headInfo.c); else H.position.copy(headB).add(v3(0, 0.085, 0.01));
     // irises on the eyeballs
     const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
+    const EYEG = new THREE.Group(); extras.add(EYEG);
     if (eyeInfo) for (const c of [eyeInfo.l, eyeInfo.r]) {
-      const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x, c.y, eyeInfo.front + 0.0004); extras.add(ir);
-      const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x, c.y, eyeInfo.front + 0.0008); extras.add(pu);
+      const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x, c.y, eyeInfo.front + 0.0004); EYEG.add(ir);
+      const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x, c.y, eyeInfo.front + 0.0008); EYEG.add(pu);
     }
+    // head add-ons were laid out on the resting head: move them with the posed head (squats, kneeling, turned head)
+    const followHead = () => {
+      if (!headRestM || !B.head) return;
+      holder.updateMatrixWorld(true);
+      const now = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld);
+      const delta = now.multiply(headRestM.clone().invert());
+      [H, EYEG].forEach((g) => { g.updateMatrix(); g.matrix.premultiply(delta); g.matrix.decompose(g.position, g.quaternion, g.scale); });
+    };
     const eyeY = eyeInfo ? eyeInfo.l.y - H.position.y : 0.012, eyeZ = eyeInfo ? eyeInfo.front - H.position.z : 0.08;
     if (has("gear", "shades")) { H.add(boxM(0.135, 0.032, 0.012, black, 0, eyeY, eyeZ + 0.012)); }
 
@@ -609,6 +677,7 @@ function init() {
       extras.add(boxM(0.078, 0.012, toe.z - heel.z + 0.07, std({ color: 0x1a1a1c, roughness: 0.8 }), (heel.x + toe.x) / 2, 0.006, (heel.z + toe.z) / 2));
     }
     }
+    followHead();
     if (armed) extras.add(weapon(w, hold, pistol, black));
   }
 
@@ -926,6 +995,87 @@ function init() {
     patchSceneMaterials();
     if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
   });
+
+  // ------------------------------------------------------------ custom pose: drag the hands, feet and hips
+  const handleGroup = new THREE.Group(); handleGroup.visible = false; scene.add(handleGroup);
+  const handles = {};
+  [["hr", 0x29b6ff], ["hl", 0x29b6ff], ["fr", 0x5be37d], ["fl", 0x5be37d], ["pelvis", 0xff6a1f]].forEach(([k, c]) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(k === "pelvis" ? 0.04 : 0.032, 18, 12), new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true, opacity: 0.92 }));
+    m.renderOrder = 999; m.userData.key = k; handleGroup.add(m); handles[k] = m;
+  });
+  function placeHandles(show) {
+    handleGroup.visible = !!show && !!lastTargets;
+    if (!handleGroup.visible) return;
+    holder.updateMatrixWorld(true);
+    ["hr", "hl", "fr", "fl"].forEach((k) => handles[k].position.copy(holder.localToWorld(v3(...lastTargets[k]))));
+    const pw = new THREE.Vector3(); if (B.pelvis) B.pelvis.getWorldPosition(pw); handles.pelvis.position.copy(pw);
+  }
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), dom = renderer.domElement;
+  let drag = null, dragQueued = false;
+  function setNdc(e) { const r = dom.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
+  dom.addEventListener("pointerdown", (e) => {
+    if (!handleGroup.visible) return;
+    setNdc(e); ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObjects(handleGroup.children)[0]; if (!hit) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    controls.enabled = false; controls.autoRotate = false; syncSpin();
+    const n = camera.getWorldDirection(new THREE.Vector3());
+    const base = (pendingState && pendingState.pose && pendingState.pose.custom) || lastTargets;
+    drag = { key: hit.object.userData.key, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(n, hit.object.position.clone()),
+      startY: holder.worldToLocal(hit.object.position.clone()).y, custom: JSON.parse(JSON.stringify(base)) };
+    drag.pdy0 = drag.custom.pdy || 0;
+    dom.setPointerCapture(e.pointerId); box.classList.add("is-posing");
+  }, { capture: true });
+  dom.addEventListener("pointermove", (e) => {
+    if (!drag) {
+      if (!handleGroup.visible) return;
+      setNdc(e); ray.setFromCamera(ndc, camera);
+      dom.style.cursor = ray.intersectObjects(handleGroup.children).length ? "grab" : ""; return;
+    }
+    setNdc(e); ray.setFromCamera(ndc, camera);
+    const pt = new THREE.Vector3(); if (!ray.ray.intersectPlane(drag.plane, pt)) return;
+    const lp = holder.worldToLocal(pt);
+    if (drag.key === "pelvis") drag.custom.pdy = Math.max(-0.5, Math.min(0.05, drag.pdy0 + (lp.y - drag.startY)));
+    else {
+      if (drag.key[0] === "f") lp.y = Math.max(0.02, lp.y);
+      drag.custom[drag.key] = lp.toArray();
+    }
+    if (!dragQueued) { dragQueued = true; requestAnimationFrame(() => { dragQueued = false; if (drag) build(Object.assign({}, pendingState, { pose: { preset: "custom", custom: drag.custom, match: pendingState.pose && pendingState.pose.match } })); }); }
+  });
+  function endDrag(e) {
+    if (!drag) return;
+    const custom = drag.custom; drag = null; controls.enabled = true; box.classList.remove("is-posing"); dom.style.cursor = "";
+    try { dom.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (window.BADDIES_SET_POSE) window.BADDIES_SET_POSE(custom);
+  }
+  dom.addEventListener("pointerup", endDrag); dom.addEventListener("pointercancel", endDrag);
+
+  // A clean front-view picture of the current pose (grey sculpt look, no ruler), used as the
+  // pose reference for the AI render.
+  window.BADDIES_POSE_SNAPSHOT = async function () {
+    const W = 640, H = 960, prevLook = curLookId || "game";
+    const vis = [ruler.visible, handleGroup.visible, grid.visible, ground.visible];
+    const cp = camera.position.clone(), ct = controls.target.clone(), ar = controls.autoRotate, pr = renderer.getPixelRatio(), bg = canvasWrap.style.background;
+    try {
+      curLookId = ""; applyLook("game");
+      ruler.visible = false; handleGroup.visible = false; grid.visible = false;
+      controls.autoRotate = false;
+      // frame the pose itself (a squat or kneel is much shorter than standing)
+      const sc = holder.scale.y, top = ((B.head ? bonePos("head").y : 1.5) + 0.2) * sc, t14 = Math.tan(THREE.MathUtils.degToRad(14));
+      const d = Math.max((top * 0.66) / t14, (0.6 * sc) / (t14 * (W / H)));
+      camera.position.set(0, top * 0.52, d); camera.lookAt(0, top * 0.5, 0);
+      renderer.setPixelRatio(1); renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+      renderer.setClearColor(0xf0f0f0, 1);
+      renderer.render(scene, camera);
+      return await new Promise((res) => dom.toBlob(res, "image/png"));
+    } finally {
+      renderer.setClearColor(0x000000, 0);
+      ruler.visible = vis[0]; handleGroup.visible = vis[1]; grid.visible = vis[2];
+      camera.position.copy(cp); controls.target.copy(ct); controls.autoRotate = ar;
+      curLookId = ""; applyLook(prevLook); renderer.setPixelRatio(pr); resize(); controls.update();
+      canvasWrap.style.background = bg;
+    }
+  };
 
   let queued = null;
   function queue(st) { queued = st; requestAnimationFrame(() => { if (queued) { build(queued); queued = null; } }); }

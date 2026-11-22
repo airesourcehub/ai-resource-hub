@@ -171,3 +171,15 @@
 .bd-swatches.is-dim { opacity: 0.35; pointer-events: none; }
 .bd-face-tag { display: flex; align-items: center; gap: 8px; margin: 0 14px 8px; padding: 5px 10px 5px 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent) 14%, transparent); font-size: 0.72rem; color: var(--color-text); width: fit-content; }
 .bd-face-tag img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; }
+
+/* Pose + With someone */
+.bd-toggle { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; font-size: 0.78rem; color: var(--color-text); cursor: pointer; }
+.bd-toggle input { accent-color: var(--color-accent); width: 16px; height: 16px; }
+.bd-toggle input:disabled + span { opacity: 0.7; }
+#bdPoseNote { margin: 0 0 6px; }
+#bdDuo { margin-top: 10px; }
+.bd-face-tag { flex-wrap: wrap; }
+.bd-face-sep { width: 1px; height: 16px; background: var(--color-border); margin: 0 2px; }
+.bd-face-note { color: var(--color-text-muted); }
+.bd-preview.is-posing { cursor: grabbing; }
+.bd-group.is-dim .bd-chips { opacity: 0.45; }
