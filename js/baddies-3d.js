@@ -628,7 +628,7 @@ function init() {
     // hair
     const style = one("hair") || "straight";
     const capped = has("gear", "beanie") || has("gear", "cap");
-    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long" };
+    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", spike: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long" };
     const realHair = !!M.hair_long;
     if (realHair) {
       const want = HAIRMAP[style] || "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
@@ -639,7 +639,7 @@ function init() {
     else if (hairCap) { hairCap.visible = !capped; hairCap.material = hairM.clone(); }
     else if (style !== "bob" && !capped) { const cap = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.55), hairM); cap.position.set(0, 0.008, -0.012); cap.rotation.x = -0.32; H.add(cap); }
     const backLen = { straight: 0.5, wave: 0.45, curly: 0.38, knotless: 0.52, butterfly: 0.48, pony: 0.45 }[style] || 0;
-    if (realHair && !(style === "knotless" || style === "butterfly" || style === "buns")) { /* nothing extra */ }
+    if (realHair && !(style === "knotless" || style === "butterfly" || style === "buns" || style === "spike")) { /* nothing extra */ }
     else if (style === "straight" || style === "wave") {
       const panel = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, backLen, 8, 24), hairM);
       panel.position.set(0, -backLen / 2 - 0.03, -0.075); panel.scale.set(1.15, 1, 0.3); panel.rotation.x = 0.1; H.add(panel);
@@ -661,6 +661,10 @@ function init() {
       H.add(limb([0, 0.07, -0.12], [0, -backLen, -0.17], 0.038, 0.018, hairM));
     } else if (style === "buns") {
       for (const sd of [-1, 1]) H.add(sphere(0.048, hairM, sd * 0.06, 0.1, -0.02));
+    } else if (style === "spike") {   // low bun at the nape + a stiff tapered ponytail shooting up and back like a horn
+      H.add(sphere(0.05, hairM, 0, -0.055, -0.1, 1.05, 0.95, 0.9));
+      H.add(limb([0, 0.035, -0.095], [0, 0.22, -0.38], 0.03, 0.011, hairM));
+      H.add(sphere(0.024, hairM, 0, 0.04, -0.095));
     } else if (style === "bob") {
       const bob = new THREE.Mesh(new THREE.SphereGeometry(R * 1.2, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.66), hairM);
       bob.position.set(0, 0.0, -0.02); bob.rotation.x = -0.2; H.add(bob);
@@ -672,6 +676,10 @@ function init() {
       for (const sd of [-1, 1]) H.add(sphere(0.028, black, sd * R * 1.04, 0, 0, 0.6, 1, 1));
     }
     if (has("jewelry", "hoops")) for (const sd of [-1, 1]) { const h = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.0028, 8, 24), gold); h.position.set(sd * 0.072, -0.045, 0.0); h.rotation.y = Math.PI / 2; H.add(h); }
+    if (has("jewelry", "crystalband")) {   // rhinestone band over the crown, ear to ear
+      const ice = std({ color: 0xffffff, metalness: 0.7, roughness: 0.05, emissive: 0x333344 });
+      for (let i = 0; i <= 14; i++) { const a = -1.25 + i * (2.5 / 14); H.add(sphere(0.0065, ice, Math.sin(a) * R * 1.12, -0.035 + Math.cos(a) * R * 1.12, 0.012 + Math.cos(a) * 0.012, 1, 1, 0.6)); }
+    }
     if (has("jewelry", "studs")) for (const sd of [-1, 1]) H.add(sphere(0.005, std({ color: 0xffffff, metalness: 0.6, roughness: 0.05 }), sd * 0.073, -0.03, 0.005));
 
     // fur hood / chains at the neck

@@ -61,6 +61,7 @@
       ["butterfly", "Butterfly locs", "long butterfly locs"],
       ["pony", "Sleek high ponytail", "a sleek high ponytail reaching her lower back"],
       ["buns", "Space buns", "two sleek space buns with face-framing strands"],
+      ["spike", "Bun + spike ponytail", "slicked-back hair in a sleek round low bun, with one long, thick, rigid, glossy tube of hair jutting out of the back of her head diagonally up and backward like a horn, not hanging down, edges slicked down"],
       ["bob", "Sleek bob", "a sleek chin-length bob"],
       ["pixie", "Pixie cut", "a short pixie cut"],
       ["own", "Their own hair", ""]] },
@@ -128,7 +129,7 @@
     { id: "jewelry", label: "Jewelry", multi: 3, opts: [
       ["hoops", "Gold hoops", "gold hoop earrings"], ["studs", "Diamond studs", "diamond stud earrings"],
       ["chain", "Gold chain", "a gold chain necklace"], ["tennis", "Tennis necklace", "a diamond tennis necklace"],
-      ["dogtags", "Dog tags", "silver dog tags"], ["nails", "Long nails", "long glossy nails"]] }
+      ["dogtags", "Dog tags", "silver dog tags"], ["crystalband", "Crystal headband", "a sparkling crystal rhinestone headband across the top of her head"], ["nails", "Long nails", "long glossy nails"]] }
   ];
 
   var WEAPONS = [
@@ -397,7 +398,7 @@
   }
 
   function renderPromptBox() {
-    if (state.char || singleShot()) {
+    if (state.char || singleShot() || hairRef()) {
       $("bdPrompt").textContent = planSteps().map(function (st, i, a) {
         return (a.length > 1 ? "Step " + (i + 1) + (st.label ? " (" + st.label + ")" : "") + ": " : "") + st.prompt + (st.post ? "\n  Touch-up: " + st.post : "");
       }).join("\n\n") + (singleShot() ? "\n\n(One shot: turnaround is off with a matched pose or a second person.)" : "");
@@ -749,13 +750,24 @@
   // inputs: "face" (character photo), "pose" (3D pose snapshot), "with" (second person's photo),
   // "prev" (previous step's picture). Several inputs are placed side by side on one canvas.
   function whoName(c) { return c ? (c.handle ? "@" + c.handle : c.name) : ""; }
+  // Hairstyles too unusual for words alone ride along as a reference picture (our own render, hair only, no face)
+  var HAIR_REFS = { spike: "img/baddies/hair-spike.jpg" };
+  function hairRef() { var h = (state.pick.hair || [])[0]; return (!state.char || h !== "own") && HAIR_REFS[h] ? HAIR_REFS[h] : null; }
+  function hairRefNote(n) {
+    return " Picture " + n + " is only a hairstyle reference: copy that exact hairstyle from it (the same shape, the bun, and the long rigid tube of hair sticking out diagonally up and backward, not hanging down), in her chosen hair color; do not copy anything else from Picture " + n + ".";
+  }
+  function hairRefPrompt() {
+    var hd = hairDesc();
+    return "Give the woman in Picture 1 exactly the hairstyle shown in Picture 2: " + hd.text + ". Copy the hairstyle's shape exactly from Picture 2, in every view of her in Picture 1. Keep everything else in Picture 1 exactly the same: her face, identity, skin, body, outfit, tattoos, jewelry, weapon, pose, camera, framing, background and style.";
+  }
   function poseMatch() { return !!(state.pose && (state.pose.preset === "custom" || state.pose.match)); }
   function singleShot() { return poseMatch() || !!state.with; }
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
   function planSteps() {
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
     if (C) {
-      steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
+      if (hairRef()) steps.push({ label: "dressing " + whoName(C), inputs: ["face", "hairref"], multi: true, prompt: "Picture 1 is the photo to edit." + hairRefNote(2) + " " + buildCharEdit() });
+      else steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
       if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev", "skel"], multi: true, w: F.w, h: F.h, prompt: charPose2Prompt() });
       else if (!single) { var s2 = buildCharStep2(); if (s2) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); }
     } else if (poseMatch()) {
@@ -764,6 +776,7 @@
       var pv = single ? "full" : state.view;
       steps.push({ label: "", inputs: [], w: VIEWS[pv].w, h: VIEWS[pv].h, prompt: single ? promptAs("full") : buildPrompt(), post: single ? bodyEdit() : postEdit() });
     }
+    if (!C && hairRef()) steps.push({ label: "styling the hair", inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt() });
     if (state.with) steps.push({ label: "adding " + whoName(state.with), inputs: ["prev", "with"], w: 1216, h: 832, prompt: duoPrompt() });
     if (steps.length === 1 && C && !steps[0].post) steps[0].post = bodyEdit();
     steps[steps.length - 1].batch = state.batch;
@@ -834,6 +847,7 @@
     try {
       if (state.char) blobs.face = await charBlob(state.char);
       if (state.with) blobs["with"] = await charBlob(state.with);
+      if (hairRef()) blobs.hairref = await urlBlob(hairRef(), "hair-reference.jpg");
       if (poseMatch()) {
         if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
         var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
