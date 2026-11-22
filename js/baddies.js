@@ -266,7 +266,7 @@
     each(document.querySelectorAll('#bd [data-opt="own"]'), function (b) { b.hidden = !state.char; });
     $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
     $("bdSkin").classList.toggle("is-dim", !!state.char);
-    $("bdPrompt").textContent = (state.char ? "[Qwen Edit of " + (state.char.handle ? "@" + state.char.handle : state.char.name) + "'s picture]\n" : "") + buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
+    $("bdPrompt").textContent = (state.char ? "[Qwen Edit of " + (state.char.handle ? "@" + state.char.handle : state.char.name) + "'s picture]\n" : "") + buildPrompt() + (postEdit() ? "\n\nSecond pass (" + (state.char ? "hair + body" : "body only") + "): " + postEdit() : "");
     savePrefs();
     try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
   }
@@ -390,6 +390,7 @@
     var outfit = "wearing " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo + ", a stylish streetwear outfit with a military touch";
     var gear = opts("gear"); if (gear.length) outfit += ", with " + gear.join(", ");
     if (opt("boots")) outfit += ", " + opt("boots");
+    if (C) outfit = "OUTFIT: completely replace their original clothes with this outfit, none of their original clothing, swimwear or accessories anywhere: " + outfit.replace(/^wearing /, "");
     parts.push(outfit);
     var tat = opt("tattoos");
     if (tat) parts.push(tat + " in " + (opt("inkstyle") || "full color") + " style, rich saturated ink colors, no white ink");
@@ -414,12 +415,12 @@
     var body = bodyEdit(), fix = "";
     if (state.char && state.view === "sheet") {
       var hd = hairDesc();
-      fix = "Make it the exact same person in all three views: same face, same outfit, and the hair in every view (front, side and back, including the back of the head) must be " +
+      fix = "Make it the exact same person in all three views: same face, the same new outfit with none of their original clothes showing, and the hair in every view (front, side and back, including the back of the head) must be " +
         (hd.own ? "the same hairstyle and color as in the front view" : hd.text) + ". Repaint any view whose hair does not match.";
     }
     if (!fix) return body;
     if (!body) return fix + " Keep the layout, body, skin tone, tattoos, clothes, boots, weapon, pose and background exactly the same. Seamless, same art style.";
-    return body.replace(/ Keep her face, hair,/, " " + fix + " Keep her face,");
+    return body.replace("edit only the woman's body proportions", "edit the woman's body proportions").replace("edit only this woman's body proportions", "edit this woman's body proportions").replace(/ Keep her face, hair,/, " " + fix + " Keep her face,");
   }
   function bodyEdit() {
     if (state.exag < 70) return "";
