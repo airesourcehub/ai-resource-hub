@@ -341,6 +341,7 @@
   }
 
   function sync() {
+    setTimeout(secSummaries, 0);
     var skin = SKIN.filter(function (s) { return s[0] === state.skin; })[0] || SKIN[5];
     $("bdSkinName").textContent = skin[1];
     each($("bdSkin").children, function (b) { var on = b.getAttribute("data-skin") === state.skin; b.classList.toggle("is-on", on); b.setAttribute("aria-checked", on); });
@@ -410,6 +411,59 @@
   window.addEventListener("baddies:posed", function () { if (poseMatch()) renderPromptBox(); });
 
   // ------------------------------------------------------------ wiring
+  // ------------------------------------------------------------ collapsible sections
+  // Each side-panel section header toggles its body; a collapsed section shows a one-line summary of its picks.
+  var SECS_KEY = "airh-baddies-closed";
+  function setupSections() {
+    var closed = {};
+    try { closed = JSON.parse(localStorage.getItem(SECS_KEY) || "{}") || {}; } catch (e) {}
+    each(document.querySelectorAll("#bd .bd-sec"), function (sec) {
+      var h = sec.querySelector(".bd-sec-h"); if (!h || sec.querySelector(".bd-sec-body")) return;
+      var id = sec.getAttribute("data-sec"), body = document.createElement("div");
+      body.className = "bd-sec-body"; body.id = "bdSecBody_" + id;
+      while (h.nextSibling) body.appendChild(h.nextSibling);
+      sec.appendChild(body);
+      var label = h.textContent;
+      h.innerHTML = '<button type="button" class="bd-sec-tog" aria-controls="' + body.id + '"><span class="bd-sec-t"></span>' +
+        '<span class="bd-sec-sum"></span><svg class="bd-sec-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
+      h.querySelector(".bd-sec-t").textContent = label;
+      setClosed(sec, !!closed[id]);
+      h.querySelector("button").addEventListener("click", function () {
+        var now = !sec.classList.contains("is-closed"); setClosed(sec, now);
+        try { var c = JSON.parse(localStorage.getItem(SECS_KEY) || "{}") || {}; if (now) c[id] = 1; else delete c[id]; localStorage.setItem(SECS_KEY, JSON.stringify(c)); } catch (e) {}
+        secSummaries();
+        if (!now) window.dispatchEvent(new Event("resize"));
+      });
+    });
+    var bar = document.createElement("div"); bar.className = "bd-sec-all";
+    bar.innerHTML = '<button type="button" data-all="close">Collapse all</button><button type="button" data-all="open">Expand all</button>';
+    var first = document.querySelector("#bd .bd-sec"); if (first) first.parentNode.insertBefore(bar, first);
+    bar.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-all]"); if (!b) return;
+      var shut = b.getAttribute("data-all") === "close", c = {};
+      each(document.querySelectorAll("#bd .bd-sec"), function (sec) { setClosed(sec, shut); if (shut) c[sec.getAttribute("data-sec")] = 1; });
+      try { localStorage.setItem(SECS_KEY, JSON.stringify(c)); } catch (e) {}
+      secSummaries();
+    });
+    secSummaries();
+  }
+  function setClosed(sec, shut) {
+    sec.classList.toggle("is-closed", shut);
+    var b = sec.querySelector(".bd-sec-tog"); if (b) b.setAttribute("aria-expanded", String(!shut));
+  }
+  function secSummaries() {
+    each(document.querySelectorAll("#bd .bd-sec"), function (sec) {
+      var out = sec.querySelector(".bd-sec-sum"); if (!out) return;
+      if (!sec.classList.contains("is-closed")) { out.textContent = ""; return; }
+      var picks = [];
+      each(sec.querySelectorAll(".bd-sec-body button.is-on"), function (b) {
+        var t = (b.getAttribute("title") || b.textContent || "").trim();
+        if (t && picks.indexOf(t) < 0) picks.push(t);
+      });
+      out.textContent = picks.slice(0, 4).join(" · ") + (picks.length > 4 ? " +" + (picks.length - 4) : "");
+    });
+  }
+
   function wire() {
     $("bdSkin").addEventListener("click", function (e) { var b = e.target.closest("[data-skin]"); if (b) { state.skin = b.getAttribute("data-skin"); sync(); } });
     $("bdHeight").addEventListener("input", function () { state.height = +this.value; sync(); });
@@ -1176,6 +1230,7 @@
   renderPanel();
   if (state._extra) { $("bdExtra").value = state._extra; delete state._extra; }
   state.height = clampN(state.height, +$("bdHeight").min, +$("bdHeight").max);
+  setupSections();
   wire();
   sync();
   if (client) {
