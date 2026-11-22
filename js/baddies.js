@@ -152,8 +152,21 @@
     ["walk", "Walking", "walking toward the camera mid-stride"],
     ["squat", "Squat", "in a low squat with her hands resting on her knees"],
     ["kneel", "Kneeling aim", "kneeling on one knee"],
+    ["sit", "Sitting", "sitting down"],
+    ["sitfloor", "Sit on floor", "sitting on the floor with her knees bent up in front of her"],
+    ["sitcross", "Cross-legged", "sitting cross-legged on the floor"],
     ["custom", "Custom (drag)", ""]
   ];
+  // What she sits on (for "Sitting" and Custom). Heights live in js/baddies-3d.js SEATS.
+  var SEATS = [
+    ["none", "No seat", ""],
+    ["chair", "Chair", "sitting on a simple black metal chair"],
+    ["stool", "Stool", "sitting on a tall black bar stool, feet resting on the footrest"],
+    ["crate", "Ammo crate", "sitting on an olive green military ammo crate"],
+    ["steps", "Steps", "sitting on concrete steps"],
+    ["floor", "Floor", "sitting on the floor"]
+  ];
+  function seatId() { var p = poseId(), s = state.pose && state.pose.seat; if (p === "sit") return s && s !== "none" ? s : "chair"; if (p === "custom") return s || "none"; return "none"; }
   var DUO = [
     ["side", "Side by side", "standing side by side, shoulder to shoulder, facing the camera"],
     ["arm", "Arm around", "standing close together, her arm around their shoulders, both facing the camera"],
@@ -205,7 +218,11 @@
   }
   function poseId() { return (state.pose && state.pose.preset) || "hold"; }
   function handsBusy() { var p = poseId(); return p !== "hold" && p !== "kneel" && p !== "custom"; }
-  function poseWords() { return [fromList(POSES, poseId())[2], lookWords()].filter(Boolean).join(", "); }
+  function poseWords() {
+    var pid = poseId(), base = fromList(POSES, pid)[2], seat = seatId();
+    if (seat !== "none") base = fromList(SEATS, seat)[2] + (pid === "sit" ? (seat === "stool" ? ", knees bent" : seat === "floor" ? "" : ", knees bent, feet on the ground") : "");
+    return [base, lookWords()].filter(Boolean).join(", ");
+  }
   var HOLDS = [
     ["low", "Low ready", "holding it at low ready across her body"],
     ["shoulder", "Shouldered", "holding it shouldered and aimed"],
@@ -292,6 +309,8 @@
     $("bdInk").innerHTML = INK.map(groupHtml).join("");
     $("bdWeapon").innerHTML = chipRow("weapon", "Model", WEAPONS) + chipRow("hold", "How she holds it", HOLDS);
     $("bdPose").innerHTML = '<div class="bd-group"><div class="bd-chips">' + POSES.map(function (o) { return '<button type="button" data-pose="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
+      '<div class="bd-group" id="bdSeatG"><div class="bd-row-lbl"><span>Sitting on</span></div><div class="bd-chips">' +
+        SEATS.map(function (o) { return '<button type="button" data-seat="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
       '<div class="bd-group"><div class="bd-row-lbl"><span>Body, head &amp; eyes</span></div><div class="bd-chips">' +
         LOOK_PRESETS.map(function (o) { return '<button type="button" data-lookp="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
       LOOK_SLIDERS.map(function (x) {
@@ -344,6 +363,11 @@
     var pid = poseId();
     each(document.querySelectorAll("#bdPose [data-pose]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-pose") === pid); });
     var pm = $("bdPoseMatch"); if (pm) { pm.checked = poseMatch(); pm.disabled = pid === "custom"; }
+    var sid = seatId(), sg = $("bdSeatG");
+    if (sg) {
+      sg.hidden = !(pid === "sit" || pid === "custom");
+      each(sg.querySelectorAll("[data-seat]"), function (b) { var v = b.getAttribute("data-seat"); b.hidden = pid === "sit" && v === "none"; b.classList.toggle("is-on", v === sid); });
+    }
     var LKv = lookOf();
     LOOK_SLIDERS.forEach(function (x) {
       var el = $("bdL_" + x[0]); if (el) el.value = LKv[x[0]];
@@ -353,7 +377,7 @@
       var p = LOOK_PRESETS.filter(function (o) { return o[0] === b.getAttribute("data-lookp"); })[0];
       b.classList.toggle("is-on", !!p && Object.keys(p[2]).every(function (k) { return p[2][k] === LKv[k]; }));
     });
-    $("bdPoseNote").textContent = pid === "custom" ? "Drag the colored dots in the 3D preview: blue = hands, green = feet, orange = hips. The AI render copies this pose."
+    $("bdPoseNote").textContent = pid === "custom" ? "Drag the colored dots in the 3D preview: blue = hands, green = feet, orange = hips. To sit her down, pick what she sits on above. The AI render copies this pose."
       : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the gun goes on a sling across her back. " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
     each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
     $("bdDuo").hidden = !state["with"];
@@ -411,11 +435,13 @@
       if (state.char) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; } $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
     $("bdGo").addEventListener("click", onGenerate);
     $("bdPose").addEventListener("click", function (e) {
+      var se = e.target.closest("[data-seat]");
+      if (se) { state.pose.seat = se.getAttribute("data-seat"); sync(); return; }
       var lp = e.target.closest("[data-lookp]");
       if (lp) { var P = LOOK_PRESETS.filter(function (o) { return o[0] === lp.getAttribute("data-lookp"); })[0]; if (P) { state.pose.look = clone(P[2]); sync(); } return; }
       var b = e.target.closest("[data-pose]"); if (!b) return;
       var id = b.getAttribute("data-pose");
-      state.pose = { look: lookOf(), preset: id, custom: id === "custom" ? (state.pose && state.pose.custom) || null : null, match: id === "custom" ? true : !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
+      state.pose = { look: lookOf(), seat: id === "sit" ? ((state.pose && state.pose.seat && state.pose.seat !== "none") ? state.pose.seat : "chair") : (id === "custom" ? (state.pose && state.pose.seat) || "none" : "none"), preset: id, custom: id === "custom" ? (state.pose && state.pose.custom) || null : null, match: id === "custom" ? true : !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
       if (id === "custom") { var sp = $("bdPreview"); if (sp && sp.scrollIntoView) sp.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
       sync();
     });
@@ -742,7 +768,8 @@
       else if (pid === "custom") gun = "holding " + w[2].replace(/^a real /, "the ") + " in her right hand";
       else gun = "holding " + w[2].replace(/^a real /, "the ") + " " + fromList(HOLDS, state.hold)[2].replace(/^holding it /, "");
     }
-    return [pid !== "custom" && pid !== "hold" ? fromList(POSES, pid)[2] : "", d, lookWords(), gun].filter(Boolean).join(", ");
+    var seat = seatId();
+    return [seat !== "none" ? fromList(SEATS, seat)[2] : (pid !== "custom" && pid !== "hold" ? fromList(POSES, pid)[2] : ""), d, lookWords(), gun].filter(Boolean).join(", ");
   }
   function charPosePrompt() {
     return "Change only her pose, keeping this exact same person (same face, age, skin color, hair, glasses, body proportions, outfit, tattoos, jewelry, boots and weapon) and the same plain background. New pose: " + poseDesc() +
@@ -962,7 +989,7 @@
     var out = [];
     if (s.char) out.push(["Character", s.char.handle ? "@" + s.char.handle : (s.char.name || "Influencer")]);
     if (s["with"]) out.push(["With", (s["with"].handle ? "@" + s["with"].handle : (s["with"].name || "Influencer")) + " · " + fromList(DUO, s.duo || "side")[1]]);
-    if (s.pose && s.pose.preset && s.pose.preset !== "hold") out.push(["Pose", fromList(POSES, s.pose.preset)[1] + (s.pose.match || s.pose.preset === "custom" ? " (matched)" : "")]);
+    if (s.pose && s.pose.preset && s.pose.preset !== "hold") out.push(["Pose", fromList(POSES, s.pose.preset)[1] + (s.pose.seat && s.pose.seat !== "none" && (s.pose.preset === "sit" || s.pose.preset === "custom") ? " · " + fromList(SEATS, s.pose.seat)[1] : "") + (s.pose.match || s.pose.preset === "custom" ? " (matched)" : "")]);
     out.push(["Skin", s.char ? "Their own" : fromList(SKIN, s.skin)[1]], ["Height", ftIn(s.height)], ["Exaggeration", exagLabel(s.exag) + " (" + s.exag + ")"]);
     var hh = s.pick && s.pick.hair ? fromList(LOOK[0].opts, s.pick.hair[0])[1] : "", hcol = s.pick && s.pick.haircolor ? fromList(LOOK[1].opts, s.pick.haircolor[0])[1] : "";
     if (hh) out.push(["Hair", hh + (hcol && s.pick.haircolor[0] !== "own" ? " · " + hcol : "")]);
@@ -1078,7 +1105,7 @@
 
   // ------------------------------------------------------------ boot
   window.BADDIES_STYLES = STYLES;
-  window.BADDIES_SET_POSE = function (custom) { state.pose = { preset: "custom", custom: custom, match: true, look: lookOf() }; sync(); };
+  window.BADDIES_SET_POSE = function (custom) { state.pose = { preset: "custom", custom: custom, match: true, look: lookOf(), seat: (state.pose && state.pose.seat) || "none" }; sync(); };
   window.BADDIES_SET_STYLE = function (id) { if (STYLES.some(function (x) { return x[0] === id; })) { state.style = id; sync(); } };
   if (CFG.preview === false && $("bdPreview")) { $("bdPreview").remove(); $("bd").classList.add("no-preview"); }
   renderPanel();

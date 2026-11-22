@@ -386,7 +386,9 @@ function init() {
     const feet0 = { l: bonePos("foot_l"), r: bonePos("foot_r") }, footQ0 = { l: worldQ("foot_l"), r: worldQ("foot_r") };
     const PR = POSE_PRESETS[preset] || {};
     const cust = preset === "custom" ? PZ.custom : null;
-    const pdy = cust ? (cust.pdy || 0) : (PR.pdy || 0);
+    const seatType = PZ.seat && PZ.seat !== "none" && (preset === "custom" || preset === "sit") ? PZ.seat : (PR.seat || null);
+    curSeat = seatType && SEATS[seatType] != null ? { type: seatType, h: SEATS[seatType] } : null;
+    const pdy = curSeat ? (curSeat.h + 0.1 - pelvisRestY) : (cust ? (cust.pdy || 0) : (PR.pdy || 0));
     if (pdy || PR.pdx) movePelvis(v3(PR.pdx || 0, pdy, PR.pdz || 0));
     if (PR.yaw) { yawBone("spine_01", PR.yaw * 0.25); yawBone("spine_02", PR.yaw * 0.35); yawBone("spine_03", PR.yaw * 0.4); }
     if (PR.head) { yawBone("neck_01", PR.head * 0.5); yawBone("head", PR.head * 0.5); }
@@ -424,6 +426,7 @@ function init() {
       l: cust && cust.fl ? v3(...cust.fl) : feet0.l.clone().add(v3(...(PR.fl || [0, 0, 0]))),
       r: cust && cust.fr ? v3(...cust.fr) : feet0.r.clone().add(v3(...(PR.fr || [0, 0, 0])))
     };
+    if (!cust && curSeat && curSeat.type === "stool") { fT.l.y = fT.r.y = 0.26; fT.l.z = fT.r.z = feet0.l.z + 0.2; }   // feet on the footrest
     if (pdy || PR.pdx || PR.fl || PR.fr || cust) {
       ikLeg("l", fT.l, PR.knee); ikLeg("r", fT.r, PR.knee);
       setWorldQ("foot_l", footQ0.l); setWorldQ("foot_r", footQ0.r);
@@ -523,9 +526,14 @@ function init() {
     peace:   { hr: [-0.13, 1.46, 0.12], hl: [0.2, 0.98, 0.03], elbow: 1.3 },
     walk:    { fr: [0, 0, 0.2], fl: [0, 0.035, -0.17], pdy: -0.03, hr: [-0.16, 0.86, -0.12], hl: [0.17, 0.86, 0.16] },
     squat:   { pdy: -0.36, fl: [0.09, 0, 0.02], fr: [-0.09, 0, 0.02], knee: 0.9, hr: [-0.22, 0.58, 0.3], hl: [0.22, 0.58, 0.3] },
-    kneel:   { pdy: -0.38, fl: [0, 0, 0.3], fr: [0, 0.02, -0.4], kneelR: true }
+    kneel:   { pdy: -0.38, fl: [0, 0, 0.3], fr: [0, 0.02, -0.4], kneelR: true },
+    sit:     { seat: "chair", fl: [0.03, 0, 0.36], fr: [-0.03, 0, 0.36], hr: [-0.15, 0.6, 0.24], hl: [0.15, 0.6, 0.24], elbow: 1.0, knee: 0.12 },
+    sitfloor:{ seat: "floor", fl: [0.07, 0, 0.5], fr: [-0.07, 0, 0.52], hr: [-0.16, 0.44, 0.34], hl: [0.16, 0.44, 0.32], elbow: 0.9, knee: 0.25 },
+    sitcross:{ seat: "floor", fl: [-0.2, 0.04, 0.24], fr: [0.2, 0.05, 0.28], hr: [-0.2, 0.3, 0.3], hl: [0.2, 0.3, 0.3], elbow: 0.9, knee: 1.4 }
   };
-  let lastTargets = null;
+  let lastTargets = null, curSeat = null;
+  // seat top heights in body space (model 1.60 m); the pelvis bone sits ~0.1 above the seat
+  const SEATS = { chair: 0.46, stool: 0.68, crate: 0.44, steps: 0.36, floor: 0.02 };
   function worldQ(name) { const q = new THREE.Quaternion(); if (B[name]) { holder.updateMatrixWorld(true); B[name].getWorldQuaternion(q); } return q; }
   function setWorldQ(name, q) {
     const b = B[name]; if (!b) return; holder.updateMatrixWorld(true);
@@ -698,6 +706,25 @@ function init() {
     }
     }
     followHead();
+    // the seat she sits on
+    if (curSeat && curSeat.type !== "floor") {
+      const pz = bonePos("pelvis").z - 0.04, h = curSeat.h, SG = new THREE.Group(); SG.position.set(0, 0, pz); extras.add(SG);
+      const metal = std({ color: 0x1b1c20, roughness: 0.45, metalness: 0.6 }), wood = std({ color: 0x6b4a2b, roughness: 0.7 }), olive = std({ color: 0x4a4f2c, roughness: 0.8 }), conc = std({ color: 0x8d8b86, roughness: 0.95 });
+      if (curSeat.type === "chair") {
+        SG.add(boxM(0.44, 0.035, 0.42, metal, 0, h - 0.018, 0));
+        for (const [x, z] of [[-0.2, -0.19], [0.2, -0.19], [-0.2, 0.19], [0.2, 0.19]]) SG.add(boxM(0.025, h - 0.035, 0.025, metal, x, (h - 0.035) / 2, z));
+        SG.add(boxM(0.44, 0.38, 0.03, metal, 0, h + 0.2, -0.21));
+      } else if (curSeat.type === "stool") {
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.04, 28), metal); top.position.y = h - 0.02; SG.add(top);
+        for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.785, leg = boxM(0.022, h - 0.04, 0.022, metal, Math.cos(a) * 0.13, (h - 0.04) / 2, Math.sin(a) * 0.13); leg.rotation.set(Math.sin(a) * 0.08, 0, -Math.cos(a) * 0.08); SG.add(leg); }
+        SG.add(boxM(0.26, 0.02, 0.02, metal, 0, h * 0.35, 0.09)); SG.add(boxM(0.26, 0.02, 0.02, metal, 0, h * 0.35, -0.09));
+      } else if (curSeat.type === "crate") {
+        SG.add(boxM(0.62, h, 0.46, olive, 0, h / 2, 0));
+        for (const y of [h * 0.3, h * 0.7]) SG.add(boxM(0.64, 0.03, 0.48, std({ color: 0x3a3e22, roughness: 0.8 }), 0, y, 0));
+      } else if (curSeat.type === "steps") {
+        SG.add(boxM(1.2, h, 0.4, conc, 0, h / 2, -0.05)); SG.add(boxM(1.2, h / 2, 0.36, conc, 0, h / 4, 0.33)); SG.add(boxM(1.2, h * 1.5, 0.36, conc, 0, h * 0.75, -0.42));
+      }
+    }
     if (armed) extras.add(weapon(w, hold, pistol, black));
   }
 
@@ -1081,12 +1108,23 @@ function init() {
     const knee = { r: bonePos("calf_r"), l: bonePos("calf_l") }, foot = { r: bonePos("foot_r"), l: bonePos("foot_l") };
     const out = [], drop = pelvisRestY - P.y;
     const kneelSide = knee.r.y < 0.14 ? "right" : knee.l.y < 0.14 ? "left" : "";
-    if (kneelSide) out.push("kneeling on her " + kneelSide + " knee with the other foot planted in front");
+    const feetAhead = (foot.r.z + foot.l.z) / 2 - P.z;
+    const seated = !!curSeat || (!kneelSide && drop > 0.2 && feetAhead > 0.15);
+    if (seated) {
+      const SW = { chair: "sitting on a chair", stool: "sitting on a tall stool", crate: "sitting on a crate", steps: "sitting on steps", floor: "sitting on the floor" };
+      out.push(curSeat ? SW[curSeat.type] : (P.y < 0.35 ? "sitting on the floor" : "sitting down on a low seat"));
+      const kneesUp = (knee.r.y + knee.l.y) / 2 > P.y + 0.05;
+      if (Math.abs(foot.r.x + foot.l.x) < 0.1 && Math.abs(foot.r.x - foot.l.x) < 0.2 && Math.abs(knee.r.x - knee.l.x) > 0.45) out.push("legs crossed");
+      else if (kneesUp) out.push("knees bent up in front of her");
+      else out.push("knees bent, thighs forward");
+      if (Math.abs(knee.r.x - knee.l.x) > 0.45) out.push("knees apart");
+      if (foot.r.y > 0.12 && foot.l.y > 0.12 && curSeat && curSeat.type !== "floor") out.push("feet off the ground");
+    } else if (kneelSide) out.push("kneeling on her " + kneelSide + " knee with the other foot planted in front");
     else if (drop > 0.26) out.push("in a deep squat with her hips dropped low, knees bent" + (Math.abs(knee.r.x - knee.l.x) > 0.4 ? " and pointing outward" : ""));
     else if (drop > 0.1) out.push("in a half squat with her knees bent");
     else out.push("standing");
     const spread = Math.abs(foot.r.x - foot.l.x), stride = foot.r.z - foot.l.z;
-    if (!kneelSide) {
+    if (!kneelSide && !seated) {
       if (spread > 0.5) out.push("feet planted wide apart"); else if (spread < 0.16) out.push("feet close together");
       if (stride > 0.18) out.push("her right foot stepped forward"); else if (stride < -0.18) out.push("her left foot stepped forward");
       if (foot.r.y > 0.14) out.push("her right foot lifted off the ground"); if (foot.l.y > 0.14) out.push("her left foot lifted off the ground");
