@@ -68,6 +68,10 @@
       ["black", "Jet black", "jet black"], ["brown", "Dark brown", "dark brown"], ["honey", "Honey blonde", "honey blonde"],
       ["platinum", "Platinum", "platinum blonde"], ["burgundy", "Burgundy", "deep burgundy"], ["copper", "Copper", "copper ginger"],
       ["pink", "Pink", "hot pink"], ["blue", "Icy blue", "icy blue"], ["own", "Their own color", ""]] },
+    { id: "hairx", label: "Hair details", multi: 2, opts: [
+      ["eye", "Over one eye", "a long side-swept fringe falling over one eye, partly covering it"],
+      ["bangs", "Blunt bangs", "blunt straight-cut bangs"],
+      ["edges", "Laid edges", "sleek laid baby hair edges"]] },
     { id: "makeup", label: "Makeup", opts: [
       ["natural", "Natural", "soft natural makeup"], ["glam", "Full glam", "full glam makeup with lashes and glossy lips"],
       ["bold", "Bold", "bold makeup with sharp winged liner and dark lips"]] },
@@ -588,7 +592,7 @@
       var hd = hairDesc();
       parts.push(hd.own ? "HAIR: keep " + hd.text + ", identical in every view"
         : "HAIR: completely replace their original hair with " + hd.text + ", the same new hairstyle and color in the front, side and back views; none of their original hairstyle or hair color anywhere, including the back of the head");
-    } else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : ""));
+    } else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : "") + (opts("hairx").length ? ", with " + opts("hairx").join(" and ") : ""));
     parts.push(C ? [opt("makeup") ? opt("makeup") + " applied to their own face" : "", opt("expr")].filter(Boolean).join(", ")
       : [opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
     var camo = opt("camo");
@@ -712,6 +716,11 @@
     }
   }
   function hairDesc() {
+    var d = hairDescBase(), x = opts("hairx");
+    if (x.length) d.text += ", with " + x.join(" and ");
+    return d;
+  }
+  function hairDescBase() {
     var h = (state.pick.hair || [])[0], c = (state.pick.haircolor || [])[0];
     var hs = opt("hair"), hc = opt("haircolor");
     if (h === "own" && c === "own") return { own: true, text: "their own original hairstyle and hair color exactly as in the photo" };
@@ -747,7 +756,7 @@
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
     if (C) {
       steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
-      if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev"], w: F.w, h: F.h, prompt: charPosePrompt() });
+      if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev", "skel"], multi: true, w: F.w, h: F.h, prompt: charPose2Prompt() });
       else if (!single) { var s2 = buildCharStep2(); if (s2) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); }
     } else if (poseMatch()) {
       steps.push({ label: "matching your pose", inputs: ["pose"], w: F.w, h: F.h, prompt: posePrompt(false) });
@@ -780,6 +789,15 @@
     var facing = /camera|turned|profile|sideways/.test(lookWords()) ? "" : ", facing the camera";
     return "Change only her pose, keeping this exact same person (same face, age, skin color, glasses, body proportions, outfit, tattoos, jewelry, boots and weapon) and " + hair + ", and the same plain background. New pose, follow every detail: " + poseDesc() + facing +
       (extra ? ". Also: " + extra : "") + ". Full body head to toe in frame, one person only. " + fromList(STYLES, state.style)[2] + ".";
+  }
+  // Two pictures straight into Qwen Edit 2509: Picture 1 = the 3D pose, Picture 2 = the dressed person.
+  // Picture 1 = the woman (already dressed), Picture 2 = an OpenPose skeleton of the 3D pose (Qwen 2509 reads it natively)
+  function charPose2Prompt() {
+    var hd = hairDesc(), extra = $("bdExtra") ? $("bdExtra").value.trim() : "";
+    var hair = hd.own ? "her own hair exactly as in Picture 1" : "exactly this hairstyle: " + hd.text + ", same cut, length and bangs";
+    return "Make the woman in Picture 1 strike exactly the pose shown by the pose skeleton in Picture 2 (an OpenPose keypoint map). Match every joint of the skeleton precisely: head and face direction, shoulders, elbows, wrists, hips, knees and ankles, at the same positions and camera angle. Pose details: " +
+      poseDesc() + ". Keep her exact face, identity, age, skin color, " + hair + ", body proportions, outfit, tattoos, jewelry, boots and weapon. One person only, full body in frame from head to feet, nothing cropped" +
+      (extra ? ". Also: " + extra : "") + ". " + fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ". No skeleton lines or dots in the photo.";
   }
   function posePrompt(fromLeft) {
     var look = fromList(STYLES, state.style)[2], bg = fromList(BGS, state.bg)[2];
@@ -820,6 +838,7 @@
         if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
         var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
         blobs.pose = new File([pb], "pose.png", { type: "image/png" });
+        if (state.char && window.BADDIES_POSE_SKELETON) { var sk = await window.BADDIES_POSE_SKELETON(); if (sk) blobs.skel = new File([sk], "skeleton.png", { type: "image/png" }); }
       }
     } catch (e) { hint(e.message, true); $("bdGo").disabled = false; return; }
     var last = VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
@@ -844,7 +863,7 @@
       var key = st.inputs[k];
       ins.push(key === "prev" ? await urlBlob(card.urls[0], "prev.png") : card.blobs[key]);
     }
-    var img = ins.length > 1 ? await composite(ins) : ins[0];
+    var img = ins.length > 1 && !st.multi ? await composite(ins) : ins[0];
     var fd = new FormData();
     fd.append("model", img ? "qwen_edit2509" : state.engine);
     fd.append("mode", img ? "edit" : "create");
@@ -853,6 +872,7 @@
     fd.append("batch", String(st.batch || 1));
     if (st.w) { fd.append("width", String(st.w)); fd.append("height", String(st.h)); if (img) fd.append("size", "custom"); }
     if (img) fd.append("image", img, img.name || "input.png");
+    if (st.multi) { if (ins[1]) fd.append("image2", ins[1], ins[1].name || "image2.png"); if (ins[2]) fd.append("image3", ins[2], ins[2].name || "image3.png"); }
     var mdl = img ? "qwen_edit2509" : state.engine;
     if (mdl === "flux2" || mdl === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
     if (st.post) fd.append("post_edit", st.post);

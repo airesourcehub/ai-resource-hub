@@ -1166,6 +1166,47 @@ function init() {
     return out.join(", ");
   };
 
+  // OpenPose-style skeleton (COCO 18 keypoints) of the current 3D pose, from the same camera as the
+  // snapshot. Qwen Image Edit 2509 reads keypoint maps natively, so this pins the pose exactly.
+  function snapCamera(W, H) {
+    const cam = new THREE.PerspectiveCamera(camera.fov, W / H, 0.05, 50);
+    const sc = holder.scale.y, top = ((B.head ? bonePos("head").y : 1.5) + 0.2) * sc, t14 = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const d = Math.max((top * 0.66) / t14, (0.6 * sc) / (t14 * (W / H)));
+    cam.position.set(0, top * 0.52, d); cam.lookAt(0, top * 0.5, 0); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
+    return cam;
+  }
+  window.BADDIES_POSE_SKELETON = async function () {
+    if (!body || !B.pelvis) return null;
+    const W = 640, H = 960, cam = snapCamera(W, H);
+    holder.updateMatrixWorld(true);
+    const hp = (name) => { const p = new THREE.Vector3(); B[name].getWorldPosition(p); return p; };
+    // face points: laid out on the resting head, moved with the posed head
+    let delta = new THREE.Matrix4();
+    if (headRestM && B.head) delta = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld).multiply(headRestM.clone().invert());
+    const facePt = (v) => holder.localToWorld(v.clone().applyMatrix4(delta));
+    const eyL = eyeInfo ? eyeInfo.l.clone() : v3(0.032, 1.5, 0.08), eyR = eyeInfo ? eyeInfo.r.clone() : v3(-0.032, 1.5, 0.08);
+    const front = eyeInfo ? eyeInfo.front : 0.09, cz = headInfo ? headInfo.c.z : 0.0;
+    const nose = v3(0, (eyL.y + eyR.y) / 2 - 0.035, front + 0.012);
+    eyL.z = eyR.z = front;
+    const earL = v3(0.075, eyL.y - 0.01, cz), earR = v3(-0.075, eyR.y - 0.01, cz);
+    const pts = [
+      facePt(nose), hp("neck_01"), hp("upperarm_r"), hp("lowerarm_r"), hp("hand_r"), hp("upperarm_l"), hp("lowerarm_l"), hp("hand_l"),
+      hp("thigh_r"), hp("calf_r"), hp("foot_r"), hp("thigh_l"), hp("calf_l"), hp("foot_l"),
+      facePt(eyR), facePt(eyL), facePt(earR), facePt(earL)
+    ].map((p) => { const q = p.clone().project(cam); return [(q.x + 1) / 2 * W, (1 - q.y) / 2 * H]; });
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    const COL = [[255,0,0],[255,85,0],[255,170,0],[255,255,0],[170,255,0],[85,255,0],[0,255,0],[0,255,85],[0,255,170],[0,255,255],[0,170,255],[0,85,255],[0,0,255],[85,0,255],[170,0,255],[255,0,255],[255,0,170],[255,0,85]];
+    const LIMBS = [[1,2],[1,5],[2,3],[3,4],[5,6],[6,7],[1,8],[8,9],[9,10],[1,11],[11,12],[12,13],[1,0],[0,14],[14,16],[0,15],[15,17]];
+    const sw = Math.round(W / 80);
+    LIMBS.forEach(([a, b2], i) => {
+      const A = pts[a], Bp = pts[b2], mx = (A[0] + Bp[0]) / 2, my = (A[1] + Bp[1]) / 2, len = Math.hypot(A[0] - Bp[0], A[1] - Bp[1]) / 2, ang = Math.atan2(A[1] - Bp[1], A[0] - Bp[0]);
+      g.fillStyle = "rgba(" + COL[i].join(",") + ",0.6)"; g.beginPath(); g.ellipse(mx, my, len, sw, ang, 0, Math.PI * 2); g.fill();
+    });
+    pts.forEach((p, i) => { g.fillStyle = "rgb(" + COL[i].join(",") + ")"; g.beginPath(); g.arc(p[0], p[1], sw * 0.8, 0, Math.PI * 2); g.fill(); });
+    return await new Promise((res) => c.toBlob(res, "image/png"));
+  };
+
   window.BADDIES_POSE_SNAPSHOT = async function () {
     const W = 640, H = 960, prevLook = curLookId || "game";
     const vis = [ruler.visible, handleGroup.visible, grid.visible, ground.visible];
