@@ -630,6 +630,7 @@
       var hd = hairDesc();
       fix = "Make it the exact same person in all three views: same face, the same new outfit with none of their original clothes showing, and the hair in every view (front, side and back, including the back of the head) must be " +
         (hd.own ? "the same hairstyle and color as in the front view" : hd.text) + ". Repaint any view whose hair does not match.";
+      if (hairRef()) fix = "Make it the exact same person in all three views: same face, the same new outfit with none of their original clothes showing. Leave her hair exactly as it is in every view.";
     }
     if (!fix) return body;
     if (!body) return fix + " Keep the layout, body, skin tone, tattoos, clothes, boots, weapon, pose and background exactly the same. Seamless, same art style.";
@@ -766,10 +767,13 @@
   function planSteps() {
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
     if (C) {
-      if (hairRef()) steps.push({ label: "dressing " + whoName(C), inputs: ["face", "hairref"], multi: true, prompt: "Picture 1 is the photo to edit." + hairRefNote(2) + " " + buildCharEdit() });
-      else steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
+      steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
+      if (hairRef()) steps.push({ label: "styling the hair", inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt() });
       if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev", "skel"], multi: true, w: F.w, h: F.h, prompt: charPose2Prompt() });
-      else if (!single) { var s2 = buildCharStep2(); if (s2) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); }
+      else if (!single) { var s2 = buildCharStep2(); if (s2) {
+        if (hairRef()) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev", "hairref"], multi: true, w: V.w, h: V.h, post: postEdit(),
+          prompt: "Picture 1 is the character. Picture 2 is only a hairstyle reference. " + s2 + " In every view her hair has exactly the shape shown in Picture 2: slicked back into the round bun, with the long rigid tube of hair sticking out of the back of her head diagonally up and backward (seen from the side it points up and behind her; it never hangs down). Copy nothing else from Picture 2." });
+        else steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); } }
     } else if (poseMatch()) {
       steps.push({ label: "matching your pose", inputs: ["pose"], w: F.w, h: F.h, prompt: posePrompt(false) });
     } else {
@@ -778,7 +782,7 @@
     }
     if (!C && hairRef()) steps.push({ label: "styling the hair", inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt() });
     if (state.with) steps.push({ label: "adding " + whoName(state.with), inputs: ["prev", "with"], w: 1216, h: 832, prompt: duoPrompt() });
-    if (steps.length === 1 && C && !steps[0].post) steps[0].post = bodyEdit();
+    if (C && !steps.some(function (x) { return x.post; }) && (steps.length === 1 || steps[1].label === "styling the hair" && steps.length === 2)) steps[0].post = bodyEdit();
     steps[steps.length - 1].batch = state.batch;
     return steps;
   }
