@@ -775,7 +775,7 @@
       if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev", "skel"], multi: true, w: F.w, h: F.h, prompt: charPose2Prompt() });
       else if (!single) { var s2 = buildCharStep2(); if (s2) {
         if (hairRef()) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev", "hairref"], multi: true, w: V.w, h: V.h, post: postEdit(),
-          prompt: "Picture 1 is the character. Picture 2 is only a hairstyle reference. " + s2 + " In every view her hair has exactly the shape shown in Picture 2: slicked back into the round bun, with the long rigid tube of hair sticking out of the back of her head diagonally up and backward (seen from the side it points up and behind her; it never hangs down). Copy nothing else from Picture 2." });
+          prompt: "Picture 1 is the character. Picture 2 is only a hairstyle reference. " + s2 + " In every view her hair has exactly the shape shown in Picture 2: slicked back into the round bun, with the long rigid tube of hair sticking out of the back of her head diagonally up and backward (seen from the side it points up and behind her; it never hangs down). Copy nothing else from Picture 2. In every view she wears her complete outfit from Picture 1 exactly, fully covered: every top layer, bodysuit, vest and jacket stay on and closed as in Picture 1." });
         else steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); } }
     } else if (poseMatch()) {
       steps.push({ label: "matching your pose", inputs: ["pose"], w: F.w, h: F.h, prompt: posePrompt(false) });
