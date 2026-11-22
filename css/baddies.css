@@ -184,3 +184,6 @@
 .bd-preview.is-posing { cursor: grabbing; }
 .bd-group.is-dim .bd-chips { opacity: 0.45; }
 #bdPose .bd-slider-sm { margin-top: 2px; }
+
+.bd-edit-row { margin-bottom: 6px; }
+.bd-edit-lbl { font-size: 0.72rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-right: 6px; }

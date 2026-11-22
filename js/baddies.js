@@ -288,6 +288,7 @@
   var prefs = loadPrefs();
   var state = clone(DEFAULTS);
   state.engine = prefs.engine || CFG.engine || "zimage";
+  state.editEngine = prefs.editEngine || "klein9b_edit";
   state.batch = clampN(prefs.batch || 1, 1, CFG.maxBatch || 4);
   if (prefs.last) applySettings(prefs.last, true);
   state.user = null; state.mine = []; state.offset = 0;
@@ -363,6 +364,7 @@
       b.classList.toggle("is-on", !!p && p.exag === state.exag && SHAPE.every(function (s) { return p.v[s.id] === state.shape[s.id]; }));
     });
     each($("bdEngine").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.engine); });
+    each($("bdEdit").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.editEngine); });
     $("bdBatch").textContent = state.batch;
     $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
     charFace();
@@ -435,10 +437,11 @@
     });
     $("bdExtra").addEventListener("input", sync);
     $("bdEngine").addEventListener("click", function (e) { var b = e.target.closest("[data-v]"); if (b) { state.engine = b.getAttribute("data-v"); sync(); } });
+    $("bdEdit").addEventListener("click", function (e) { var b = e.target.closest("[data-v]"); if (b) { state.editEngine = b.getAttribute("data-v"); sync(); } });
     $("bdBatchDn").addEventListener("click", function () { state.batch = Math.max(1, state.batch - 1); sync(); });
     $("bdBatchUp").addEventListener("click", function () { state.batch = Math.min(CFG.maxBatch || 4, state.batch + 1); sync(); });
     $("bdShuffle").addEventListener("click", shuffle);
-    $("bdReset").addEventListener("click", function () { var e = state.engine, n = state.batch; applySettings(DEFAULTS); state.engine = e; state.batch = n; state.hairTouched = false;
+    $("bdReset").addEventListener("click", function () { var e = state.engine, ee = state.editEngine, n = state.batch; applySettings(DEFAULTS); state.engine = e; state.editEngine = ee; state.batch = n; state.hairTouched = false;
       if (state.char) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; } $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
     $("bdGo").addEventListener("click", onGenerate);
     $("bdPose").addEventListener("click", function (e) {
@@ -764,19 +767,22 @@
       (sheet ? "Do this in every view of her in Picture 1 (front, side and back). " : "Turn her head to a side profile so the hairstyle is clearly visible. ") +
       "Keep everything else in Picture 1 exactly the same: her face, identity, skin, body, outfit, tattoos, jewelry, boots, weapon, body pose, full-body framing from head to boots, camera, background and style.";
   }
+  function editModel() { return state.editEngine || "klein9b_edit"; }
+  function isFluxEdit() { return editModel() !== "qwen_edit2509"; }
   function poseMatch() { return !!(state.pose && (state.pose.preset === "custom" || state.pose.match)); }
   function singleShot() { return poseMatch() || !!state.with; }
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
   function planSteps() {
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
     if (C) {
-      steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
-      if (hairRef()) steps.push({ label: "styling the hair", inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt(false) });
-      if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev", "skel"], multi: true, w: F.w, h: F.h, prompt: charPose2Prompt() });
+      if (hairRef() && isFluxEdit()) steps.push({ label: "dressing " + whoName(C), who: true, inputs: ["face", "hairref"], multi: true, prompt: "Picture 1 is the photo to edit." + hairRefNote(2) + " " + buildCharEdit() });
+      else steps.push({ label: "dressing " + whoName(C), who: true, inputs: ["face"], prompt: buildCharEdit() });
+      if (hairRef() && !isFluxEdit()) steps.push({ label: "styling the hair", who: true, inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt(false) });
+      if (poseMatch()) steps.push({ label: "posing her", who: true, inputs: ["prev", "skel"], multi: true, w: F.w, h: F.h, prompt: charPose2Prompt() });
       else if (!single) { var s2 = buildCharStep2(); if (s2) {
-        if (hairRef()) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev", "hairref"], multi: true, w: V.w, h: V.h, post: postEdit(),
+        if (hairRef()) steps.push({ label: "making the " + V.label.toLowerCase(), who: true, inputs: ["prev", "hairref"], multi: true, w: V.w, h: V.h, post: postEdit(),
           prompt: "Picture 1 is the character. Picture 2 is only a hairstyle reference. " + s2 + " In every view her hair has exactly the shape shown in Picture 2: slicked back into the round bun, with the long rigid tube of hair sticking out of the back of her head diagonally up and backward (seen from the side it points up and behind her; it never hangs down). Copy nothing else from Picture 2. In every view she wears her complete outfit from Picture 1 exactly, fully covered: every top layer, bodysuit, vest and jacket stay on and closed as in Picture 1." });
-        else steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); } }
+        else steps.push({ label: "making the " + V.label.toLowerCase(), who: true, inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); } }
     } else if (poseMatch()) {
       steps.push({ label: "matching your pose", inputs: ["pose"], w: F.w, h: F.h, prompt: posePrompt(false) });
     } else {
@@ -863,10 +869,10 @@
       }
     } catch (e) { hint(e.message, true); $("bdGo").disabled = false; return; }
     var last = VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
-    var settings = snapshot(), model = plan[0].inputs.length ? "qwen_edit2509" : state.engine;
+    var settings = snapshot(), model = plan[0].inputs.length ? editModel() : state.engine;
     var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: plan.map(function (x) { return x.prompt; }).join("\n\n"),
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
-      plan: plan, si: -1, blobs: blobs };
+      plan: plan, si: -1, blobs: blobs, editModel: editModel(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
     state.mine.unshift(card); renderMine();
     try { await runStep(card, 0, token); }
     catch (e) {
@@ -886,16 +892,17 @@
     }
     var img = ins.length > 1 && !st.multi ? await composite(ins) : ins[0];
     var fd = new FormData();
-    fd.append("model", img ? "qwen_edit2509" : state.engine);
+    var mdl = img ? (card.editModel || "qwen_edit2509") : state.engine;
+    fd.append("model", mdl);
     fd.append("mode", img ? "edit" : "create");
-    fd.append("prompt", st.prompt);
+    // FLUX.2 Klein: naming the trained @character loads their FLUX.2 LoRA on the server (when they have one)
+    fd.append("prompt", (mdl === "klein9b_edit" && card.who && st.who ? card.who + " is the woman in Picture 1. " : "") + st.prompt);
     fd.append("negative", NEGATIVE + (img && i > 0 ? ", different person, extra people, mannequin" : ""));
     fd.append("batch", String(st.batch || 1));
     if (st.w) { fd.append("width", String(st.w)); fd.append("height", String(st.h)); if (img) fd.append("size", "custom"); }
     if (img) fd.append("image", img, img.name || "input.png");
     if (st.multi) { if (ins[1]) fd.append("image2", ins[1], ins[1].name || "image2.png"); if (ins[2]) fd.append("image3", ins[2], ins[2].name || "image3.png"); }
-    var mdl = img ? "qwen_edit2509" : state.engine;
-    if (mdl === "flux2" || mdl === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
+    if (mdl === "flux2" || /_edit/.test(mdl)) { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
     if (st.post) fd.append("post_edit", st.post);
     var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
     var d = await r.json().catch(function () { return {}; });
@@ -1148,7 +1155,7 @@
   }
   function realId(id) { return id && String(id).indexOf("tmp-") !== 0 ? String(id) : null; }
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS) || "{}") || {}; } catch (e) { return {}; } }
-  function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engine: state.engine, batch: state.batch, last: snapshot() })); } catch (e) {} }
+  function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engine: state.engine, editEngine: state.editEngine, batch: state.batch, last: snapshot() })); } catch (e) {} }
 
   // ------------------------------------------------------------ boot
   window.BADDIES_STYLES = STYLES;

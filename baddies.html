@@ -21,7 +21,7 @@
 <meta name="description" content="Design your own Baddie character on your GPU: pick skin tone, height, body shape and how exaggerated the curves are, then outfit, tattoos and a real-world weapon. Turnaround sheets in one click." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/baddies.css?v=20261121f" />
+<link rel="stylesheet" href="css/baddies.css?v=20261122a" />
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
@@ -140,6 +140,14 @@
     </div>
 
     <footer class="bd-foot">
+      <div class="bd-foot-row bd-edit-row">
+        <span class="bd-edit-lbl" title="The model that edits pictures: your influencer's photo, the 3D pose, hair references, turnarounds">Edits</span>
+        <div class="bd-seg bd-seg-sm" id="bdEdit" role="radiogroup" aria-label="Edit engine">
+          <button type="button" data-v="klein9b_edit" title="FLUX.2 Klein 9B: about 40 seconds a step, follows pose and hair pictures well, uses a trained FLUX.2 LoRA">Klein</button>
+          <button type="button" data-v="qwen_edit2509" title="Qwen Edit 2509: about 40 seconds a step">Qwen</button>
+          <button type="button" data-v="flux2_edit" title="FLUX.2: most detail, about 8 minutes a step">FLUX.2</button>
+        </div>
+      </div>
       <div class="bd-foot-row">
         <div class="bd-seg bd-seg-sm" id="bdEngine" role="radiogroup" aria-label="Engine">
           <button type="button" data-v="zimage" title="Z-Image Turbo, about 15 seconds">Fast</button>
@@ -240,7 +248,7 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/baddies.js?v=20261122h"></script>
-<script type="module" src="js/baddies-3d.js?v=20261122h"></script>
+<script src="js/baddies.js?v=20261122i"></script>
+<script type="module" src="js/baddies-3d.js?v=20261122i"></script>
 </body>
 </html>
