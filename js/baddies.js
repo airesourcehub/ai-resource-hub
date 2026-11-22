@@ -302,14 +302,20 @@
     var viewG = document.querySelector('[data-single="view"]'); if (viewG) viewG.closest(".bd-group").classList.toggle("is-dim", singleShot());
     $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
     $("bdSkin").classList.toggle("is-dim", !!state.char);
+    renderPromptBox();
+    savePrefs();
+    try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
+  }
+
+  function renderPromptBox() {
     if (state.char || singleShot()) {
       $("bdPrompt").textContent = planSteps().map(function (st, i, a) {
         return (a.length > 1 ? "Step " + (i + 1) + (st.label ? " (" + st.label + ")" : "") + ": " : "") + st.prompt + (st.post ? "\n  Touch-up: " + st.post : "");
       }).join("\n\n") + (singleShot() ? "\n\n(One shot: turnaround is off with a matched pose or a second person.)" : "");
     } else $("bdPrompt").textContent = buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
-    savePrefs();
-    try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
   }
+  // the 3D preview re-poses after a change; refresh the prompt so the pose words match it
+  window.addEventListener("baddies:posed", function () { if (poseMatch()) renderPromptBox(); });
 
   // ------------------------------------------------------------ wiring
   function wire() {

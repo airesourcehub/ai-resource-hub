@@ -438,6 +438,7 @@ function init() {
     buildExtras(s, one, has, armed, pistol, w, hold);
     drawRuler(hIn);
     placeHandles(preset === "custom");
+    if (!drag) { try { window.dispatchEvent(new Event("baddies:posed")); } catch (_) {} }
     applyLook(s.style || "game");
     paintLookStrip(s.style || "game");
   }
