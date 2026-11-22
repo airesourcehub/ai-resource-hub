@@ -548,7 +548,13 @@ function init() {
     b.parent.worldToLocal(t); b.position.copy(t); b.updateMatrixWorld(true);
   }
   function ikLeg(side, T, kneeOut) {
-    ikChain("thigh_" + side, "calf_" + side, "foot_" + side, T, v3((side === "r" ? -1 : 1) * (kneeOut || 0.15), 0, 1));
+    // knee direction: forward for standing legs; when the foot is out in front (sitting, knees up) the
+    // forward pole lines up with the leg and the knee flips across, so bend the knee up and outward instead
+    const sx = side === "r" ? -1 : 1, hip = B["thigh_" + side] ? bonePos("thigh_" + side) : T.clone();
+    const dir = T.clone().sub(hip); const len = dir.length() || 1; dir.divideScalar(len);
+    const fwd = Math.max(0, Math.min(1, (dir.z - 0.2) / 0.5));          // 0 = foot below hip, 1 = foot well in front
+    const out = (kneeOut || 0.15) + fwd * 0.45 + Math.max(0, sx * dir.x) * 0.6;
+    ikChain("thigh_" + side, "calf_" + side, "foot_" + side, T, v3(sx * out, fwd * 1.4, 1 - fwd * 0.6));
   }
   function rotBone(name, axisBody, ang) {
     const b = B[name]; if (!b) return; holder.updateMatrixWorld(true);
