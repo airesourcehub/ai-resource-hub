@@ -266,7 +266,10 @@
     each(document.querySelectorAll('#bd [data-opt="own"]'), function (b) { b.hidden = !state.char; });
     $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
     $("bdSkin").classList.toggle("is-dim", !!state.char);
-    $("bdPrompt").textContent = (state.char ? "[Qwen Edit of " + (state.char.handle ? "@" + state.char.handle : state.char.name) + "'s picture]\n" : "") + buildPrompt() + (postEdit() ? "\n\nSecond pass (" + (state.char ? "hair + body" : "body only") + "): " + postEdit() : "");
+    if (state.char) {
+      var s2 = buildCharStep2(), who = state.char.handle ? "@" + state.char.handle : state.char.name;
+      $("bdPrompt").textContent = "Step 1 (edit " + who + "'s own photo): " + buildCharEdit() + (s2 ? "\n\nStep 2 (" + VIEWS[state.view].label + "): " + s2 : "") + (postEdit() ? "\n\nFinal touch-up: " + postEdit() : "");
+    } else $("bdPrompt").textContent = buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
     savePrefs();
     try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
   }
@@ -369,13 +372,61 @@
     return "an extremely exaggerated, stylized cartoon-like hourglass figure, impossibly tiny waist and enormous hips, glutes and thighs";
   }
 
+  // ---- character mode: two steps keep the person recognisable.
+  // Step 1 edits their own photo in place (same face, camera and framing): new hair, body, outfit, ink, gun.
+  // Step 2 turns that picture into the chosen shot (turnaround / rear / action / portrait); "Full body" stops at step 1.
+  function buildCharEdit() {
+    var C = state.char, hd = hairDesc(), parts = [];
+    parts.push("Edit this photo. Keep this person's face, head shape, age, skin color, eyes, eyebrows, nose, lips, neck, any glasses and every distinctive feature exactly the same, so she is unmistakably the same person, and keep the same camera angle, lighting and plain background" +
+      (C.kind === "Yours" ? ". Zoom out if needed so her whole body shows head to toe, and if the photo has more than one panel, show only one full-body view of her" : ""));
+    var ch = [];
+    ch.push(hd.own ? "keep her own hair exactly as it is" : "replace her current hair completely with " + hd.text);
+    ch.push("change her body to " + exagWords(state.exag) + ", " + [shapeWords("waist"), shapeWords("hips"), shapeWords("glutes"), shapeWords("thighs"), shapeWords("bust"), shapeWords("tone")].join(", "));
+    var hw = heightWords(state.height); ch.push("she is " + hw.replace(/^about /, "about "));
+    var camo = opt("camo");
+    var outfit = "remove all of her original clothes and dress her in " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo;
+    var gear = opts("gear"); if (gear.length) outfit += ", with " + gear.join(", ");
+    if (opt("boots")) outfit += ", " + opt("boots");
+    ch.push(outfit);
+    var tat = opt("tattoos"); if (tat) ch.push("add " + tat + " in " + (opt("inkstyle") || "full color") + " style, rich saturated colors, no white ink");
+    var jew = opts("jewelry"); if (jew.length) ch.push("add " + jew.join(", "));
+    var mk = [opt("makeup"), opt("expr")].filter(Boolean); if (mk.length) ch.push("give her " + mk.join(" and "));
+    var w = fromList(WEAPONS, state.weapon);
+    if (w[0] !== "none") {
+      var hold = fromList(HOLDS, state.hold)[2];
+      if (w[3] === "pistol" && state.hold === "sling") hold = "with it holstered on her thigh";
+      if (w[3] === "pistol" && state.hold === "shoulder") hold = "aiming it with both hands at eye level in a two-handed grip";
+      if (w[3] === "pistol" && state.hold === "low") hold = "holding it in both hands, pointed down at a low ready";
+      ch.push("she is armed with " + w[2] + ", " + hold + ", an accurate, true-to-life model of the real firearm");
+    }
+    var extra = $("bdExtra").value.trim(); if (extra) ch.push(extra);
+    parts.push("Change only: " + ch.join("; "));
+    parts.push("Full body head to toe, standing, facing the camera, whole body in frame including boots");
+    parts.push(fromList(STYLES, state.style)[2]);
+    return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
+  }
+  function buildCharStep2() {
+    if (state.view === "full") return "";
+    var keep = "Keep exactly the same face, glasses, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon";
+    var lead = {
+      sheet: "Make a character turnaround reference sheet of this exact character, shown three times side by side on one sheet: front view, side profile view and back view, all full body head to toe with boots visible. " + keep + " in every view; the back view shows the back of the same hair",
+      back: "Show this exact character in a full-body three-quarter rear view, head to toe, looking back over her shoulder at the camera. " + keep,
+      action: "Show this exact character in a dynamic full-body combat action pose, whole body in frame. " + keep,
+      portrait: "Show this exact character in a waist-up portrait looking into the camera. " + keep
+    }[state.view] || "";
+    return lead + ". " + fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ".";
+  }
+
   function buildPrompt() {
+    if (state.char) return buildCharEdit();
     var V = VIEWS[state.view];
     var skin = fromList(SKIN, state.skin)[3];
     var parts = [];
     var C = state.char;
-    if (C) parts.push("Transform the person in this photo into the following character, keeping their face, facial structure and identity clearly recognizable, the same person in every view");
-    parts.push(V.lead + (C ? " this same adult person, restyled as" : "") + " a stunning adult woman in her late twenties, a female soldier character called a Baddie");
+    if (C) {
+      parts.push("Restyle the exact person in this photo as a soldier character called a Baddie. IDENTITY FIRST: it must stay unmistakably this same person: same face, same age, same facial features and bone structure, same skin color (do not lighten or darken it), same head shape and neck, same eyes, nose, lips and eyebrows, and any glasses or distinctive features they have, recognizable in every view");
+      parts.push(V.lead + " this same person as a female soldier character called a Baddie");
+    } else parts.push(V.lead + " a stunning adult woman in her late twenties, a female soldier character called a Baddie");
     parts.push("BODY: " + exagWords(state.exag) + ", " + [shapeWords("waist"), shapeWords("hips"), shapeWords("glutes"), shapeWords("thighs"), shapeWords("bust"), shapeWords("tone")].join(", "));
     parts.push(heightWords(state.height));
     parts.push(C ? "keep their own skin tone and face, with a smooth glowing finish" : skin + " skin with a smooth glowing finish");
@@ -385,7 +436,8 @@
       parts.push(hd.own ? "HAIR: keep " + hd.text + ", identical in every view"
         : "HAIR: completely replace their original hair with " + hd.text + ", the same new hairstyle and color in the front, side and back views; none of their original hairstyle or hair color anywhere, including the back of the head");
     } else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : ""));
-    parts.push([opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
+    parts.push(C ? [opt("makeup") ? opt("makeup") + " applied to their own face" : "", opt("expr")].filter(Boolean).join(", ")
+      : [opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
     var camo = opt("camo");
     var outfit = "wearing " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo + ", a stylish streetwear outfit with a military touch";
     var gear = opts("gear"); if (gear.length) outfit += ", with " + gear.join(", ");
@@ -405,6 +457,7 @@
     }
     var extra = $("bdExtra").value.trim(); if (extra) parts.push(extra);
     parts.push(V.tail);
+    if (C) parts.push("Most important: the face in every view is clearly the same person as in the photo, same age and same skin color");
     parts.push(fromList(BGS, state.bg)[2]);
     parts.push(fromList(STYLES, state.style)[2]);
     return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
@@ -469,11 +522,11 @@
       }
     }
     state.chars = list;
+    if (state.char) { var fresh = list.filter(function (c) { return c.key === state.char.key; })[0]; if (fresh) state.char = fresh; }
     if (state.char && (state.user || /^p:/.test(state.char.key)) && list.length && !list.some(function (c) { return c.key === state.char.key; })) state.char = null;
     renderChars(); sync();
   }
   function niceName(id) { return String(id).split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" "); }
-  function absUrl(u) { return /^https?:/.test(u) ? u : RENDER() + (u.charAt(0) === "/" ? "" : "/") + u; }
   function renderChars() {
     var box = $("bdChars"); if (!box) return;
     var cur = state.char ? state.char.key : "";
@@ -530,28 +583,35 @@
       try { face = await charBlob(state.char); }
       catch (e) { hint(e.message + " Pick another character or None.", true); return; }
     }
-    var fd = new FormData();
+    var fd = new FormData(), step2 = face ? buildCharStep2() : "";
     fd.append("model", model);
     fd.append("mode", face ? "edit" : "create");
     fd.append("prompt", prompt);
     fd.append("negative", NEGATIVE);
-    fd.append("batch", String(state.batch));
-    fd.append("width", String(V.w));
-    fd.append("height", String(V.h));
-    if (face) { fd.append("size", "custom"); fd.append("image", face, face.name); }
+    if (face) {
+      // step 1 keeps the photo's own size and framing; one dressed picture, step 2 makes the variations
+      fd.append("batch", step2 ? "1" : String(state.batch));
+      fd.append("image", face, face.name);
+      if (!step2 && pe) fd.append("post_edit", pe);
+    } else {
+      fd.append("batch", String(state.batch));
+      fd.append("width", String(V.w));
+      fd.append("height", String(V.h));
+      if (pe) fd.append("post_edit", pe);
+    }
     if (model === "flux2" || model === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
-    if (pe) fd.append("post_edit", pe);
 
     var settings = snapshot();
     var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: prompt,
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: V.w, h: V.h };
+    if (step2) card.step2 = { prompt: step2, post: pe, batch: state.batch, w: V.w, h: V.h, started: false };
     state.mine.unshift(card); renderMine();
     $("bdGo").disabled = true; hint("");
     try {
       var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
       var d = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
-      card.job_id = d.job_id; card.stage = "Queued";
+      card.job_id = d.job_id; card.stage = card.step2 ? "Step 1 of 2 · dressing " + (state.char.handle ? "@" + state.char.handle : state.char.name) : "Queued";
       if (client) {
         var ins = await client.from("baddies").insert({ user_id: state.user.id, name: name, settings: settings, view: state.view, model: model, prompt: prompt, job_id: d.job_id }).select("id").single();
         if (ins.data) card.id = ins.data.id;
@@ -573,17 +633,46 @@
         if (r.status === 404) return done(card, "error", null, "This render stopped, probably because the GPU server restarted.");
         if (!r.ok) throw new Error("HTTP " + r.status);
         var j = await r.json();
-        if (j.status === "done") return done(card, "done", j.urls || []);
+        if (j.status === "done") {
+          if (card.step2 && !card.step2.started && (j.urls || []).length) return startStep2(card, j.urls[0]);
+          return done(card, "done", j.urls || []);
+        }
         if (j.status === "cancelled") return done(card, "cancelled");
         if (j.status === "error") return done(card, "error", null, j.error || "The render failed.");
         card.progress = Math.max(2, Math.min(99, j.progress || 0));
-        card.stage = (j.stage || (j.status === "queued" ? "Waiting in the queue" : "Generating")) + (j.eta_seconds > 0 ? " · about " + fmtDur(j.eta_seconds) + " left" : "");
+        card.stage = (card.step2 ? (card.step2.started ? "Step 2 of 2 · " : "Step 1 of 2 · ") : "") + (j.stage || (j.status === "queued" ? "Waiting in the queue" : "Generating")) + (j.eta_seconds > 0 ? " · about " + fmtDur(j.eta_seconds) + " left" : "");
         updateTile(card); poll(card, 0);
       } catch (e) {
         if (fails + 1 >= 6) { card.stage = "Lost touch with the GPU server. It may still finish; refresh in a minute."; updateTile(card); return; }
         poll(card, fails + 1);
       }
     }, POLL_MS);
+  }
+  // Character mode, step 2: the dressed picture from step 1 becomes the chosen shot.
+  async function startStep2(card, url) {
+    var S = card.step2; S.started = true;
+    card.progress = 50; card.stage = "Step 2 of 2 · making the " + (VIEWS[card.view] ? VIEWS[card.view].label.toLowerCase() : "shot"); card.urls = [url]; updateTile(card);
+    try {
+      var token = await freshToken();
+      var img = await fetch(absUrl(url), { mode: "cors" }); if (!img.ok) throw new Error("step 1 picture");
+      var b = await img.blob();
+      var fd = new FormData();
+      fd.append("model", "qwen_edit2509"); fd.append("mode", "edit"); fd.append("prompt", S.prompt); fd.append("negative", NEGATIVE + ", different person, extra people");
+      fd.append("batch", String(S.batch)); fd.append("width", String(S.w)); fd.append("height", String(S.h)); fd.append("size", "custom");
+      fd.append("image", new File([b], "step1.png", { type: b.type || "image/png" }), "step1.png");
+      fd.append("lora", ""); fd.append("lora_strength", "1.0");
+      if (S.post) fd.append("post_edit", S.post);
+      var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+      var d = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
+      card.job_id = d.job_id;
+      if (client && realId(card.id)) await client.from("baddies").update({ job_id: d.job_id }).eq("id", card.id);
+      poll(card, 0);
+    } catch (e) {
+      // keep the dressed step-1 picture rather than losing the render
+      done(card, "done", [url]);
+      hint("Step 2 couldn't start (" + e.message + "). You still have the full-body picture.", true);
+    }
   }
   function done(card, status, urls, err) {
     card.pending = false; card.status = status;
