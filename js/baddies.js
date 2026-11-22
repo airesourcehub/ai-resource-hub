@@ -113,8 +113,18 @@
       ["headset", "Headset", "a tactical headset"],
       ["beanie", "Beanie", "a beanie"],
       ["cap", "Cap", "a tactical cap"],
-      ["shades", "Shades", "dark sunglasses"],
       ["holster", "Thigh holster", "a drop-leg thigh holster"]] },
+    { id: "eyewear", label: "Eyewear", opts: [
+      ["none", "None", ""],
+      ["wayfarer", "Wayfarers (Ray-Ban style)", "classic black Ray-Ban Wayfarer style sunglasses"],
+      ["aviator", "Aviators", "gold aviator sunglasses with gradient lenses"],
+      ["round", "Round shades", "round retro sunglasses with thin gold frames"],
+      ["cateye", "Cat-eye", "glamorous black cat-eye sunglasses"],
+      ["shield", "Wraparound shades", "sleek wraparound mirrored shield sunglasses"],
+      ["smart", "Smart glasses (Meta Ray-Ban style)", "Ray-Ban Meta style smart glasses with a tiny camera in the frame"],
+      ["vr", "VR headset", "a white virtual reality headset over her eyes, like a Meta Quest"],
+      ["goggles", "Tactical goggles", "black tactical ballistic goggles over her eyes"],
+      ["nvg", "Night-vision goggles", "military night vision goggles lowered over her eyes"]] },
     { id: "boots", label: "Boots", opts: [
       ["white", "White combat", "chunky white combat boots"], ["black", "Black combat", "black combat boots"],
       ["tan", "Tan combat", "tan desert combat boots"], ["sneakers", "Sneakers", "chunky sneakers"]] }
@@ -127,7 +137,11 @@
       ["full", "Legs, arms + neck", "full leg sleeve tattoos, arm sleeves and a neck tattoo"]] },
     { id: "inkstyle", label: "Tattoo style", opts: [
       ["color", "Bright color", "vivid full-color neo-traditional"], ["blackgrey", "Black & grey", "black and grey realism"],
-      ["japanese", "Japanese", "colorful Japanese irezumi"], ["script", "Script & fine line", "fine-line script and ornamental"]] },
+      ["japanese", "Japanese", "colorful Japanese irezumi"], ["script", "Script & fine line", "fine-line script and ornamental"],
+      ["tribal", "Tribal", "bold solid black Polynesian tribal"], ["comic", "Comic book", "comic book pop art with halftone dots and bold outlines"],
+      ["traditional", "Old school", "American traditional with bold outlines and red, green and yellow"], ["geometric", "Geometric", "geometric dotwork and mandala"],
+      ["floral", "Fine-line floral", "delicate fine-line floral"], ["biomech", "Biomechanical", "grey and blue biomechanical"],
+      ["chicano", "Chicano", "chicano black and grey"], ["watercolor", "Watercolor", "soft watercolor splash"], ["anime", "Anime", "bright anime character"]] },
     { id: "jewelry", label: "Jewelry", multi: 3, opts: [
       ["hoops", "Gold hoops", "gold hoop earrings"], ["studs", "Diamond studs", "diamond stud earrings"],
       ["chain", "Gold chain", "a gold chain necklace"], ["tennis", "Tennis necklace", "a diamond tennis necklace"],
@@ -280,7 +294,7 @@
     skin: "caramel", height: CFG.heightDefault, exag: CFG.exagDefault,
     shape: { waist: 9, hips: 9, glutes: 10, thighs: 9, bust: 5, tone: 3 },
     pick: { hair: ["straight"], haircolor: ["black"], makeup: ["glam"], eyes: ["brown"], expr: ["confident"],
-      camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], boots: ["white"],
+      camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], eyewear: ["none"], boots: ["white"],
       tattoos: ["legs"], inkstyle: ["color"], jewelry: ["studs"] },
     weapon: "ak47", hold: "low", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
     pose: { preset: "hold", custom: null, match: false, look: { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 } }, duo: "side"
@@ -639,6 +653,7 @@
     var camo = opt("camo");
     var outfit = "remove all of her original clothes and dress her in " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo;
     var gear = opts("gear"); if (gear.length) outfit += ", with " + gear.join(", ");
+    if (opt("eyewear")) outfit += ", wearing " + opt("eyewear");
     if (opt("boots")) outfit += ", " + opt("boots");
     ch.push(outfit);
     var tat = opt("tattoos"); if (tat) ch.push("add " + tat + " in " + (opt("inkstyle") || "full color") + " style, rich saturated colors, no white ink");
@@ -696,6 +711,7 @@
     var camo = opt("camo");
     var outfit = "wearing " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo + ", a stylish streetwear outfit with a military touch";
     var gear = opts("gear"); if (gear.length) outfit += ", with " + gear.join(", ");
+    if (opt("eyewear")) outfit += ", wearing " + opt("eyewear");
     if (opt("boots")) outfit += ", " + opt("boots");
     if (C) outfit = "OUTFIT: completely replace their original clothes with this outfit, none of their original clothing, swimwear or accessories anywhere: " + outfit.replace(/^wearing /, "");
     parts.push(outfit);
@@ -865,6 +881,7 @@
   function wearingLine() {
     var camo = opt("camo"), bits = [[opt("top"), opt("bottom")].filter(Boolean).join(" and ") + (camo ? " in " + camo : "")];
     var gear = opts("gear"); if (gear.length) bits.push(gear.join(", "));
+    if (opt("eyewear")) bits.push(opt("eyewear"));
     if (opt("boots")) bits.push(opt("boots"));
     var tat = opt("tattoos"); if (tat) bits.push(tat + " (" + (opt("inkstyle") || "full color") + ")");
     var jew = opts("jewelry"); if (jew.length) bits.push(jew.join(", "));
@@ -1183,6 +1200,9 @@
     if (!VIEWS[state.view]) state.view = "sheet";
     if (s.shape) state.shape = Object.assign(clone(DEFAULTS.shape), s.shape);
     if (s.pick) state.pick = Object.assign(clone(DEFAULTS.pick), clone(s.pick));
+    // old saves: the "Shades" gear chip became the Eyewear picker
+    var gi = (state.pick.gear || []).indexOf("shades");
+    if (gi >= 0) { state.pick.gear.splice(gi, 1); if (!s.pick.eyewear) state.pick.eyewear = ["shield"]; }
     if (!quiet && $("bdExtra")) $("bdExtra").value = s.extra || "";
     else if (quiet && s.extra != null) state._extra = s.extra;
     if ("char" in s) state.char = s.char || null;

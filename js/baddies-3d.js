@@ -98,30 +98,21 @@ function init() {
       }
     });
   }
-  const INK = {
-    color: ["#d7263d", "#f46036", "#ffd23f", "#1b998b", "#2e86ab", "#7b2cbf", "#111111"],
-    blackgrey: ["#151515", "#2a2a2a", "#444444", "#5c5c5c"],
-    japanese: ["#c1121f", "#003049", "#f77f00", "#2a9d8f", "#111111"],
-    script: ["#141414", "#2b2b2b"]
-  };
+  // Tattoo art: AI flash sheets on white (img/baddies/ink/<style>.webp), multiplied onto the skin in the shader.
+  const INK_STYLES = ["color", "blackgrey", "japanese", "script", "tribal", "comic", "traditional", "geometric", "floral", "biomech", "chicano", "watercolor", "anime"];
+  const inkCache = {};
+  let inkWant = "color";
+  const inkBlank = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); inkBlank.needsUpdate = true;
   function inkTex(style) {
-    return canvasTex("ink-" + style, 1024, 1024, (g, w, h) => {
-      g.clearRect(0, 0, w, h);
-      const pal = INK[style] || INK.color, r = rnd(style.length * 131 + 7);
-      g.lineCap = "round"; g.lineJoin = "round";
-      const n = style === "script" ? 160 : 420;
-      for (let i = 0; i < n; i++) {
-        g.strokeStyle = g.fillStyle = pal[Math.floor(r() * pal.length)];
-        g.lineWidth = style === "script" ? 1.4 : 1.5 + r() * 4;
-        g.globalAlpha = 0.9;
-        const x = r() * w, y = r() * h;
-        g.beginPath(); g.moveTo(x, y);
-        for (let k = 0; k < 4; k++) g.quadraticCurveTo(x + (r() - 0.5) * 60, y + (r() - 0.5) * 60, x + (r() - 0.5) * 50, y + (r() - 0.5) * 50);
-        g.stroke();
-        if (style !== "script" && r() < 0.45) { g.globalAlpha = 0.75; g.beginPath(); g.arc(x, y, 3 + r() * 10, 0, Math.PI * 2); g.fill(); }
-      }
-      g.globalAlpha = 1;
+    if (INK_STYLES.indexOf(style) < 0) style = "color";
+    inkWant = style;
+    if (inkCache[style]) return inkCache[style];
+    new THREE.TextureLoader().load(new URL("img/baddies/ink/" + style + ".webp?v=1122c", document.baseURI).href, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping; t.anisotropy = 8;
+      inkCache[style] = t;
+      if (inkWant === style && typeof U !== "undefined" && U.uInk) { U.uInk.value = t; if (typeof kick === "function") kick(); }
     });
+    return inkBlank;
   }
   const std = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.6, metalness: 0 }, o));
   function sphere(r, mat, x, y, z, sx = 1, sy = 1, sz = 1) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 22), mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); return m; }
@@ -151,7 +142,7 @@ function init() {
     uEyeL: { value: new THREE.Vector3(0.032, 1.5, 0.08) }, uEyeR: { value: new THREE.Vector3(-0.032, 1.5, 0.08) }, uMouth: { value: new THREE.Vector3(0, 1.44, 0.09) },
     uLip: { value: new THREE.Color("#a5555a") }, uLipAmt: { value: 0.3 }, uLiner: { value: 0 }, uShadowC: { value: new THREE.Color("#5a3a30") }, uShadowAmt: { value: 0 }
   };
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.52, metalness: 0 });
+  const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0, sheen: 0.45, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffd2b8), clearcoat: 0.06, clearcoatRoughness: 0.45 });
   bodyMat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
@@ -165,7 +156,13 @@ function init() {
         vec3 col = uSkin;
         if (uHasSkin > 0.5) { vec3 st = texture2D(uSkinTex, vUv2).rgb; float sl = dot(st, vec3(0.299, 0.587, 0.114)); col = uSkin * clamp(sl / 0.6, 0.55, 1.35); }
         if (cls < 0.5) {
-          if (vInk > 0.5) { vec4 t = texture2D(uInk, vUv2 * 3.0); col = mix(col, t.rgb * 0.85, t.a * 0.9); }
+          if (vInk > 0.5) {
+            // ink sits under the skin: multiply blend (white paper = untouched skin), a touch of healed fade
+            vec3 t = texture2D(uInk, vUv2 * 2.4).rgb;
+            t = mix(t, vec3(dot(t, vec3(0.299, 0.587, 0.114))), 0.12);
+            t = mix(t, vec3(0.08, 0.10, 0.14), (1.0 - dot(t, vec3(0.333))) * 0.15);
+            col *= mix(vec3(1.0), t, 0.9);
+          }
           if (vRest.z > uMouth.z - 0.03 && abs(vRest.y - uMouth.y) < 0.09) {
             vec2 dm = (vRest.xy - uMouth.xy) / vec2(0.0235, 0.0105);
             float lip = (1.0 - smoothstep(0.75, 1.05, length(dm))) * step(uMouth.z - 0.016, vRest.z);
@@ -680,6 +677,124 @@ function init() {
   }
 
   // ------------------------------------------------------------ add-ons: hair, gear, jewelry, weapon
+  // ------------------------------------------------------------ eyewear
+  // Lens outlines (metres, centred on the lens), extruded into frames with real lenses, a bridge and temples.
+  function lensShape(type, scale = 1) {
+    const S = new THREE.Shape(), k = scale;
+    const poly = (pts) => { pts.forEach(([x, y], i) => (i ? S.lineTo(x * k, y * k) : S.moveTo(x * k, y * k))); S.closePath(); return S; };
+    if (type === "round") { S.absarc(0, 0, 0.0215 * k, 0, Math.PI * 2, false); return S; }
+    if (type === "aviator") { // teardrop
+      S.moveTo(-0.026 * k, 0.012 * k); S.bezierCurveTo(-0.012 * k, 0.02 * k, 0.014 * k, 0.02 * k, 0.026 * k, 0.012 * k);
+      S.bezierCurveTo(0.03 * k, -0.006 * k, 0.012 * k, -0.026 * k, -0.004 * k, -0.026 * k);
+      S.bezierCurveTo(-0.02 * k, -0.026 * k, -0.03 * k, -0.006 * k, -0.026 * k, 0.012 * k); return S;
+    }
+    if (type === "cateye") { // swept up at the outer corner (outer = +x)
+      S.moveTo(-0.024 * k, 0.008 * k); S.bezierCurveTo(-0.01 * k, 0.016 * k, 0.016 * k, 0.016 * k, 0.03 * k, 0.022 * k);
+      S.bezierCurveTo(0.028 * k, 0.004 * k, 0.02 * k, -0.018 * k, 0.002 * k, -0.019 * k);
+      S.bezierCurveTo(-0.018 * k, -0.019 * k, -0.026 * k, -0.006 * k, -0.024 * k, 0.008 * k); return S;
+    }
+    // wayfarer / smart: trapezoid, wide top, rounded corners
+    S.moveTo(-0.025 * k, 0.015 * k); S.lineTo(0.026 * k, 0.017 * k); S.quadraticCurveTo(0.029 * k, 0.017 * k, 0.028 * k, 0.012 * k);
+    S.lineTo(0.022 * k, -0.013 * k); S.quadraticCurveTo(0.02 * k, -0.018 * k, 0.014 * k, -0.018 * k); S.lineTo(-0.016 * k, -0.017 * k);
+    S.quadraticCurveTo(-0.023 * k, -0.017 * k, -0.024 * k, -0.011 * k); S.lineTo(-0.027 * k, 0.01 * k); S.quadraticCurveTo(-0.028 * k, 0.015 * k, -0.025 * k, 0.015 * k);
+    return S;
+  }
+  // a strap around the back of the head: an arc in the horizontal plane with its gap at the front (+z)
+  function headStrap(r, tube, mat, y, z, arc = Math.PI * 1.3, flat = 0.5) {
+    const g = new THREE.TorusGeometry(r, tube, 8, 48, arc);
+    g.rotateZ(Math.PI / 2 - arc / 2); g.rotateX(-Math.PI / 2); g.scale(1, flat, 1);
+    const m = new THREE.Mesh(g, mat); m.position.set(0, y, z); return m;
+  }
+  function eyewear(type, H, eyeY, eyeZ, eyeX) {
+    const G = new THREE.Group(); H.add(G);
+    const frameBlack = new THREE.MeshPhysicalMaterial({ color: 0x0b0b0d, roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.12 });
+    const gold = new THREE.MeshPhysicalMaterial({ color: 0xd8b25a, roughness: 0.18, metalness: 1 });
+    const lensDark = new THREE.MeshPhysicalMaterial({ color: 0x1b2a22, roughness: 0.04, metalness: 0.25, transparent: true, opacity: 0.86, clearcoat: 1, envMapIntensity: 2, side: THREE.DoubleSide });
+    const lensGrad = new THREE.MeshPhysicalMaterial({ color: 0x3a2c22, roughness: 0.04, metalness: 0.35, transparent: true, opacity: 0.8, clearcoat: 1, envMapIntensity: 2.2, side: THREE.DoubleSide });
+    const mirror = new THREE.MeshPhysicalMaterial({ color: 0x7fb4ff, roughness: 0.04, metalness: 0.9, envMapIntensity: 2.2, transparent: true, opacity: 0.94, side: THREE.DoubleSide });
+    // lenses and polished frames reflect a studio room even when the look has no environment light
+    if (!envTex) envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    for (const m of [frameBlack, gold, lensDark, lensGrad, mirror]) m.envMap = envTex;
+    const z0 = eyeZ + 0.017, ex = eyeX;
+    const temples = (mat, th = 0.0035, hgt = 0.006, y = 0.009) => {
+      for (const sd of [-1, 1]) {
+        const len = 0.105, t = new THREE.Mesh(new THREE.BoxGeometry(th, hgt, len), mat);
+        t.position.set(sd * (ex + 0.031), eyeY + y * 0.5, z0 - len / 2 - 0.002); t.rotation.y = sd * -0.06; G.add(t);
+        const tip = new THREE.Mesh(new THREE.BoxGeometry(th, hgt * 0.8, 0.025), mat); tip.position.set(sd * (ex + 0.026), eyeY - 0.004, z0 - len - 0.008); tip.rotation.x = 0.7; G.add(tip);
+      }
+    };
+    if (["wayfarer", "smart", "aviator", "round", "cateye"].includes(type)) {
+      const metal = type === "aviator" || type === "round";
+      const fMat = metal ? gold : frameBlack, lMat = type === "aviator" ? lensGrad : lensDark;
+      const thick = type === "smart" ? 1.32 : (metal ? 1.1 : 1.24);
+      for (const sd of [-1, 1]) {
+        const outer = lensShape(type, thick), hole = lensShape(type, 1); outer.holes.push(new THREE.Path(hole.getPoints(48)));
+        const fr = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: metal ? 0.0016 : 0.0045, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0006, bevelSegments: 2, curveSegments: 32 }), fMat);
+        const ln = new THREE.Mesh(new THREE.ShapeGeometry(lensShape(type, 1), 32), lMat);
+        for (const m of [fr, ln]) { m.scale.x = sd; m.position.set(sd * ex, eyeY, z0 + (m === ln ? 0.0016 : 0)); m.rotation.y = sd * 0.1; G.add(m); }
+      }
+      // bridge
+      if (metal) { G.add(limb([-0.009, eyeY + 0.012, z0 + 0.003], [0.009, eyeY + 0.012, z0 + 0.003], 0.0012, 0.0012, gold));
+        if (type === "aviator") G.add(limb([-0.012, eyeY + 0.019, z0 + 0.002], [0.012, eyeY + 0.019, z0 + 0.002], 0.001, 0.001, gold)); }
+      else { const br = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.006, 0.005), fMat); br.position.set(0, eyeY + 0.01, z0 + 0.002); G.add(br); }
+      temples(fMat, metal ? 0.0014 : (type === "smart" ? 0.006 : 0.0045), metal ? 0.0016 : (type === "smart" ? 0.009 : 0.007));
+      if (type === "smart") {   // camera + LED in the frame corners
+        const cam = new THREE.Mesh(new THREE.CylinderGeometry(0.0024, 0.0024, 0.002, 20), new THREE.MeshPhysicalMaterial({ color: 0x050505, roughness: 0.02, metalness: 0.6, clearcoat: 1 }));
+        cam.rotation.x = Math.PI / 2; cam.position.set(ex + 0.029, eyeY + 0.016, z0 + 0.006); G.add(cam);
+        const led = new THREE.Mesh(new THREE.SphereGeometry(0.0011, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.5 }));
+        led.position.set(-(ex + 0.029), eyeY + 0.016, z0 + 0.006); G.add(led);
+      }
+      return G;
+    }
+    if (type === "shield") {   // one wrap-around mirrored visor
+      const r = z0 + 0.004, v = new THREE.Mesh(new THREE.CylinderGeometry(r, r - 0.004, 0.04, 48, 1, true, -0.95, 1.9), mirror);
+      v.position.set(0, eyeY, 0); G.add(v);
+      const top = new THREE.Mesh(new THREE.TorusGeometry(r + 0.001, 0.0022, 8, 48, 1.9), frameBlack); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 0.95; top.position.set(0, eyeY + 0.02, 0); G.add(top);
+      temples(frameBlack, 0.004, 0.006); return G;
+    }
+    if (type === "goggles") {
+      const r = z0 + 0.012;
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.034, 48, 1, true, -0.8, 1.6), new THREE.MeshPhysicalMaterial({ color: 0x5a6a5a, roughness: 0.04, metalness: 0.6, transparent: true, opacity: 0.8, clearcoat: 1, envMap: envTex, envMapIntensity: 2, side: THREE.DoubleSide }));
+      lens.position.set(0, eyeY, 0); G.add(lens);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.002, r - 0.002, 0.044, 48, 1, true, -0.85, 1.7), new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.8, side: THREE.DoubleSide }));
+      rim.scale.set(1, 1, 1); rim.position.set(0, eyeY, -0.002); G.add(rim);
+      G.add(headStrap(0.098, 0.008, new THREE.MeshStandardMaterial({ color: 0x1d1f1a, roughness: 0.95 }), eyeY + 0.004, -0.006, Math.PI * 1.3, 1.6));
+      return G;
+    }
+    if (type === "vr") {
+      const sh = new THREE.Shape(), w = 0.076, h = 0.04, rr = 0.016;
+      sh.moveTo(-w + rr, -h); sh.lineTo(w - rr, -h); sh.quadraticCurveTo(w, -h, w, -h + rr); sh.lineTo(w, h - rr); sh.quadraticCurveTo(w, h, w - rr, h);
+      sh.lineTo(-w + rr, h); sh.quadraticCurveTo(-w, h, -w, h - rr); sh.lineTo(-w, -h + rr); sh.quadraticCurveTo(-w, -h, -w + rr, -h);
+      const white = new THREE.MeshPhysicalMaterial({ color: 0xf2f2f0, roughness: 0.35, clearcoat: 0.6 });
+      white.envMap = envTex;
+      const box = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.034, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 4, curveSegments: 16 }), white);
+      box.position.set(0, eyeY - 0.004, eyeZ + 0.002); G.add(box);
+      const face = new THREE.Mesh(new THREE.ShapeGeometry(sh, 16), new THREE.MeshPhysicalMaterial({ color: 0x0c0c10, roughness: 0.15, clearcoat: 1 }));
+      face.visible = false;
+      const pillM = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, roughness: 0.1, clearcoat: 1 });
+      for (const x of [-0.042, 0, 0.042]) {   // three sensor pills across the front
+        const pill = new THREE.Mesh(new THREE.CapsuleGeometry(0.0055, 0.012, 6, 12), pillM); pill.rotation.z = Math.PI / 2; pill.scale.z = 0.3;
+        pill.position.set(x, eyeY - 0.004, eyeZ + 0.0465); G.add(pill);
+      }
+      const strapM = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.85 });
+      G.add(headStrap(0.099, 0.006, strapM, eyeY, -0.01, Math.PI * 1.35, 2.2));
+      const top = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.005, 6, 32, Math.PI * 0.9), strapM); top.rotation.y = Math.PI / 2; top.rotation.z = Math.PI * 0.05; top.position.set(0, eyeY - 0.005, -0.012); G.add(top);
+      return G;
+    }
+    if (type === "nvg") {
+      const blk = new THREE.MeshStandardMaterial({ color: 0x1b1d1a, roughness: 0.7, metalness: 0.2 });
+      const mount = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.025), blk); mount.position.set(0, eyeY + 0.045, eyeZ + 0.01); G.add(mount);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.012), blk); arm.position.set(0, eyeY + 0.022, eyeZ + 0.03); G.add(arm);
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.02), blk); bridge.position.set(0, eyeY + 0.004, eyeZ + 0.04); G.add(bridge);
+      for (const sd of [-1, 1]) {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.012, 0.065, 24), blk); tube.rotation.x = Math.PI / 2; tube.position.set(sd * ex, eyeY, eyeZ + 0.055); G.add(tube);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0125, 24), new THREE.MeshStandardMaterial({ color: 0x0f2a12, emissive: 0x33ff55, emissiveIntensity: 0.6 })); lens.position.set(sd * ex, eyeY, eyeZ + 0.0885); G.add(lens);
+      }
+      return G;
+    }
+    return G;
+  }
+
   function buildExtras(s, one, has, armed, pistol, w, hold) {
     const sRef = s;
     holder.remove(extras); extras.traverse((o) => { o.geometry && o.geometry.dispose(); o.material && o.material.dispose && o.material.dispose(); });
@@ -717,7 +832,8 @@ function init() {
       if (!pinned) { EYEG.updateMatrix(); EYEG.matrix.premultiply(delta); EYEG.matrix.decompose(EYEG.position, EYEG.quaternion, EYEG.scale); }
     };
     const eyeY = eyeInfo ? eyeInfo.l.y - H.position.y : 0.012, eyeZ = eyeInfo ? eyeInfo.front - H.position.z : 0.08;
-    if (has("gear", "shades")) { H.add(boxM(0.135, 0.032, 0.012, black, 0, eyeY, eyeZ + 0.012)); }
+    const ewear = one("eyewear") || (has("gear", "shades") ? "shield" : "none");
+    if (ewear && ewear !== "none") eyewear(ewear, H, eyeY, eyeZ, eyeInfo ? Math.abs(eyeInfo.l.x - H.position.x) : 0.032);
 
     // hair
     const style = one("hair") || "straight";
@@ -1102,7 +1218,7 @@ function init() {
   }
 
   const LOOKS = {
-    game:       { rig: "studio" },
+    game:       { rig: "studio", env: 0.32, shadows: true },
     photo:      { rig: "soft", env: 0.55, shadows: true, sat: 0.95, exposure: 1.05, bg: "radial-gradient(120% 90% at 50% 15%, #4a4a50 0%, #1c1c20 60%, #0c0c0e 100%)" },
     anime:      { rig: "flat", outline: 0.0045, poster: 4, sat: 1.3, bg: "linear-gradient(180deg, #ffd9ec 0%, #c9e4ff 100%)" },
     comic:      { rig: "flat", outline: 0.007, poster: 3, sat: 1.45, mode: 2, bg: "radial-gradient(circle, #fff3b0 0 2px, #ffe066 2px) 0 0 / 10px 10px" },
