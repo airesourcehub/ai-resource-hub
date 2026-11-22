@@ -767,6 +767,16 @@
       (sheet ? "Do this in every view of her in Picture 1 (front, side and back). " : "Turn her head to a side profile so the hairstyle is clearly visible. ") +
       "Keep everything else in Picture 1 exactly the same: her face, identity, skin, body, outfit, tattoos, jewelry, boots, weapon, body pose, full-body framing from head to boots, camera, background and style.";
   }
+  // FLUX edit models drift on clothes unless every step restates them (and Klein ignores negative prompts)
+  function wearingLine() {
+    var camo = opt("camo"), bits = [[opt("top"), opt("bottom")].filter(Boolean).join(" and ") + (camo ? " in " + camo : "")];
+    var gear = opts("gear"); if (gear.length) bits.push(gear.join(", "));
+    if (opt("boots")) bits.push(opt("boots"));
+    var tat = opt("tattoos"); if (tat) bits.push(tat + " (" + (opt("inkstyle") || "full color") + ")");
+    var jew = opts("jewelry"); if (jew.length) bits.push(jew.join(", "));
+    return " She stays fully dressed in exactly this outfit, same colors and pattern as in Picture 1: " + bits.join("; ") +
+      ". Her bottoms stay fully on, covering her hips and crotch. Fully clothed, tasteful, no nudity.";
+  }
   function editModel() { return state.editEngine || "klein9b_edit"; }
   function isFluxEdit() { return editModel() !== "qwen_edit2509"; }
   function poseMatch() { return !!(state.pose && (state.pose.preset === "custom" || state.pose.match)); }
@@ -872,7 +882,7 @@
     var settings = snapshot(), model = plan[0].inputs.length ? editModel() : state.engine;
     var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: plan.map(function (x) { return x.prompt; }).join("\n\n"),
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
-      plan: plan, si: -1, blobs: blobs, editModel: editModel(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
+      plan: plan, si: -1, blobs: blobs, editModel: editModel(), wearing: wearingLine(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
     state.mine.unshift(card); renderMine();
     try { await runStep(card, 0, token); }
     catch (e) {
@@ -896,7 +906,8 @@
     fd.append("model", mdl);
     fd.append("mode", img ? "edit" : "create");
     // FLUX.2 Klein: naming the trained @character loads their FLUX.2 LoRA on the server (when they have one)
-    fd.append("prompt", (mdl === "klein9b_edit" && card.who && st.who ? card.who + " is the woman in Picture 1. " : "") + st.prompt);
+    fd.append("prompt", (mdl === "klein9b_edit" && card.who && st.who ? card.who + " is the woman in Picture 1. " : "") + st.prompt +
+      (mdl !== "qwen_edit2509" && card.wearing && !/^adding/.test(st.label || "") ? card.wearing : ""));
     fd.append("negative", NEGATIVE + (img && i > 0 ? ", different person, extra people, mannequin" : ""));
     fd.append("batch", String(st.batch || 1));
     if (st.w) { fd.append("width", String(st.w)); fd.append("height", String(st.h)); if (img) fd.append("size", "custom"); }
