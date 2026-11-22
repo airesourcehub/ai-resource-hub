@@ -160,9 +160,52 @@
     ["back", "Back to back", "standing back to back with arms crossed, both looking at the camera"],
     ["squad", "Squad pose", "posing together like a squad, confident, facing the camera"]
   ];
+  // Body turn / torso twist / head / eyes (degrees; eyes -10..10). Positive = toward her own left.
+  var LOOK_SLIDERS = [
+    ["turn", "Body turn", -180, 180, 15, "Turn to her right", "Turn to her left"],
+    ["twist", "Torso twist", -60, 60, 5, "To her right", "To her left"],
+    ["head", "Head turn", -85, 85, 5, "To her right", "To her left"],
+    ["nod", "Head up / down", -35, 35, 5, "Down", "Up"],
+    ["tilt", "Head tilt", -30, 30, 5, "Right", "Left"],
+    ["eyeX", "Eyes left / right", -10, 10, 1, "Her right", "Her left"],
+    ["eyeY", "Eyes up / down", -10, 10, 1, "Down", "Up"]
+  ];
+  var LOOK_PRESETS = [
+    ["front", "Facing camera", { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 }],
+    ["backR", "Look back over right shoulder", { turn: 160, twist: -50, head: -80, nod: 5, tilt: 0, eyeX: -5, eyeY: 0 }],
+    ["backL", "Look back over left shoulder", { turn: -160, twist: 50, head: 80, nod: 5, tilt: 0, eyeX: 5, eyeY: 0 }],
+    ["side", "Side profile", { turn: 90, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 }],
+    ["threeq", "3/4 turn, eyes to camera", { turn: 35, twist: 0, head: -20, nod: 0, tilt: 5, eyeX: -5, eyeY: 0 }],
+    ["away", "Looking away", { turn: 0, twist: 0, head: 70, nod: 10, tilt: 0, eyeX: 6, eyeY: 2 }]
+  ];
+  function lookOf() { var l = (state.pose && state.pose.look) || {}; return { turn: +l.turn || 0, twist: +l.twist || 0, head: +l.head || 0, nod: +l.nod || 0, tilt: +l.tilt || 0, eyeX: +l.eyeX || 0, eyeY: +l.eyeY || 0 }; }
+  function norm180(a) { a = ((a + 180) % 360 + 360) % 360 - 180; return a; }
+  // Words for the body turn, head and eyes (where she faces relative to the camera).
+  function lookWords() {
+    var L = lookOf(), out = [], t = norm180(L.turn), face = norm180(t + L.twist + L.head);
+    var side = function (v) { return v > 0 ? "left" : "right"; };
+    var away = Math.abs(t) > 110, sideways = !away && Math.abs(t) > 60, threeq = !away && !sideways && Math.abs(t) >= 20;
+    if (away) out.push("turned away with her back to the camera");
+    else if (sideways) out.push("turned sideways, her " + (t > 0 ? "right" : "left") + " side toward the camera");
+    else if (threeq) out.push("body turned three-quarters, her " + (t > 0 ? "right" : "left") + " shoulder toward the camera");
+    sideways = sideways || threeq;
+    if (Math.abs(L.twist) >= 15) out.push("upper body twisted to her " + side(L.twist));
+    var headToCam = Math.abs(face) < 55;
+    if (away && headToCam) out.push("looking back over her " + side(L.twist + L.head) + " shoulder at the camera");
+    else if (sideways && headToCam && Math.abs(L.head) >= 15) out.push("head turned to look at the camera");
+    else if (Math.abs(L.head) >= 15) out.push("head turned to her " + side(L.head) + (headToCam ? "" : ", looking away from the camera"));
+    if (L.nod >= 10) out.push("chin raised, looking up"); else if (L.nod <= -10) out.push("head lowered, looking down");
+    if (Math.abs(L.tilt) >= 10) out.push("head tilted to her " + side(L.tilt));
+    var ex = L.eyeX, ey = L.eyeY, eyes = [];
+    if (ex >= 4) eyes.push("to her left"); else if (ex <= -4) eyes.push("to her right");
+    if (ey >= 4) eyes.push("up"); else if (ey <= -4) eyes.push("down");
+    if (eyes.length) out.push("eyes glancing " + eyes.join(" and ") + (headToCam ? ", toward the camera" : ""));
+    else if (headToCam && (away || sideways || Math.abs(L.head) >= 15)) out.push("eyes looking straight into the camera");
+    return out.join(", ");
+  }
   function poseId() { return (state.pose && state.pose.preset) || "hold"; }
   function handsBusy() { var p = poseId(); return p !== "hold" && p !== "kneel" && p !== "custom"; }
-  function poseWords() { return fromList(POSES, poseId())[2]; }
+  function poseWords() { return [fromList(POSES, poseId())[2], lookWords()].filter(Boolean).join(", "); }
   var HOLDS = [
     ["low", "Low ready", "holding it at low ready across her body"],
     ["shoulder", "Shouldered", "holding it shouldered and aimed"],
@@ -214,7 +257,7 @@
       camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], boots: ["white"],
       tattoos: ["legs"], inkstyle: ["color"], jewelry: ["studs"] },
     weapon: "ak47", hold: "low", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
-    pose: { preset: "hold", custom: null, match: false }, duo: "side"
+    pose: { preset: "hold", custom: null, match: false, look: { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 } }, duo: "side"
   };
 
   // ------------------------------------------------------------ state
@@ -249,6 +292,13 @@
     $("bdInk").innerHTML = INK.map(groupHtml).join("");
     $("bdWeapon").innerHTML = chipRow("weapon", "Model", WEAPONS) + chipRow("hold", "How she holds it", HOLDS);
     $("bdPose").innerHTML = '<div class="bd-group"><div class="bd-chips">' + POSES.map(function (o) { return '<button type="button" data-pose="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
+      '<div class="bd-group"><div class="bd-row-lbl"><span>Body, head &amp; eyes</span></div><div class="bd-chips">' +
+        LOOK_PRESETS.map(function (o) { return '<button type="button" data-lookp="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
+      LOOK_SLIDERS.map(function (x) {
+        return '<div class="bd-slider bd-slider-sm"><div class="bd-row-lbl"><label for="bdL_' + x[0] + '">' + x[1] + '</label><b data-lv="' + x[0] + '"></b></div>' +
+          '<input type="range" id="bdL_' + x[0] + '" data-look-k="' + x[0] + '" min="' + x[2] + '" max="' + x[3] + '" step="' + x[4] + '" />' +
+          '<div class="bd-scale"><span>' + x[5] + "</span><span>" + x[6] + "</span></div></div>";
+      }).join("") +
       '<label class="bd-toggle"><input type="checkbox" id="bdPoseMatch" /> <span>Match my 3D pose exactly in the AI render</span></label>';
     $("bdDuo").innerHTML = '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
@@ -294,6 +344,15 @@
     var pid = poseId();
     each(document.querySelectorAll("#bdPose [data-pose]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-pose") === pid); });
     var pm = $("bdPoseMatch"); if (pm) { pm.checked = poseMatch(); pm.disabled = pid === "custom"; }
+    var LKv = lookOf();
+    LOOK_SLIDERS.forEach(function (x) {
+      var el = $("bdL_" + x[0]); if (el) el.value = LKv[x[0]];
+      var lb = document.querySelector('[data-lv="' + x[0] + '"]'); if (lb) lb.textContent = x[0].indexOf("eye") === 0 ? String(LKv[x[0]]) : LKv[x[0]] + "°";
+    });
+    each(document.querySelectorAll("#bdPose [data-lookp]"), function (b) {
+      var p = LOOK_PRESETS.filter(function (o) { return o[0] === b.getAttribute("data-lookp"); })[0];
+      b.classList.toggle("is-on", !!p && Object.keys(p[2]).every(function (k) { return p[2][k] === LKv[k]; }));
+    });
     $("bdPoseNote").textContent = pid === "custom" ? "Drag the colored dots in the 3D preview: blue = hands, green = feet, orange = hips. The AI render copies this pose."
       : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the gun goes on a sling across her back. " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
     each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
@@ -352,13 +411,19 @@
       if (state.char) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; } $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
     $("bdGo").addEventListener("click", onGenerate);
     $("bdPose").addEventListener("click", function (e) {
+      var lp = e.target.closest("[data-lookp]");
+      if (lp) { var P = LOOK_PRESETS.filter(function (o) { return o[0] === lp.getAttribute("data-lookp"); })[0]; if (P) { state.pose.look = clone(P[2]); sync(); } return; }
       var b = e.target.closest("[data-pose]"); if (!b) return;
       var id = b.getAttribute("data-pose");
-      state.pose = { preset: id, custom: id === "custom" ? (state.pose && state.pose.custom) || null : null, match: id === "custom" ? true : !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
+      state.pose = { look: lookOf(), preset: id, custom: id === "custom" ? (state.pose && state.pose.custom) || null : null, match: id === "custom" ? true : !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
       if (id === "custom") { var sp = $("bdPreview"); if (sp && sp.scrollIntoView) sp.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
       sync();
     });
     $("bdPose").addEventListener("change", function (e) { if (e.target.id === "bdPoseMatch") { state.pose.match = e.target.checked; sync(); } });
+    $("bdPose").addEventListener("input", function (e) {
+      var k = e.target.getAttribute && e.target.getAttribute("data-look-k"); if (!k) return;
+      state.pose.look = Object.assign(lookOf(), state.pose.look || {}); state.pose.look[k] = +e.target.value; sync();
+    });
     $("bdWith").addEventListener("click", function (e) {
       var b = e.target.closest("[data-with]"); if (!b) return;
       var k = b.getAttribute("data-with");
@@ -677,7 +742,7 @@
       else if (pid === "custom") gun = "holding " + w[2].replace(/^a real /, "the ") + " in her right hand";
       else gun = "holding " + w[2].replace(/^a real /, "the ") + " " + fromList(HOLDS, state.hold)[2].replace(/^holding it /, "");
     }
-    return [pid !== "custom" && pid !== "hold" ? poseWords() : "", d, gun].filter(Boolean).join(", ");
+    return [pid !== "custom" && pid !== "hold" ? fromList(POSES, pid)[2] : "", d, lookWords(), gun].filter(Boolean).join(", ");
   }
   function charPosePrompt() {
     return "Change only her pose, keeping this exact same person (same face, age, skin color, hair, glasses, body proportions, outfit, tattoos, jewelry, boots and weapon) and the same plain background. New pose: " + poseDesc() +
@@ -1013,7 +1078,7 @@
 
   // ------------------------------------------------------------ boot
   window.BADDIES_STYLES = STYLES;
-  window.BADDIES_SET_POSE = function (custom) { state.pose = { preset: "custom", custom: custom, match: true }; sync(); };
+  window.BADDIES_SET_POSE = function (custom) { state.pose = { preset: "custom", custom: custom, match: true, look: lookOf() }; sync(); };
   window.BADDIES_SET_STYLE = function (id) { if (STYLES.some(function (x) { return x[0] === id; })) { state.style = id; sync(); } };
   if (CFG.preview === false && $("bdPreview")) { $("bdPreview").remove(); $("bd").classList.add("no-preview"); }
   renderPanel();

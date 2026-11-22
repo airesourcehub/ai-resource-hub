@@ -380,6 +380,8 @@ function init() {
     const hold = armed && handsBusy ? "sling" : (preset === "custom" ? "free" : (s.hold || "low"));
     for (const n in restQ) B[n].quaternion.copy(restQ[n]);
     if (B.pelvis && restP.pelvis) B.pelvis.position.copy(restP.pelvis);
+    const LK = PZ.look || {}, DEG = Math.PI / 180;
+    holder.rotation.y = (LK.turn || 0) * DEG;              // whole body turn (180 = back to the camera)
     holder.updateMatrixWorld(true);
     const feet0 = { l: bonePos("foot_l"), r: bonePos("foot_r") }, footQ0 = { l: worldQ("foot_l"), r: worldQ("foot_r") };
     const PR = POSE_PRESETS[preset] || {};
@@ -388,6 +390,13 @@ function init() {
     if (pdy || PR.pdx) movePelvis(v3(PR.pdx || 0, pdy, PR.pdz || 0));
     if (PR.yaw) { yawBone("spine_01", PR.yaw * 0.25); yawBone("spine_02", PR.yaw * 0.35); yawBone("spine_03", PR.yaw * 0.4); }
     if (PR.head) { yawBone("neck_01", PR.head * 0.5); yawBone("head", PR.head * 0.5); }
+    // torso twist and head turn / nod / tilt from the sliders (on top of any preset)
+    const tw = (LK.twist || 0) * DEG, hy = (LK.head || 0) * DEG;
+    if (tw) { yawBone("spine_01", tw * 0.25); yawBone("spine_02", tw * 0.35); yawBone("spine_03", tw * 0.4); }
+    if (hy) { yawBone("neck_01", hy * 0.45); yawBone("head", hy * 0.55); }
+    const faceYaw = tw + hy + (PR.yaw || 0) + (PR.head || 0);
+    if (LK.nod) { const ax = v3(Math.cos(faceYaw), 0, -Math.sin(faceYaw)), a = -(LK.nod) * DEG; rotBone("neck_01", ax, a * 0.4); rotBone("head", ax, a * 0.6); }
+    if (LK.tilt) rotBone("head", v3(Math.sin(faceYaw), 0, Math.cos(faceYaw)), -(LK.tilt) * DEG);
     const POSES = {
       rest:     { ua_l: v3(0.16, -1, 0.02), la_l: v3(0.06, -1, 0.12), ua_r: v3(-0.16, -1, 0.02), la_r: v3(-0.06, -1, 0.12) },
       low:      { ua_l: v3(0.3, -0.8, 0.5), la_l: v3(-0.55, 0.12, 0.85), ua_r: v3(-0.35, -0.92, 0.15), la_r: v3(0.12, -0.2, 1) },
@@ -532,6 +541,14 @@ function init() {
   function ikLeg(side, T, kneeOut) {
     ikChain("thigh_" + side, "calf_" + side, "foot_" + side, T, v3((side === "r" ? -1 : 1) * (kneeOut || 0.15), 0, 1));
   }
+  function rotBone(name, axisBody, ang) {
+    const b = B[name]; if (!b) return; holder.updateMatrixWorld(true);
+    const hq = new THREE.Quaternion(); holder.getWorldQuaternion(hq);
+    const q = new THREE.Quaternion().setFromAxisAngle(axisBody.clone().normalize().applyQuaternion(hq), ang);
+    const bw = new THREE.Quaternion(); b.getWorldQuaternion(bw);
+    const pw = new THREE.Quaternion(); b.parent.getWorldQuaternion(pw);
+    b.quaternion.copy(pw.invert().multiply(q).multiply(bw)); b.updateMatrixWorld(true);
+  }
   function yawBone(name, ang) {
     const b = B[name]; if (!b) return;
     holder.updateMatrixWorld(true);
@@ -578,8 +595,9 @@ function init() {
     const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
     const EYEG = new THREE.Group(); extras.add(EYEG);
     if (eyeInfo) for (const c of [eyeInfo.l, eyeInfo.r]) {
-      const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x, c.y, eyeInfo.front + 0.0004); EYEG.add(ir);
-      const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x, c.y, eyeInfo.front + 0.0008); EYEG.add(pu);
+      const lk = (sRef.pose && sRef.pose.look) || {}, ex = Math.max(-1, Math.min(1, (lk.eyeX || 0) / 10)) * 0.0042, ey = Math.max(-1, Math.min(1, (lk.eyeY || 0) / 10)) * 0.003;
+      const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x + ex, c.y + ey, eyeInfo.front + 0.0004); EYEG.add(ir);
+      const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x + ex, c.y + ey, eyeInfo.front + 0.0008); EYEG.add(pu);
     }
     // head add-ons were laid out on the resting head: move them with the posed head (squats, kneeling, turned head)
     const followHead = () => {
@@ -1042,7 +1060,7 @@ function init() {
       if (drag.key[0] === "f") lp.y = Math.max(0.02, lp.y);
       drag.custom[drag.key] = lp.toArray();
     }
-    if (!dragQueued) { dragQueued = true; requestAnimationFrame(() => { dragQueued = false; if (drag) build(Object.assign({}, pendingState, { pose: { preset: "custom", custom: drag.custom, match: pendingState.pose && pendingState.pose.match } })); }); }
+    if (!dragQueued) { dragQueued = true; requestAnimationFrame(() => { dragQueued = false; if (drag) build(Object.assign({}, pendingState, { pose: Object.assign({}, pendingState.pose || {}, { preset: "custom", custom: drag.custom }) })); }); }
   });
   function endDrag(e) {
     if (!drag) return;

@@ -183,3 +183,4 @@
 .bd-face-note { color: var(--color-text-muted); }
 .bd-preview.is-posing { cursor: grabbing; }
 .bd-group.is-dim .bd-chips { opacity: 0.45; }
+#bdPose .bd-slider-sm { margin-top: 2px; }
