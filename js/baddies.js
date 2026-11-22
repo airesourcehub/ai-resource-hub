@@ -177,6 +177,7 @@
   var LOOK_SLIDERS = [
     ["turn", "Body turn", -180, 180, 15, "Turn to her right", "Turn to her left"],
     ["twist", "Torso twist", -60, 60, 5, "To her right", "To her left"],
+    ["lean", "Torso lean", -40, 40, 5, "Back", "Forward"],
     ["head", "Head turn", -85, 85, 5, "To her right", "To her left"],
     ["nod", "Head up / down", -35, 35, 5, "Down", "Up"],
     ["tilt", "Head tilt", -30, 30, 5, "Right", "Left"],
@@ -184,14 +185,14 @@
     ["eyeY", "Eyes up / down", -10, 10, 1, "Down", "Up"]
   ];
   var LOOK_PRESETS = [
-    ["front", "Facing camera", { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 }],
+    ["front", "Facing camera", { turn: 0, twist: 0, lean: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 }],
     ["backR", "Look back over right shoulder", { turn: 160, twist: -50, head: -80, nod: 5, tilt: 0, eyeX: -5, eyeY: 0 }],
     ["backL", "Look back over left shoulder", { turn: -160, twist: 50, head: 80, nod: 5, tilt: 0, eyeX: 5, eyeY: 0 }],
     ["side", "Side profile", { turn: 90, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 }],
     ["threeq", "3/4 turn, eyes to camera", { turn: 35, twist: 0, head: -20, nod: 0, tilt: 5, eyeX: -5, eyeY: 0 }],
     ["away", "Looking away", { turn: 0, twist: 0, head: 70, nod: 10, tilt: 0, eyeX: 6, eyeY: 2 }]
   ];
-  function lookOf() { var l = (state.pose && state.pose.look) || {}; return { turn: +l.turn || 0, twist: +l.twist || 0, head: +l.head || 0, nod: +l.nod || 0, tilt: +l.tilt || 0, eyeX: +l.eyeX || 0, eyeY: +l.eyeY || 0 }; }
+  function lookOf() { var l = (state.pose && state.pose.look) || {}; return { turn: +l.turn || 0, twist: +l.twist || 0, lean: +l.lean || 0, head: +l.head || 0, nod: +l.nod || 0, tilt: +l.tilt || 0, eyeX: +l.eyeX || 0, eyeY: +l.eyeY || 0 }; }
   function norm180(a) { a = ((a + 180) % 360 + 360) % 360 - 180; return a; }
   // Words for the body turn, head and eyes (where she faces relative to the camera).
   function lookWords() {
@@ -203,6 +204,7 @@
     else if (threeq) out.push("body turned three-quarters, her " + (t > 0 ? "right" : "left") + " shoulder toward the camera");
     sideways = sideways || threeq;
     if (Math.abs(L.twist) >= 15) out.push("upper body twisted to her " + side(L.twist));
+    if (L.lean >= 10) out.push("leaning forward"); else if (L.lean <= -10) out.push("leaning back");
     var headToCam = Math.abs(face) < 55;
     if (away && headToCam) out.push("looking back over her " + side(L.twist + L.head) + " shoulder at the camera");
     else if (sideways && headToCam && Math.abs(L.head) >= 15) out.push("head turned to look at the camera");
@@ -768,12 +770,16 @@
       else if (pid === "custom") gun = "holding " + w[2].replace(/^a real /, "the ") + " in her right hand";
       else gun = "holding " + w[2].replace(/^a real /, "the ") + " " + fromList(HOLDS, state.hold)[2].replace(/^holding it /, "");
     }
-    var seat = seatId();
-    return [seat !== "none" ? fromList(SEATS, seat)[2] : (pid !== "custom" && pid !== "hold" ? fromList(POSES, pid)[2] : ""), d, lookWords(), gun].filter(Boolean).join(", ");
+    var seat = seatId(), lw = lookWords();
+    if (/leaning back/.test(d)) lw = lw.replace(/,? ?leaning back/, "");
+    return [seat !== "none" && !/sitting/.test(d) ? fromList(SEATS, seat)[2] : (pid !== "custom" && pid !== "hold" && pid !== "sit" ? fromList(POSES, pid)[2] : ""), d, lw, gun].filter(Boolean).join(", ").replace(/^, /, "");
   }
   function charPosePrompt() {
-    return "Change only her pose, keeping this exact same person (same face, age, skin color, hair, glasses, body proportions, outfit, tattoos, jewelry, boots and weapon) and the same plain background. New pose: " + poseDesc() +
-      ", facing the camera. Full body head to toe in frame, one person only. " + fromList(STYLES, state.style)[2] + ".";
+    var hd = hairDesc(), extra = $("bdExtra") ? $("bdExtra").value.trim() : "";
+    var hair = hd.own ? "her own hair exactly as it is in this photo" : "exactly the same hairstyle as in this photo: " + hd.text + ", same cut, length, bangs and part";
+    var facing = /camera|turned|profile|sideways/.test(lookWords()) ? "" : ", facing the camera";
+    return "Change only her pose, keeping this exact same person (same face, age, skin color, glasses, body proportions, outfit, tattoos, jewelry, boots and weapon) and " + hair + ", and the same plain background. New pose, follow every detail: " + poseDesc() + facing +
+      (extra ? ". Also: " + extra : "") + ". Full body head to toe in frame, one person only. " + fromList(STYLES, state.style)[2] + ".";
   }
   function posePrompt(fromLeft) {
     var look = fromList(STYLES, state.style)[2], bg = fromList(BGS, state.bg)[2];

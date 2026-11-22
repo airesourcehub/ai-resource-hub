@@ -394,6 +394,7 @@ function init() {
     if (PR.head) { yawBone("neck_01", PR.head * 0.5); yawBone("head", PR.head * 0.5); }
     // torso twist and head turn / nod / tilt from the sliders (on top of any preset)
     const tw = (LK.twist || 0) * DEG, hy = (LK.head || 0) * DEG;
+    if (LK.lean) { const a = (LK.lean) * DEG, ax = v3(1, 0, 0); rotBone("spine_01", ax, a * 0.3); rotBone("spine_02", ax, a * 0.35); rotBone("spine_03", ax, a * 0.35); }
     if (tw) { yawBone("spine_01", tw * 0.25); yawBone("spine_02", tw * 0.35); yawBone("spine_03", tw * 0.4); }
     if (hy) { yawBone("neck_01", hy * 0.45); yawBone("head", hy * 0.55); }
     const faceYaw = tw + hy + (PR.yaw || 0) + (PR.head || 0);
@@ -1116,9 +1117,10 @@ function init() {
       const kneesUp = (knee.r.y + knee.l.y) / 2 > P.y + 0.05;
       if (Math.abs(foot.r.x + foot.l.x) < 0.1 && Math.abs(foot.r.x - foot.l.x) < 0.2 && Math.abs(knee.r.x - knee.l.x) > 0.45) out.push("legs crossed");
       else if (kneesUp) out.push("knees bent up in front of her");
-      else out.push("knees bent, thighs forward");
+      else if (Math.abs(foot.r.x - foot.l.x) <= 0.45) out.push("knees bent, thighs forward");
       if (Math.abs(knee.r.x - knee.l.x) > 0.45) out.push("knees apart");
       if (foot.r.y > 0.12 && foot.l.y > 0.12 && curSeat && curSeat.type !== "floor") out.push("feet off the ground");
+      if (Math.abs(foot.r.x - foot.l.x) > 0.45) out.push(kneesUp ? "feet planted wide apart on the floor in front of her, legs not crossed" : "legs spread wide apart in a V and stretched out in front of her, knees only slightly bent, heels on the floor, legs not crossed");
     } else if (kneelSide) out.push("kneeling on her " + kneelSide + " knee with the other foot planted in front");
     else if (drop > 0.26) out.push("in a deep squat with her hips dropped low, knees bent" + (Math.abs(knee.r.x - knee.l.x) > 0.4 ? " and pointing outward" : ""));
     else if (drop > 0.1) out.push("in a half squat with her knees bent");
@@ -1137,6 +1139,11 @@ function init() {
       if (h.y > Hd.y + 0.08) return "raised up above her head";
       if (Math.abs(h.y - Hd.y) < 0.12 && Math.abs(h.x - Hd.x) < 0.2) return "up beside her face";
       if (x < -0.04 && h.y > P.y && h.y < N.y) return "across her chest";
+      const chestY = (N.y + P.y) / 2 + 0.08, spineZ = (N.z + P.z) / 2;
+      if (Math.abs(h.y - chestY) < 0.13 && Math.abs(h.x) < 0.2 && h.z - spineZ < 0.24) return "pressed flat against her chest";
+      if (h.y > P.y + 0.04 && h.y < chestY - 0.1 && Math.abs(h.x) < 0.18 && h.z - P.z < 0.24) return "resting on her stomach";
+      if (h.y > Hd.y - 0.05 && Math.abs(h.x - Hd.x) < 0.22 && h.z < Hd.z) return "behind her head";
+      if (h.y < 0.12) return "planted on the floor " + (h.z < P.z - 0.05 ? "behind her" : h.z > P.z + 0.25 ? "in front of her" : "beside her hip");
       const walking = Math.abs(foot.r.z - foot.l.z) > 0.18;
       if (h.z < -0.08 && h.y < P.y + 0.1) return walking ? "swinging back behind her hip" : "behind her hip";
       if (Math.abs(h.y - (P.y + 0.06)) < 0.11 && x > 0.12 && Math.abs(h.z) < 0.1) return "on her hip";
@@ -1147,7 +1154,15 @@ function init() {
       if (h.y < P.y - 0.05) return "down by her side";
       return "held in front of her waist";
     }
-    if (opts.hands !== false) out.push("right hand " + handWords("r"), "left hand " + handWords("l"));
+    const S = N.clone().sub(P), sl = S.length() || 1;
+    if (S.z / sl < -0.18) out.push("upper body reclined, leaning back"); else if (S.z / sl > 0.22) out.push("upper body leaning forward");
+    if (Math.abs(S.x) / sl > 0.2) out.push("leaning to her " + (S.x > 0 ? "left" : "right"));
+    // hands go first: the image model weights early words more, and hands are what it drops
+    if (opts.hands !== false) {
+      const hr = handWords("r"), hl = handWords("l");
+      const hands = hr === hl ? "both hands " + hr.replace("her right knee", "her knees").replace("her left knee", "her knees") : "right hand " + hr + ", left hand " + hl;
+      out.unshift("HANDS: " + hands);
+    }
     return out.join(", ");
   };
 
