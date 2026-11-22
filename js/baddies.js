@@ -457,7 +457,7 @@
       if (!sec.classList.contains("is-closed")) { out.textContent = ""; return; }
       var picks = [];
       each(sec.querySelectorAll(".bd-sec-body button.is-on"), function (b) {
-        var t = (b.getAttribute("title") || b.textContent || "").trim();
+        var lb = b.querySelector("b"), t = (b.getAttribute("title") || (lb ? lb.textContent : b.textContent) || "").trim();
         if (t && picks.indexOf(t) < 0) picks.push(t);
       });
       out.textContent = picks.slice(0, 4).join(" · ") + (picks.length > 4 ? " +" + (picks.length - 4) : "");
