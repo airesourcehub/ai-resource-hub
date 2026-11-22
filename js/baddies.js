@@ -847,7 +847,7 @@
     try {
       if (state.char) blobs.face = await charBlob(state.char);
       if (state.with) blobs["with"] = await charBlob(state.with);
-      if (hairRef()) blobs.hairref = await urlBlob(hairRef(), "hair-reference.jpg");
+      if (hairRef()) blobs.hairref = await urlBlob(new URL(hairRef(), location.href).href, "hair-reference.jpg");
       if (poseMatch()) {
         if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
         var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
