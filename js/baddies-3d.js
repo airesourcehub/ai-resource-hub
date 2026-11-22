@@ -137,7 +137,7 @@ function init() {
 
   const SKIN = { porcelain: "#f1d6c4", fair: "#e8c2a3", olive: "#d4a87f", honey: "#c99463", tan: "#bb7f4d", caramel: "#a66d3f",
     bronze: "#8f5a35", chestnut: "#7a4a2b", mocha: "#643a22", espresso: "#4a2a18", ebony: "#33200f" };
-  const HAIR = { black: "#0d0c0e", brown: "#3b2416", honey: "#c8955a", platinum: "#ece3cf", burgundy: "#5e1424", copper: "#b5562a", pink: "#ff5fa8", blue: "#9fd8ff" };
+  const HAIR = { black: "#0d0c0e", brown: "#3b2416", honey: "#c8955a", platinum: "#ece3cf", burgundy: "#5e1424", copper: "#b5562a", pink: "#ff5fa8", blue: "#9fd8ff", own: "#4a3426" };
   const BOOTS = { white: "#efefea", black: "#18181b", tan: "#b08a5a", sneakers: "#f2f2f2" };
   const EYES = { brown: "#3d2414", hazel: "#6b4f24", green: "#3f7a4a", grey: "#7d8a92", blue: "#3d7cc9" };
 
@@ -525,7 +525,7 @@ function init() {
     // hair
     const style = one("hair") || "straight";
     const capped = has("gear", "beanie") || has("gear", "cap");
-    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie" };
+    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long" };
     const realHair = !!M.hair_long;
     if (realHair) {
       const want = HAIRMAP[style] || "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);

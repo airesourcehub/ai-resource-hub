@@ -62,11 +62,12 @@
       ["pony", "Sleek high ponytail", "a sleek high ponytail reaching her lower back"],
       ["buns", "Space buns", "two sleek space buns with face-framing strands"],
       ["bob", "Sleek bob", "a sleek chin-length bob"],
-      ["pixie", "Pixie cut", "a short pixie cut"]] },
+      ["pixie", "Pixie cut", "a short pixie cut"],
+      ["own", "Their own hair", ""]] },
     { id: "haircolor", label: "Hair color", opts: [
       ["black", "Jet black", "jet black"], ["brown", "Dark brown", "dark brown"], ["honey", "Honey blonde", "honey blonde"],
       ["platinum", "Platinum", "platinum blonde"], ["burgundy", "Burgundy", "deep burgundy"], ["copper", "Copper", "copper ginger"],
-      ["pink", "Pink", "hot pink"], ["blue", "Icy blue", "icy blue"]] },
+      ["pink", "Pink", "hot pink"], ["blue", "Icy blue", "icy blue"], ["own", "Their own color", ""]] },
     { id: "makeup", label: "Makeup", opts: [
       ["natural", "Natural", "soft natural makeup"], ["glam", "Full glam", "full glam makeup with lashes and glossy lips"],
       ["bold", "Bold", "bold makeup with sharp winged liner and dark lips"]] },
@@ -262,6 +263,7 @@
     $("bdBatch").textContent = state.batch;
     $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
     charFace();
+    each(document.querySelectorAll('#bd [data-opt="own"]'), function (b) { b.hidden = !state.char; });
     $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
     $("bdSkin").classList.toggle("is-dim", !!state.char);
     $("bdPrompt").textContent = (state.char ? "[Qwen Edit of " + (state.char.handle ? "@" + state.char.handle : state.char.name) + "'s picture]\n" : "") + buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
@@ -284,6 +286,7 @@
       var b = e.target.closest("[data-gid]");
       if (b) {
         var gid = b.getAttribute("data-gid"), opt = b.getAttribute("data-opt"), g = groupById(gid), cur = state.pick[gid] || [];
+        if (gid === "hair" || gid === "haircolor") state.hairTouched = true;
         if (g.multi) {
           var i = cur.indexOf(opt);
           if (i >= 0) cur.splice(i, 1); else { cur.push(opt); if (cur.length > g.multi) cur.shift(); }
@@ -299,12 +302,15 @@
     $("bdBatchDn").addEventListener("click", function () { state.batch = Math.max(1, state.batch - 1); sync(); });
     $("bdBatchUp").addEventListener("click", function () { state.batch = Math.min(CFG.maxBatch || 4, state.batch + 1); sync(); });
     $("bdShuffle").addEventListener("click", shuffle);
-    $("bdReset").addEventListener("click", function () { var e = state.engine, n = state.batch; applySettings(DEFAULTS); state.engine = e; state.batch = n; $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
+    $("bdReset").addEventListener("click", function () { var e = state.engine, n = state.batch; applySettings(DEFAULTS); state.engine = e; state.batch = n; state.hairTouched = false;
+      if (state.char) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; } $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
     $("bdGo").addEventListener("click", onGenerate);
     $("bdChars").addEventListener("click", function (e) {
       var b = e.target.closest("[data-char]"); if (!b) return;
       var k = b.getAttribute("data-char");
+      var had = !!state.char;
       state.char = k ? state.chars.filter(function (c) { return c.key === k; })[0] || null : null;
+      onCharChange(had);
       renderChars(); sync();
     });
     $("bdMore").addEventListener("click", loadMine);
@@ -326,8 +332,10 @@
     var p = pick(BODY_PRESETS); state.shape = clone(p.v); state.exag = p.exag;
     LOOK.concat(GEAR, INK).forEach(function (g) {
       if (g.multi) { var o = g.opts.slice().sort(function () { return Math.random() - 0.5; }); state.pick[g.id] = o.slice(0, 1 + Math.floor(Math.random() * g.multi)).map(function (x) { return x[0]; }); }
-      else state.pick[g.id] = [pick(g.opts)[0]];
+      else state.pick[g.id] = [pick(g.opts.filter(function (o) { return o[0] !== "own"; }))[0]];
     });
+    if (state.char) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; }
+    state.hairTouched = true;
     // AK-47 shows up more often
     state.weapon = Math.random() < 0.4 ? "ak47" : pick(WEAPONS.slice(1))[0];
     state.hold = pick(HOLDS)[0];
@@ -372,7 +380,11 @@
     parts.push(heightWords(state.height));
     parts.push(C ? "keep their own skin tone and face, with a smooth glowing finish" : skin + " skin with a smooth glowing finish");
     var hair = opt("hair"), hc = opt("haircolor");
-    parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : ""));
+    if (C) {
+      var hd = hairDesc();
+      parts.push(hd.own ? "HAIR: keep " + hd.text + ", identical in every view"
+        : "HAIR: completely replace their original hair with " + hd.text + ", the same new hairstyle and color in the front, side and back views; none of their original hairstyle or hair color anywhere, including the back of the head");
+    } else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : ""));
     parts.push([opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
     var camo = opt("camo");
     var outfit = "wearing " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo + ", a stylish streetwear outfit with a military touch";
@@ -399,6 +411,17 @@
 
   // Second Qwen Edit pass: only when the curves are pushed hard (models tend to normalise them).
   function postEdit() {
+    var body = bodyEdit(), fix = "";
+    if (state.char && state.view === "sheet") {
+      var hd = hairDesc();
+      fix = "Make it the exact same person in all three views: same face, same outfit, and the hair in every view (front, side and back, including the back of the head) must be " +
+        (hd.own ? "the same hairstyle and color as in the front view" : hd.text) + ". Repaint any view whose hair does not match.";
+    }
+    if (!fix) return body;
+    if (!body) return fix + " Keep the layout, body, skin tone, tattoos, clothes, boots, weapon, pose and background exactly the same. Seamless, same art style.";
+    return body.replace(/ Keep her face, hair,/, " " + fix + " Keep her face,");
+  }
+  function bodyEdit() {
     if (state.exag < 70) return "";
     var asks = [];
     if (state.shape.waist >= 7) asks.push("the waist much narrower and snatched");
@@ -460,6 +483,25 @@
     }).join("");
     if (!state.chars.length) html += '<p class="bd-note">' + (state.user ? "No characters yet. Make one on the AI Influencer page." : '<a href="auth.html">Log in</a> to use your influencers.') + "</p>";
     box.innerHTML = html;
+  }
+  // Hair when a character is picked: a fresh design takes the character's own hair;
+  // mid-design (hair already chosen) keeps the current hair. "Their own hair" is always selectable.
+  function onCharChange(had) {
+    var own = (state.pick.hair || [])[0] === "own", ownC = (state.pick.haircolor || [])[0] === "own";
+    if (state.char && !had && !state.hairTouched) { state.pick.hair = ["own"]; state.pick.haircolor = ["own"]; }
+    if (!state.char) {
+      if (own) state.pick.hair = clone(DEFAULTS.pick.hair);
+      if (ownC) state.pick.haircolor = clone(DEFAULTS.pick.haircolor);
+    }
+  }
+  function hairDesc() {
+    var h = (state.pick.hair || [])[0], c = (state.pick.haircolor || [])[0];
+    var hs = opt("hair"), hc = opt("haircolor");
+    if (h === "own" && c === "own") return { own: true, text: "their own original hairstyle and hair color exactly as in the photo" };
+    if (h === "own") return { own: false, text: "their own original hairstyle, recolored " + hc };
+    var style = hs.replace(/hair/, (c === "own" ? "hair in their own natural hair color" : hc + " hair"));
+    if (!/hair/.test(hs)) style += c === "own" ? " in their own natural hair color" : " in " + hc;
+    return { own: false, text: style };
   }
   function charFace() {
     var t = $("bdFaceTag"); if (!t) return;
@@ -629,7 +671,11 @@
   });
   function specs(s) {
     if (!s || !s.shape) return [];
-    var out = [["Skin", fromList(SKIN, s.skin)[1]], ["Height", ftIn(s.height)], ["Exaggeration", exagLabel(s.exag) + " (" + s.exag + ")"]];
+    var out = [];
+    if (s.char) out.push(["Character", s.char.handle ? "@" + s.char.handle : (s.char.name || "Influencer")]);
+    out.push(["Skin", s.char ? "Their own" : fromList(SKIN, s.skin)[1]], ["Height", ftIn(s.height)], ["Exaggeration", exagLabel(s.exag) + " (" + s.exag + ")"]);
+    var hh = s.pick && s.pick.hair ? fromList(LOOK[0].opts, s.pick.hair[0])[1] : "", hcol = s.pick && s.pick.haircolor ? fromList(LOOK[1].opts, s.pick.haircolor[0])[1] : "";
+    if (hh) out.push(["Hair", hh + (hcol && s.pick.haircolor[0] !== "own" ? " · " + hcol : "")]);
     SHAPE.forEach(function (x) { out.push([x.label, (s.shape[x.id] != null ? s.shape[x.id] : "–") + "/10"]); });
     out.push(["Weapon", fromList(WEAPONS, s.weapon)[1]]);
     return out;
@@ -651,6 +697,7 @@
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
       weapon: state.weapon, hold: state.hold, view: state.view, style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
+      hairTouched: !!state.hairTouched,
       char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
@@ -662,6 +709,8 @@
     if (!quiet && $("bdExtra")) $("bdExtra").value = s.extra || "";
     else if (quiet && s.extra != null) state._extra = s.extra;
     if ("char" in s) state.char = s.char || null;
+    var hairDiff = (state.pick.hair || [])[0] !== DEFAULTS.pick.hair[0] || (state.pick.haircolor || [])[0] !== DEFAULTS.pick.haircolor[0];
+    state.hairTouched = s.hairTouched != null ? !!s.hairTouched : (!quiet || hairDiff);
   }
   function autoName() {
     var camo = groupById("camo").opts.filter(function (o) { return o[0] === (state.pick.camo || [])[0]; })[0];
