@@ -11,6 +11,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 const box = document.getElementById("bdPreview");
 const canvasWrap = document.getElementById("bdPreviewCanvas");
@@ -44,7 +46,7 @@ function init() {
   controls.autoRotateSpeed = 1.6;
 
   // studio lighting
-  scene.add(new THREE.HemisphereLight(0xfff4ea, 0x2a2430, 1.0));
+  const hemi = new THREE.HemisphereLight(0xfff4ea, 0x2a2430, 1.0); scene.add(hemi);
   const key = new THREE.DirectionalLight(0xfff1e0, 2.6); key.position.set(2.2, 3.2, 2.8); scene.add(key);
   const rim = new THREE.DirectionalLight(0xffb98a, 1.8); rim.position.set(-2.6, 2.4, -2.8); scene.add(rim);
   const rim2 = new THREE.DirectionalLight(0x9fc2ff, 1.0); rim2.position.set(2.8, 1.8, -2.6); scene.add(rim2);
@@ -156,6 +158,7 @@ function init() {
       .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk, uSkinTex;\nuniform float uHasSkin;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;")
       .replace("#include <color_fragment>", `#include <color_fragment>
         float cls = floor(vCls + 0.5);
+        lkCloth = cls > 0.5 ? 1.0 : 0.0;
         vec3 col = uSkin;
         if (uHasSkin > 0.5) { vec3 st = texture2D(uSkinTex, vUv2).rgb; float sl = dot(st, vec3(0.299, 0.587, 0.114)); col = uSkin * clamp(sl / 0.6, 0.55, 1.35); }
         if (cls < 0.5) {
@@ -292,6 +295,8 @@ function init() {
       else if (/^cl_/.test(k)) o.material = new THREE.MeshStandardMaterial({ map: camoTex("snow"), roughness: 0.85, side: THREE.DoubleSide });
       else if (k === "eyes_hp") o.material = new THREE.MeshStandardMaterial({ color: 0xece8e2, roughness: 0.15 });
       if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+      if (/^hair_|brows|lashes|eyes_hp/.test(k)) o.material.userData.outlineParameters = { visible: false };
+      if (/^cl_/.test(k)) o.material.userData.cloth = true;
     }
   }
   const eyeTexCache = {};
@@ -388,6 +393,8 @@ function init() {
 
     buildExtras(s, one, has, armed, pistol, w, hold);
     drawRuler(hIn);
+    applyLook(s.style || "game");
+    paintLookStrip(s.style || "game");
   }
 
   // Rotate a bone so the direction to its child points along dir (body space).
@@ -526,7 +533,7 @@ function init() {
   }
 
   // Real weapon models (made on the hub's GPU: FLUX.2 picture -> TRELLIS.2 3D), +Z = muzzle, origin at the grip.
-  const WEAPON_GLB = { ak47: "models/weapons/ak47.glb", m4a1: "models/weapons/m4a1.glb", glock: "models/weapons/glock.glb" };
+  const WEAPON_GLB = {ak47: "models/weapons/ak47.glb?v=2", akm: "models/weapons/akm.glb?v=2", m4a1: "models/weapons/m4a1.glb?v=2", hk416: "models/weapons/hk416.glb?v=2", scar: "models/weapons/scar.glb?v=2", mp5: "models/weapons/mp5.glb?v=2", uzi: "models/weapons/uzi.glb?v=2", remington: "models/weapons/remington.glb?v=2", barrett: "models/weapons/barrett.glb?v=2", glock: "models/weapons/glock.glb?v=2", deagle: "models/weapons/deagle.glb?v=2" };
   const weaponCache = {}, weaponLoading = {};
   let draco = null;
   function loadWeapon(w) {
@@ -535,7 +542,7 @@ function init() {
     if (!draco) { draco = new DRACOLoader(); draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/gltf/"); }
     const l = new GLTFLoader(); l.setDRACOLoader(draco);
     l.load(new URL(WEAPON_GLB[w], document.baseURI).href, (g) => {
-      g.scene.traverse((o) => { if (o.isMesh && o.material) { o.material.roughness = Math.min(0.7, o.material.roughness ?? 0.6); o.material.metalness = 0.35; } });
+      g.scene.traverse((o) => { if (o.isMesh && o.material) { o.material.roughness = Math.min(0.7, o.material.roughness ?? 0.6); o.material.metalness = 0.35; o.material.userData.cloth = true; } });
       weaponCache[w] = g.scene;
       if (pendingState && pendingState.weapon === w) build(pendingState);
     });
@@ -615,6 +622,205 @@ function init() {
   }
   function ft(i) { i = Math.round(i); return Math.floor(i / 12) + "'" + (i % 12) + '"'; }
 
+
+  // ================================================================== LOOKS
+  // Every look is: a post-shading grade/effect in the materials (shared uniforms),
+  // optional material overrides (albedo, roughness, metal, clay bumps), lighting,
+  // background, outlines, environment reflections, shadows, pixel size and frame rate.
+  const LOOKU = {
+    uMode: { value: 0 }, uPoster: { value: 0 }, uSat: { value: 1 }, uGrade: { value: new THREE.Vector3(1, 1, 1) },
+    uAlbMix: { value: 0 }, uAlbMode: { value: 0 }, uAlb: { value: new THREE.Color(1, 1, 1) },
+    uRoughO: { value: -1 }, uMetalO: { value: -1 }, uClay: { value: 0 }, uTime: { value: 0 }
+  };
+  const LOOK_GLSL_COMMON = `
+    uniform float uMode, uPoster, uSat, uAlbMix, uAlbMode, uRoughO, uMetalO, uClay, uTime;
+    uniform vec3 uGrade, uAlb;
+    varying vec3 vLookPos;
+    float lkCloth = 0.0;
+    float lkHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+    float lkNoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(mix(lkHash(i), lkHash(i + vec3(1,0,0)), f.x), mix(lkHash(i + vec3(0,1,0)), lkHash(i + vec3(1,1,0)), f.x), f.y),
+                 mix(mix(lkHash(i + vec3(0,0,1)), lkHash(i + vec3(1,0,1)), f.x), mix(lkHash(i + vec3(0,1,1)), lkHash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+    float lkBayer(vec2 p) { vec2 q = mod(floor(p), 4.0); int i = int(q.x + q.y * 4.0);
+      float m[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.); return m[i] / 16.0; }
+    vec3 lkHeat(float t) { t = clamp(t, 0.0, 1.0);
+      return t < 0.25 ? mix(vec3(0.02,0.0,0.1), vec3(0.35,0.0,0.6), t / 0.25) : t < 0.5 ? mix(vec3(0.35,0.0,0.6), vec3(0.9,0.1,0.15), (t - 0.25) / 0.25)
+           : t < 0.75 ? mix(vec3(0.9,0.1,0.15), vec3(1.0,0.75,0.0), (t - 0.5) / 0.25) : mix(vec3(1.0,0.75,0.0), vec3(1.0,1.0,0.9), (t - 0.75) / 0.25); }
+  `;
+  function patchLook(m) {
+    if (!m || m.userData.lookPatched || !(m.isMeshStandardMaterial)) return;
+    m.userData.lookPatched = true;
+    const prev = m.onBeforeCompile;
+    m.onBeforeCompile = (sh, r) => {
+      if (prev) prev.call(m, sh, r);
+      Object.assign(sh.uniforms, LOOKU);
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vLookPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvLookPos = transformed;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\n" + LOOK_GLSL_COMMON)
+        .replace("#include <alphamap_fragment>", `#include <alphamap_fragment>
+          lkCloth = max(lkCloth, ${m.userData.cloth ? "1.0" : "0.0"});
+          if (uAlbMix > 0.0) {
+            vec3 alb = uAlb;
+            if (uAlbMode > 0.5) {   // marble veins
+              vec3 p = vLookPos * 9.0;
+              float v = abs(sin((vLookPos.x * 0.8 + vLookPos.y * 1.3 + vLookPos.z) * 22.0 + lkNoise(p) * 6.0 + lkNoise(p * 2.3) * 3.0));
+              alb = mix(vec3(0.5, 0.5, 0.54), uAlb, smoothstep(0.0, 0.18, v));
+            }
+            alb = mix(alb, alb * 0.6, lkCloth * 0.85);   // clothes and gear stay readable as a darker tone
+            diffuseColor.rgb = mix(diffuseColor.rgb, alb, uAlbMix);
+          }`)
+        .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\nif (uRoughO >= 0.0) roughnessFactor = uRoughO;\nif (uMetalO >= 0.0) metalnessFactor = uMetalO;")
+        .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+          if (uClay > 0.0) {   // hand-sculpted lumps and thumbprints
+            vec3 p = vLookPos * 38.0, q = vLookPos * 140.0;
+            vec3 n1 = vec3(lkNoise(p) - 0.5, lkNoise(p + 17.1) - 0.5, lkNoise(p + 31.7) - 0.5);
+            vec3 n2 = vec3(lkNoise(q) - 0.5, lkNoise(q + 7.3) - 0.5, lkNoise(q + 13.9) - 0.5);
+            normal = normalize(normal + uClay * (n1 * 1.4 + n2 * 0.5));
+          }`)
+        .replace("#include <dithering_fragment>", `#include <dithering_fragment>
+          {
+            vec3 c = gl_FragColor.rgb;
+            float lum = dot(c, vec3(0.299, 0.587, 0.114));
+            float fres = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);
+            c = mix(vec3(lum), c, uSat) * uGrade;
+            if (uMode > 6.5 && uMode < 7.5) c += (lkBayer(gl_FragCoord.xy) - 0.5) / max(uPoster, 1.0);       // PS1 dither
+            if (uPoster > 0.5) c = floor(c * uPoster + 0.5) / uPoster;
+            if (uMode > 1.5 && uMode < 2.5) {        // comic halftone
+              float d = length(mod(gl_FragCoord.xy, 7.0) - 3.5), dark = 1.0 - lum;
+              c = mix(c, c * 0.3, step(d, dark * 3.6) * step(0.28, dark));
+            } else if (uMode > 2.5 && uMode < 3.5) { // pencil
+              vec3 paper = vec3(0.96, 0.95, 0.92);
+              float s = smoothstep(0.08, 0.75, lum);
+              c = paper * mix(0.42, 1.0, s);
+              float h1 = step(0.55, fract((gl_FragCoord.x + gl_FragCoord.y) / 4.0));
+              float h2 = step(0.55, fract((gl_FragCoord.x - gl_FragCoord.y) / 4.0));
+              if (lum < 0.5) c *= mix(1.0, 0.78, h1);
+              if (lum < 0.28) c *= mix(1.0, 0.78, h2);
+            } else if (uMode > 3.5 && uMode < 4.5) { // night vision
+              float g = lum * 1.7 + 0.04 + (lkHash(vec3(gl_FragCoord.xy, uTime * 60.0)) - 0.5) * 0.12;
+              c = vec3(0.18, 1.0, 0.3) * g * (0.86 + 0.14 * sin(gl_FragCoord.y * 1.4));
+            } else if (uMode > 4.5 && uMode < 5.5) { // thermal
+              c = lkHeat(lum * 0.5 + (1.0 - fres) * 0.3 + (1.0 - lkCloth) * 0.3 - lkCloth * 0.05);
+            } else if (uMode > 5.5 && uMode < 6.5) { // hologram
+              float sc = 0.75 + 0.25 * sin(gl_FragCoord.y * 0.9 - uTime * 8.0);
+              c = vec3(0.25, 0.85, 1.0) * (fres * 1.6 + 0.12 + lum * 0.25) * sc;
+              gl_FragColor.a = clamp(fres * 1.2 + 0.18, 0.0, 1.0) * 0.9;
+            } else if (uMode > 7.5 && uMode < 8.5) { // watercolor paper
+              c = mix(c, vec3(1.0), 0.22) * (0.93 + 0.07 * lkHash(vec3(floor(gl_FragCoord.xy * 0.5), 1.0)));
+            }
+            gl_FragColor.rgb = c;
+          }`);
+    };
+    const prevKey = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => "";
+    m.customProgramCacheKey = () => prevKey() + "|look|" + m.uuid;
+    m.needsUpdate = true;
+  }
+  function patchSceneMaterials() {
+    scene.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      ms.forEach((m) => {
+        if (m.isMeshStandardMaterial && !m.userData.lookPatched) { patchLook(m); setHolo(m, curLook.holo); }
+        if (o !== ground && o !== shadowPlane && !o.userData.lookShadow) { o.castShadow = true; o.userData.lookShadow = true; }
+      });
+    });
+  }
+  function setHolo(m, on) {
+    if (!m.isMeshStandardMaterial) return;
+    if (m.userData.holo === on) return;
+    m.userData.holo = on;
+    if (on) { m.userData.base = { t: m.transparent, b: m.blending, d: m.depthWrite }; m.transparent = true; m.blending = THREE.AdditiveBlending; m.depthWrite = false; }
+    else if (m.userData.base) { m.transparent = m.userData.base.t; m.blending = m.userData.base.b; m.depthWrite = m.userData.base.d; }
+    m.needsUpdate = true;
+  }
+
+  // environment, shadows, outlines, grid
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  let envTex = null;
+  const outline = new OutlineEffect(renderer, { defaultThickness: 0.004, defaultColor: [0, 0, 0], defaultAlpha: 1 });
+  ground.material.userData.outlineParameters = { visible: false };
+  const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.ShadowMaterial({ opacity: 0.35 }));
+  shadowPlane.rotation.x = -Math.PI / 2; shadowPlane.position.y = 0.002; shadowPlane.receiveShadow = true; shadowPlane.visible = false;
+  shadowPlane.material.userData.outlineParameters = { visible: false };
+  scene.add(shadowPlane);
+  key.shadow.mapSize.set(2048, 2048); key.shadow.camera.left = -1.2; key.shadow.camera.right = 1.2; key.shadow.camera.top = 2.2; key.shadow.camera.bottom = -0.3;
+  key.shadow.camera.near = 0.5; key.shadow.camera.far = 10; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+  const grid = new THREE.GridHelper(8, 40, 0xff2bd6, 0x6b1fbf); grid.visible = false; grid.position.y = 0.001; scene.add(grid);
+  const basePR = Math.min(2, window.devicePixelRatio || 1);
+
+  // lights: [hemiSky, hemiGround, hemiI, key color, keyI, rim color, rimI, rim2 color, rim2I, fill color, fillI]
+  const RIGS = {
+    studio: [0xfff4ea, 0x2a2430, 1.0, 0xfff1e0, 2.6, 0xffb98a, 1.8, 0x9fc2ff, 1.0, 0xc8d6ff, 0.55],
+    soft:   [0xffffff, 0x4a4038, 0.7, 0xfff4e6, 2.2, 0xffe3c8, 0.9, 0xd6e4ff, 0.6, 0xe8eeff, 0.45],
+    flat:   [0xffffff, 0xb0a8c0, 2.0, 0xffffff, 1.6, 0xffffff, 0.6, 0xffffff, 0.3, 0xffffff, 0.4],
+    warm:   [0xfff0d8, 0x5a4030, 1.1, 0xffd9a8, 2.4, 0xffb070, 1.2, 0xa8c8ff, 0.5, 0xffe8cc, 0.5],
+    museum: [0xffffff, 0x101014, 0.25, 0xfff6ea, 3.4, 0xd8e4ff, 1.6, 0xffffff, 0.4, 0xffffff, 0.15],
+    neon:   [0x3a1060, 0x05010a, 0.35, 0xff5fd2, 1.4, 0xff2bd6, 3.6, 0x22e4ff, 3.4, 0x6a4cff, 0.6],
+    bright: [0xffffff, 0x808080, 1.4, 0xffffff, 2.4, 0xffffff, 1.0, 0xffffff, 0.8, 0xffffff, 0.6]
+  };
+  function setRig(name) {
+    const r = RIGS[name] || RIGS.studio;
+    hemi.color.set(r[0]); hemi.groundColor.set(r[1]); hemi.intensity = r[2];
+    key.color.set(r[3]); key.intensity = r[4]; rim.color.set(r[5]); rim.intensity = r[6];
+    rim2.color.set(r[7]); rim2.intensity = r[8]; fill.color.set(r[9]); fill.intensity = r[10];
+  }
+
+  const LOOKS = {
+    game:       { rig: "studio" },
+    photo:      { rig: "soft", env: 0.55, shadows: true, sat: 0.95, exposure: 1.05, bg: "radial-gradient(120% 90% at 50% 15%, #4a4a50 0%, #1c1c20 60%, #0c0c0e 100%)" },
+    anime:      { rig: "flat", outline: 0.0045, poster: 4, sat: 1.3, bg: "linear-gradient(180deg, #ffd9ec 0%, #c9e4ff 100%)" },
+    comic:      { rig: "flat", outline: 0.007, poster: 3, sat: 1.45, mode: 2, bg: "radial-gradient(circle, #fff3b0 0 2px, #ffe066 2px) 0 0 / 10px 10px" },
+    clay:       { rig: "warm", clay: 1.0, rough: 1, sat: 1.35, grade: [1.05, 1.0, 0.92], fps: 10, bg: "linear-gradient(180deg, #d9b98c 0%, #a8845a 100%)" },
+    sculpt:     { rig: "studio", albMix: 1, alb: 0xb7a597, rough: 0.62, clay: 0.12, bg: "radial-gradient(110% 90% at 50% 20%, #6b6b70 0%, #2b2b30 100%)" },
+    marble:     { rig: "museum", albMix: 1, albMode: 1, alb: 0xf1efe9, rough: 0.22, env: 0.5, shadows: true, bg: "radial-gradient(90% 70% at 50% 30%, #2a2a30 0%, #050506 100%)" },
+    gold:       { rig: "museum", albMix: 1, alb: 0xffc95a, rough: 0.2, metal: 1, env: 1.1, shadows: true, exposure: 1.1, bg: "radial-gradient(90% 70% at 50% 30%, #2a0d16 0%, #050003 100%)" },
+    synth:      { rig: "neon", sat: 1.35, exposure: 1.15, grid: true, bg: "linear-gradient(180deg, #12002b 0%, #3a0a5e 55%, #ff2bd6 140%)" },
+    pencil:     { rig: "bright", outline: 0.003, outlineColor: [0.15, 0.15, 0.17], mode: 3, bg: "#f4f2ec" },
+    ps1:        { rig: "studio", poster: 6, mode: 7, sat: 1.15, pixel: 0.28, bg: "linear-gradient(180deg, #1b2a6b 0%, #0a0f2e 100%)" },
+    watercolor: { rig: "soft", poster: 5, sat: 0.75, mode: 8, bg: "#f6f1e7" },
+    nightvision:{ rig: "bright", mode: 4, bg: "radial-gradient(80% 70% at 50% 40%, #0b2a10 0%, #000 100%)" },
+    thermal:    { rig: "bright", mode: 5, bg: "#050018" },
+    hologram:   { rig: "studio", mode: 6, holo: true, bg: "radial-gradient(80% 70% at 50% 50%, #062a3a 0%, #00060c 100%)" }
+  };
+  let curLook = LOOKS.game, curLookId = "";
+  const DEFAULT_BG = "";
+  function applyLook(id) {
+    if (id === curLookId) return;
+    const L = LOOKS[id] || LOOKS.game; curLookId = LOOKS[id] ? id : "game"; curLook = L;
+    setRig(L.rig);
+    LOOKU.uMode.value = L.mode || 0; LOOKU.uPoster.value = L.poster || 0; LOOKU.uSat.value = L.sat ?? 1;
+    LOOKU.uGrade.value.set(...(L.grade || [1, 1, 1]));
+    LOOKU.uAlbMix.value = L.albMix || 0; LOOKU.uAlbMode.value = L.albMode || 0; LOOKU.uAlb.value.set(L.alb ?? 0xffffff);
+    LOOKU.uRoughO.value = L.rough ?? -1; LOOKU.uMetalO.value = L.metal ?? -1; LOOKU.uClay.value = L.clay || 0;
+    renderer.toneMappingExposure = L.exposure ?? 1.0;
+    if (L.env) { if (!envTex) envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environment = envTex; scene.environmentIntensity = L.env; }
+    else scene.environment = null;
+    const sh = !!L.shadows;
+    if (renderer.shadowMap.enabled !== sh) {
+      renderer.shadowMap.enabled = sh; renderer.shadowMap.type = THREE.PCFSoftShadowMap; key.castShadow = sh;
+      scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
+    }
+    shadowPlane.visible = sh; ground.visible = !sh && !L.holo && !L.grid;
+    grid.visible = !!L.grid;
+    outline.defaultThickness = L.outline || 0.004; outline.defaultColor = L.outlineColor || [0, 0, 0];
+    renderer.setPixelRatio(basePR * (L.pixel || 1));
+    renderer.domElement.style.imageRendering = L.pixel ? "pixelated" : "";
+    resize();
+    canvasWrap.style.background = L.bg || DEFAULT_BG;
+    scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => setHolo(m, !!L.holo)); });
+    box.setAttribute("data-look", curLookId);
+  }
+  function paintLookStrip(active) {
+    const strip = document.getElementById("bdLooks"); if (!strip) return;
+    const list = window.BADDIES_STYLES || [];
+    if (!strip.childElementCount && list.length) {
+      strip.innerHTML = list.map((st) => '<button type="button" data-look="' + st[0] + '">' + st[1] + "</button>").join("");
+      strip.addEventListener("click", (e) => { const b = e.target.closest("[data-look]"); if (b && window.BADDIES_SET_STYLE) window.BADDIES_SET_STYLE(b.getAttribute("data-look")); });
+    }
+    strip.querySelectorAll("[data-look]").forEach((b) => b.classList.toggle("is-on", b.getAttribute("data-look") === active));
+    const on = strip.querySelector(".is-on"); if (on && on.scrollIntoView && strip.dataset.last !== active) { strip.dataset.last = active; on.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); }
+  }
+
   // ------------------------------------------------------------ loop / resize / ui
   function resize() {
     const w = canvasWrap.clientWidth, h = canvasWrap.clientHeight; if (!w || !h) return;
@@ -623,11 +829,19 @@ function init() {
   new ResizeObserver(resize).observe(canvasWrap); resize();
   let visible = true;
   new IntersectionObserver((en) => { visible = en[0].isIntersecting; }).observe(canvasWrap);
+  const clock = new THREE.Clock(); let stepAcc = 0;
   renderer.setAnimationLoop(() => {
     if (!visible || document.hidden) return;
+    const dt = clock.getDelta();
+    LOOKU.uTime.value += dt;
+    if (curLook.fps) {                                   // stop-motion: only move on whole frames
+      stepAcc += dt; if (stepAcc < 1 / curLook.fps) return;
+      controls.autoRotateSpeed = 1.6 * (stepAcc * 60); stepAcc = 0;
+    } else controls.autoRotateSpeed = 1.6;
     controls.update();
     ruler.rotation.y = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
-    renderer.render(scene, camera);
+    patchSceneMaterials();
+    if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
   });
 
   let queued = null;

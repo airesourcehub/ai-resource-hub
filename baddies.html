@@ -21,7 +21,7 @@
 <meta name="description" content="Design your own Baddie character on your GPU: pick skin tone, height, body shape and how exaggerated the curves are, then outfit, tattoos and a real-world weapon. Turnaround sheets in one click." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/baddies.css?v=20261121b" />
+<link rel="stylesheet" href="css/baddies.css?v=20261121c" />
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
@@ -156,8 +156,9 @@
           <button type="button" data-pv="spin" id="bdSpin" title="Auto-rotate" aria-label="Auto-rotate" aria-pressed="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
         </div>
       </div>
+      <div class="bd-looks" id="bdLooks" role="group" aria-label="Look"></div>
       <div class="bd-preview-canvas" id="bdPreviewCanvas"><div class="bd-preview-load">Loading 3D preview…</div></div>
-      <p class="bd-preview-note">Drag to turn, scroll to zoom. A rough guide to shape, height, colors and gear; the AI render adds the real detail.</p>
+      <p class="bd-preview-note">Drag to turn, scroll to zoom. Pick a look above: the AI render uses the same look. The preview is a guide; the render adds the real detail.</p>
     </div>
     <div class="bd-stage-list">
     <div class="bd-signin" id="bdSignin" hidden>
@@ -219,7 +220,7 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/baddies.js?v=20261121b"></script>
-<script type="module" src="js/baddies-3d.js?v=20261121f"></script>
+<script src="js/baddies.js?v=20261121c"></script>
+<script type="module" src="js/baddies-3d.js?v=20261121h"></script>
 </body>
 </html>

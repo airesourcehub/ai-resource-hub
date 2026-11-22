@@ -147,3 +147,12 @@
   .bd-preview { position: relative; top: 0; }
   .bd-preview-canvas { height: 460px; }
 }
+
+/* look strip on the preview */
+.bd-looks { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px 2px; scrollbar-width: thin; }
+.bd-looks::-webkit-scrollbar { height: 4px; }
+.bd-looks::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+.bd-looks button { flex: 0 0 auto; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); border-radius: 999px; padding: 5px 11px; font-size: 0.74rem; cursor: pointer; white-space: nowrap; }
+.bd-looks button:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+.bd-looks button.is-on { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.bd-preview-canvas { border-radius: 14px; margin: 8px 10px 6px; transition: background .3s; }

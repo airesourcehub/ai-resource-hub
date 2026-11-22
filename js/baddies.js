@@ -154,10 +154,23 @@
     action: { label: "Action pose", w: 832, h: 1216, lead: "Dynamic full-body action shot of", tail: "in a confident combat stance, whole body in frame" },
     portrait: { label: "Portrait", w: 896, h: 1152, lead: "Waist-up portrait of", tail: "looking into the camera" }
   };
+  // Looks: drive both the AI render style and the live 3D preview (js/baddies-3d.js LOOKS uses the same ids).
   var STYLES = [
-    ["game", "3D game render", "high-end 3D video game character render, Unreal Engine 5 quality, detailed skin shading, crisp"],
-    ["photo", "Photoreal", "photorealistic photograph, natural skin texture, sharp focus, high detail"],
-    ["anime", "Stylized art", "stylized digital character art, clean lines, vibrant"]
+    ["game", "FPS game", "high-end 3D video game character render, Unreal Engine 5 quality, detailed skin shading, crisp"],
+    ["photo", "Realistic", "photorealistic photograph of a real person, natural skin texture with pores, cinematic lighting, shot on a full-frame camera with an 85mm lens, sharp focus, high detail"],
+    ["anime", "Anime", "anime style illustration, cel-shaded, clean bold line art, vibrant colors, detailed anime character design"],
+    ["comic", "Comic book", "American comic book art, bold black ink outlines, halftone dot shading, vivid flat colors"],
+    ["clay", "Claymation", "claymation stop-motion style, handmade plasticine clay character with visible fingerprints and sculpting marks, miniature set, soft studio lighting"],
+    ["sculpt", "Clay sculpt", "matte grey digital clay sculpture render, no textures, character sculpt turnaround"],
+    ["marble", "Marble statue", "classical white marble statue, carved polished stone with grey veins, museum lighting"],
+    ["gold", "Gold statue", "solid polished gold statue, reflective metal, luxury trophy, dark background"],
+    ["synth", "Synthwave", "synthwave neon style, Miami night, magenta and cyan neon rim lighting, retro 80s aesthetic, glowing grid floor"],
+    ["pencil", "Pencil sketch", "detailed graphite pencil sketch on paper, hand-drawn hatching, black and white"],
+    ["ps1", "Retro low-poly", "low-poly retro 1990s video game character, PS1-era graphics, pixelated low-res textures"],
+    ["watercolor", "Watercolor", "soft watercolor painting, loose brush strokes, paper texture, pastel washes"],
+    ["nightvision", "Night vision", "night vision camera footage, green monochrome, grainy military optics"],
+    ["thermal", "Thermal", "thermal imaging camera view, heat-map colors, FLIR style"],
+    ["hologram", "Hologram", "glowing blue sci-fi hologram projection, translucent, scanlines, futuristic"]
   ];
   var BGS = [
     ["white", "White studio", "plain light-grey seamless studio background, soft even lighting"],
@@ -633,6 +646,8 @@
   function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engine: state.engine, batch: state.batch, last: snapshot() })); } catch (e) {} }
 
   // ------------------------------------------------------------ boot
+  window.BADDIES_STYLES = STYLES;
+  window.BADDIES_SET_STYLE = function (id) { if (STYLES.some(function (x) { return x[0] === id; })) { state.style = id; sync(); } };
   if (CFG.preview === false && $("bdPreview")) { $("bdPreview").remove(); $("bd").classList.add("no-preview"); }
   renderPanel();
   if (state._extra) { $("bdExtra").value = state._extra; delete state._extra; }
