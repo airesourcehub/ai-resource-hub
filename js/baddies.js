@@ -79,7 +79,9 @@
     { id: "eyes", label: "Eyes", opts: [
       ["brown", "Brown", "brown eyes"], ["hazel", "Hazel", "hazel eyes"], ["green", "Green", "green eyes"], ["grey", "Grey", "grey eyes"], ["blue", "Blue", "blue eyes"]] },
     { id: "expr", label: "Expression", opts: [
-      ["confident", "Confident", "a calm confident expression"], ["smirk", "Smirk", "a sly smirk"], ["fierce", "Fierce", "a fierce, focused stare"], ["smile", "Smile", "a soft smile"]] }
+      ["confident", "Confident", "a calm confident expression"], ["smirk", "Smirk", "a sly smirk"], ["fierce", "Fierce", "a fierce, focused stare"], ["smile", "Smile", "a soft smile"],
+      ["pout", "Pout", "full lips in a pout"], ["surprised", "Surprised", "a surprised expression, eyebrows raised, lips slightly parted"],
+      ["sultry", "Sultry", "a sultry look with heavy-lidded eyes and slightly parted lips"], ["wink", "Wink", "winking with one eye and a playful smile"]] }
   ];
 
   var GEAR = [
@@ -411,6 +413,44 @@
   window.addEventListener("baddies:posed", function () { if (poseMatch()) renderPromptBox(); });
 
   // ------------------------------------------------------------ wiring
+  // ------------------------------------------------------------ picture chips
+  // Every option chip gets a small picture: AI thumbnails (img/baddies/opt/<key>.webp), 3D-preview snapshots,
+  // or a color swatch. BADDIES_THUMBS lists the keys that have a picture (js/baddies-thumbs.js).
+  var SWATCH = {
+    haircolor: { black: "#141110", brown: "#3b2418", honey: "#c8913f", platinum: "#e9dfc6", burgundy: "#6d1a2a", copper: "#b5562a", pink: "#ff4fa8", blue: "#a9dcff" },
+    eyes: { brown: "#5a3214", hazel: "#8a6a2e", green: "#3f7a3a", grey: "#8a949c", blue: "#3d7fc9" }
+  };
+  function thumbKey(b) {
+    var o = b.getAttribute("data-opt");
+    if (b.hasAttribute("data-gid")) return b.getAttribute("data-gid") + "-" + o;
+    if (b.hasAttribute("data-single")) return b.getAttribute("data-single") + "-" + o;
+    if (b.hasAttribute("data-pose")) return "pose-" + b.getAttribute("data-pose");
+    if (b.hasAttribute("data-seat")) return "seat-" + b.getAttribute("data-seat");
+    if (b.hasAttribute("data-duo")) return "duo-" + b.getAttribute("data-duo");
+    if (b.hasAttribute("data-lookp")) return "lookp-" + b.getAttribute("data-lookp");
+    if (b.hasAttribute("data-bp")) return "bp-" + b.getAttribute("data-bp");
+    return "";
+  }
+  function addThumbs() {
+    var T = window.BADDIES_THUMBS || {};
+    each(document.querySelectorAll("#bd .bd-chips button, #bdBodyPresets button"), function (b) {
+      if (b.classList.contains("has-th") || b.classList.contains("has-sw")) return;
+      var g = b.getAttribute("data-gid"), o = b.getAttribute("data-opt"), key = thumbKey(b), lbl = b.textContent;
+      if (g && SWATCH[g]) {
+        if (!SWATCH[g][o] && o !== "own") return;
+        b.classList.add("has-sw");
+        b.innerHTML = (SWATCH[g][o] ? '<i class="bd-sw bd-sw-' + g + '" style="--c:' + SWATCH[g][o] + '"></i>' : '<i class="bd-sw bd-sw-own"></i>') + "<span>" + esc(lbl) + "</span>";
+        return;
+      }
+      var none = /^(none|own)$/.test(o || "") || key === "weapon-none" || key === "seat-none" || key === "pose-custom";
+      if (!T[key] && !none) return;
+      b.classList.add("has-th");
+      b.innerHTML = (T[key] ? '<img class="bd-th" src="img/baddies/opt/' + key + '.webp?v=' + T[key] + '" alt="" loading="lazy" decoding="async" />'
+        : '<i class="bd-th bd-th-icon" aria-hidden="true">' + (key === "pose-custom" ? "&#9995;" : o === "own" ? "&#9786;" : "&#8856;") + "</i>") + "<span>" + esc(lbl) + "</span>";
+      var row = b.parentNode; if (row) row.classList.add("bd-tiles");
+    });
+  }
+
   // ------------------------------------------------------------ collapsible sections
   // Each side-panel section header toggles its body; a collapsed section shows a one-line summary of its picks.
   var SECS_KEY = "airh-baddies-closed";
@@ -457,7 +497,7 @@
       if (!sec.classList.contains("is-closed")) { out.textContent = ""; return; }
       var picks = [];
       each(sec.querySelectorAll(".bd-sec-body button.is-on"), function (b) {
-        var lb = b.querySelector("b"), t = (b.getAttribute("title") || (lb ? lb.textContent : b.textContent) || "").trim();
+        var lb = b.querySelector("b") || b.querySelector("span"), t = (b.getAttribute("title") || (lb ? lb.textContent : b.textContent) || "").trim();
         if (t && picks.indexOf(t) < 0) picks.push(t);
       });
       out.textContent = picks.slice(0, 4).join(" · ") + (picks.length > 4 ? " +" + (picks.length - 4) : "");
@@ -1230,6 +1270,7 @@
   renderPanel();
   if (state._extra) { $("bdExtra").value = state._extra; delete state._extra; }
   state.height = clampN(state.height, +$("bdHeight").min, +$("bdHeight").max);
+  addThumbs();
   setupSections();
   wire();
   sync();

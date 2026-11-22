@@ -16,7 +16,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 const box = document.getElementById("bdPreview");
 const canvasWrap = document.getElementById("bdPreviewCanvas");
-const MODEL_URL = "models/baddie_full.glb?v=1";
+const MODEL_URL = "models/baddie_full.glb?v=2";
 const EYE_TEX = { brown: "brown", hazel: "brownlight", green: "green", grey: "grey", blue: "blue" };
 const BASE_H = 1.60;            // the model's height in metres (5'3")
 const IN = 0.0254;
@@ -146,16 +146,19 @@ function init() {
     uSkin: { value: new THREE.Color(SKIN.caramel) }, uBoot: { value: new THREE.Color("#efefea") },
     uDark: { value: new THREE.Color("#3a3f2a") }, uBlack: { value: new THREE.Color("#141416") },
     uCamo: { value: camoTex("snow") }, uInk: { value: inkTex("color") },
-    uSkinTex: { value: null }, uHasSkin: { value: 0 }
+    uSkinTex: { value: null }, uHasSkin: { value: 0 },
+    // makeup, painted in rest (bind) space so it rides along with expressions
+    uEyeL: { value: new THREE.Vector3(0.032, 1.5, 0.08) }, uEyeR: { value: new THREE.Vector3(-0.032, 1.5, 0.08) }, uMouth: { value: new THREE.Vector3(0, 1.44, 0.09) },
+    uLip: { value: new THREE.Color("#a5555a") }, uLipAmt: { value: 0.3 }, uLiner: { value: 0 }, uShadowC: { value: new THREE.Color("#5a3a30") }, uShadowAmt: { value: 0 }
   };
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.52, metalness: 0 });
   bodyMat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute float aCls;\nattribute float aInk;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;")
-      .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCls = aCls; vInk = aInk; vUv2 = uv;");
+      .replace("#include <common>", "#include <common>\nattribute float aCls;\nattribute float aInk;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;\nvarying vec3 vRest;")
+      .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCls = aCls; vInk = aInk; vUv2 = uv; vRest = position;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk, uSkinTex;\nuniform float uHasSkin;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk, uSkinTex;\nuniform float uHasSkin;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;\nvarying vec3 vRest;\nuniform vec3 uEyeL, uEyeR, uMouth, uLip, uShadowC;\nuniform float uLipAmt, uLiner, uShadowAmt;")
       .replace("#include <color_fragment>", `#include <color_fragment>
         float cls = floor(vCls + 0.5);
         lkCloth = cls > 0.5 ? 1.0 : 0.0;
@@ -163,6 +166,21 @@ function init() {
         if (uHasSkin > 0.5) { vec3 st = texture2D(uSkinTex, vUv2).rgb; float sl = dot(st, vec3(0.299, 0.587, 0.114)); col = uSkin * clamp(sl / 0.6, 0.55, 1.35); }
         if (cls < 0.5) {
           if (vInk > 0.5) { vec4 t = texture2D(uInk, vUv2 * 3.0); col = mix(col, t.rgb * 0.85, t.a * 0.9); }
+          if (vRest.z > uMouth.z - 0.03 && abs(vRest.y - uMouth.y) < 0.09) {
+            vec2 dm = (vRest.xy - uMouth.xy) / vec2(0.0235, 0.0105);
+            float lip = (1.0 - smoothstep(0.75, 1.05, length(dm))) * step(uMouth.z - 0.016, vRest.z);
+            col = mix(col, uLip, lip * uLipAmt);
+            for (int e = 0; e < 2; e++) {
+              vec3 ec = e == 0 ? uEyeL : uEyeR;
+              vec2 de = (vRest.xy - ec.xy) / vec2(0.0175, 0.0105);
+              float r = length(de), up = step(0.0, vRest.y - ec.y + 0.002);
+              float shadow = (1.0 - smoothstep(1.0, 1.9, r)) * smoothstep(0.85, 1.05, r) * up;
+              float wing = (1.0 - smoothstep(0.0, 0.0022, abs((vRest.y - ec.y) - (abs(vRest.x) - abs(ec.x) - 0.011) * 0.55))) * step(abs(ec.x) + 0.011, abs(vRest.x)) * (1.0 - step(abs(ec.x) + 0.021, abs(vRest.x)));
+              float liner = max((1.0 - smoothstep(0.0, 0.16, abs(r - 1.0))) * up, wing);
+              col = mix(col, uShadowC, shadow * uShadowAmt);
+              col = mix(col, vec3(0.03), liner * uLiner * step(uEyeL.z - 0.03, vRest.z));
+            }
+          }
         } else if (cls < 1.5) col = texture2D(uCamo, vUv2 * 3.0).rgb;
         else if (cls < 2.5) col = uBoot;
         else if (cls < 3.5) col = uDark;
@@ -204,6 +222,11 @@ function init() {
       for (let i = 0; i < P.count; i++) { const x = P.getX(i); if (x > 0) { L.add(new THREE.Vector3(x, P.getY(i), P.getZ(i))); nl++; } else { Rr.add(new THREE.Vector3(x, P.getY(i), P.getZ(i))); nr++; } zmax = Math.max(zmax, P.getZ(i)); }
       L.divideScalar(nl || 1); Rr.divideScalar(nr || 1);
       eyeInfo = { l: L, r: Rr, front: zmax };
+      U.uEyeL.value.copy(L); U.uEyeR.value.copy(Rr);
+      // mouth: the most forward body point on the centre line ~6 cm under the eyes
+      const BP = body.geometry.attributes.position, my = (L.y + Rr.y) / 2 - 0.062; let mz = -9;
+      for (let i = 0; i < BP.count; i++) { if (Math.abs(BP.getX(i)) < 0.006 && Math.abs(BP.getY(i) - my) < 0.008) mz = Math.max(mz, BP.getZ(i)); }
+      if (mz > -9) U.uMouth.value.set(0, my, mz);
     }
     if (hairCap) {
       hairCap.frustumCulled = false;
@@ -334,12 +357,19 @@ function init() {
     pair("thighs_up", "thighs_dn", e("thighs"));
     pair("bust_up", "bust_dn", e("bust"), 1);
     pair("tone_up", "tone_dn", e("tone", 3), 1);
+    // facial expression (shape keys on the body, brows and lashes)
+    const EXPRS = ["confident", "smirk", "fierce", "smile", "pout", "surprised", "sultry", "wink"], ex = one("expr") || "confident";
+    const EXW = { confident: 1.5, smile: 1.5, smirk: 1.2, sultry: 1.4, pout: 0.65 };
+    for (const x of EXPRS) set("ex_" + x, x === ex ? (EXW[x] || 1) : 0);
 
     // ---- paint the outfit
     U.uSkin.value.set(SKIN[s.skin] || SKIN.caramel);
     U.uCamo.value = camoTex(one("camo") || "snow");
     U.uBoot.value.set(BOOTS[one("boots")] || BOOTS.white);
     U.uInk.value = inkTex(one("inkstyle") || "color");
+    const MK = { natural: ["#a8625c", 0.3, 0, "#5a3a30", 0], glam: ["#b8475a", 0.72, 0.55, "#6b4636", 0.38], bold: ["#3a0b16", 0.92, 1.0, "#2a1414", 0.5] }[one("makeup") || "glam"] || [0, 0, 0, 0, 0];
+    if (MK[0]) { U.uLip.value.set(MK[0]); U.uLipAmt.value = MK[1]; U.uLiner.value = MK[2]; U.uShadowC.value.set(MK[3]); U.uShadowAmt.value = MK[4]; }
+    curBg = s.bg || "white"; applyBg();
     const top = one("top") || "puffer", bottom = one("bottom") || "bodysuit", tat = one("tattoos") || "none";
     const sleeves = top === "puffer" || top === "jacket" || top === "hoodie";
     const vest = has("gear", "vest"), gloves = has("gear", "gloves"), pads = has("gear", "pads");
@@ -669,6 +699,34 @@ function init() {
       const bob = new THREE.Mesh(new THREE.SphereGeometry(R * 1.2, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.66), hairM);
       bob.position.set(0, 0.0, -0.02); bob.rotation.x = -0.2; H.add(bob);
     } else if (style === "pixie") { /* the cap is enough */ }
+    // hair details
+    if (has("hairx", "eye")) {   // side-swept fringe from her right temple down over her left eye
+      const ex = eyeInfo ? eyeInfo.l.x - H.position.x : 0.032;
+      // flat, tapered strands: each limb's cylinder is squashed front-to-back in its own frame
+      const strand = (a2, b3, r1, r2) => { const g = limb(a2, b3, r1, r2, hairM, false), c = g.children[0];
+        const n = new THREE.Vector3(...b3).sub(new THREE.Vector3(...a2)).normalize(), fwd = new THREE.Vector3(0, 0, 1);
+        const side = new THREE.Vector3().crossVectors(n, fwd).normalize(), out = new THREE.Vector3().crossVectors(side, n).normalize();
+        c.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, n, out)); c.scale.set(1, 1, 0.3); H.add(g); };
+      strand([-0.04, eyeY + 0.06, eyeZ - 0.006], [ex + 0.012, eyeY - 0.016, eyeZ + 0.015], 0.026, 0.012);
+      strand([-0.015, eyeY + 0.066, eyeZ - 0.008], [ex + 0.024, eyeY - 0.002, eyeZ + 0.011], 0.02, 0.009);
+    }
+    if (has("hairx", "bangs")) {   // a curved fringe hugging the forehead
+      const r = eyeZ + 0.006, bg = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.004, r + 0.004, 0.036, 32, 1, true, -0.85, 1.7), hairM);
+      bg.material.side = THREE.DoubleSide; bg.position.set(0, eyeY + 0.03, 0); H.add(bg);
+    }
+    if (has("hairx", "edges")) for (const sd of [-1, 1]) {   // laid swirls at the temples
+      const t = new THREE.Mesh(new THREE.TorusGeometry(0.009, 0.0016, 6, 20, Math.PI * 1.5), hairM);
+      t.position.set(sd * 0.062, eyeY + 0.03, eyeZ - 0.022); t.rotation.y = sd * 1.1; H.add(t);
+    }
+    if (has("jewelry", "nails")) {   // long glossy nails on every fingertip
+      const nailM = std({ color: 0xd94c8a, roughness: 0.15, metalness: 0.1 });
+      for (const sd of ["l", "r"]) for (const f of ["thumb", "index", "middle", "ring", "pinky"]) {
+        const a = B[f + "_02_" + sd], b2 = B[f + "_03_" + sd]; if (!a || !b2) continue;
+        const pa = bonePos(f + "_02_" + sd), pb = bonePos(f + "_03_" + sd), dir = pb.clone().sub(pa); const seg = dir.length() || 0.02; dir.normalize();
+        const tip = pb.clone().add(dir.clone().multiplyScalar(seg * 0.85));
+        extras.add(limb(tip.toArray(), tip.clone().add(dir.clone().multiplyScalar(0.016)).toArray(), 0.0045, 0.0028, nailM));
+      }
+    }
     if (has("gear", "beanie")) H.add(sphere(R * 1.08, std({ color: 0x2a2b2e, roughness: 1 }), 0, 0.03, -0.01, 0.97, 0.92, 1.05));
     if (has("gear", "cap")) { H.add(sphere(R * 1.06, dark, 0, 0.03, -0.01, 0.97, 0.82, 1.05)); H.add(boxM(0.13, 0.012, 0.09, dark, 0, 0.04, 0.1)); }
     if (has("gear", "headset")) {
@@ -998,6 +1056,14 @@ function init() {
   };
   let curLook = LOOKS.game, curLookId = "";
   const DEFAULT_BG = "";
+  let lookBg = DEFAULT_BG, curBg = "white";
+  // the picked Background shows behind her for the everyday looks; stylised looks keep their own backdrop
+  function applyBg() {
+    const plain = !curLookId || curLookId === "game" || curLookId === "photo";
+    canvasWrap.style.background = plain && curBg && curBg !== "white"
+      ? "linear-gradient(rgba(10,10,14,.35), rgba(10,10,14,.55)), url(img/baddies/bg/" + curBg + ".webp) center / cover no-repeat"
+      : lookBg;
+  }
   function applyLook(id) {
     if (id === curLookId) return;
     const L = LOOKS[id] || LOOKS.game; curLookId = LOOKS[id] ? id : "game"; curLook = L;
@@ -1020,7 +1086,7 @@ function init() {
     renderer.setPixelRatio(basePR * (L.pixel || 1));
     renderer.domElement.style.imageRendering = L.pixel ? "pixelated" : "";
     resize();
-    canvasWrap.style.background = L.bg || DEFAULT_BG;
+    lookBg = L.bg || DEFAULT_BG; applyBg();
     scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => setHolo(m, !!L.holo)); });
     box.setAttribute("data-look", curLookId);
   }
