@@ -386,6 +386,8 @@
     if (w[0] !== "none") {
       var hold = fromList(HOLDS, state.hold)[2];
       if (w[3] === "pistol" && state.hold === "sling") hold = "with it holstered on her thigh";
+      if (w[3] === "pistol" && state.hold === "shoulder") hold = "aiming it with both hands at eye level in a two-handed grip";
+      if (w[3] === "pistol" && state.hold === "low") hold = "holding it in both hands, pointed down at a low ready";
       parts.push("armed with " + w[2] + ", " + hold + ", an accurate, true-to-life model of the real firearm with correct details and proportions");
     }
     var extra = $("bdExtra").value.trim(); if (extra) parts.push(extra);
