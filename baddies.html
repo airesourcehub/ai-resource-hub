@@ -21,7 +21,7 @@
 <meta name="description" content="Design your own Baddie character on your GPU: pick skin tone, height, body shape and how exaggerated the curves are, then outfit, tattoos and a real-world weapon. Turnaround sheets in one click." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/baddies.css?v=20261121c" />
+<link rel="stylesheet" href="css/baddies.css?v=20261121d" />
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
@@ -61,6 +61,12 @@
         <input type="text" id="bdName" maxlength="40" placeholder="e.g. Snow Queen" autocomplete="off" />
       </div>
 
+      <section class="bd-sec" data-sec="char">
+        <h2 class="bd-sec-h">Character</h2>
+        <p class="bd-note">Use the face of one of your trained characters or saved influencers. Everything else (body, outfit, weapon) comes from your settings below.</p>
+        <div class="bd-chars" id="bdChars" role="radiogroup" aria-label="Character"></div>
+      </section>
+
       <section class="bd-sec" data-sec="body">
         <h2 class="bd-sec-h">Body</h2>
         <div class="bd-presets" id="bdBodyPresets" role="group" aria-label="Body presets"></div>
@@ -70,7 +76,7 @@
 
         <div class="bd-slider" id="bdHeightWrap">
           <div class="bd-row-lbl"><label for="bdHeight">Height</label><b id="bdHeightVal"></b></div>
-          <input type="range" id="bdHeight" min="51" max="65" step="1" value="58" />
+          <input type="range" id="bdHeight" min="36" max="84" step="1" value="58" />
           <div class="bd-scale"><span id="bdHeightMin"></span><span id="bdHeightMax"></span></div>
         </div>
 
@@ -157,6 +163,7 @@
         </div>
       </div>
       <div class="bd-looks" id="bdLooks" role="group" aria-label="Look"></div>
+      <div class="bd-face-tag" id="bdFaceTag" hidden></div>
       <div class="bd-preview-canvas" id="bdPreviewCanvas"><div class="bd-preview-load">Loading 3D preview…</div></div>
       <p class="bd-preview-note">Drag to turn, scroll to zoom. Pick a look above: the AI render uses the same look. The preview is a guide; the render adds the real detail.</p>
     </div>
@@ -220,7 +227,7 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/baddies.js?v=20261121c"></script>
-<script type="module" src="js/baddies-3d.js?v=20261121h"></script>
+<script src="js/baddies.js?v=20261121d"></script>
+<script type="module" src="js/baddies-3d.js?v=20261121i"></script>
 </body>
 </html>

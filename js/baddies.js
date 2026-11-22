@@ -15,7 +15,7 @@
   var POLL_MS = 3000, PAGE = 24, PREFS = "airh-baddies";
 
   // ------------------------------------------------------------ admin settings
-  var CFG = { enabled: true, preview: true, heightMin: 51, heightMax: 65, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "zimage", view: "sheet" };
+  var CFG = { enabled: true, preview: true, heightMin: 36, heightMax: 84, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "zimage", view: "sheet" };
   try { var ss = JSON.parse(localStorage.getItem("airh-site-settings") || "null"); if (ss && ss.baddies) CFG = Object.assign(CFG, ss.baddies); } catch (e) {}
 
   // ------------------------------------------------------------ catalog
@@ -200,6 +200,7 @@
   state.batch = clampN(prefs.batch || 1, 1, CFG.maxBatch || 4);
   if (prefs.last) applySettings(prefs.last, true);
   state.user = null; state.mine = []; state.offset = 0;
+  state.chars = []; state.char = (prefs.last && prefs.last.char) || null;
 
   var hasSb = !!(window.supabase && typeof SUPABASE_URL !== "undefined");
   var client = hasSb ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
@@ -210,7 +211,7 @@
     $("bdSkin").innerHTML = SKIN.map(function (s) {
       return '<button type="button" role="radio" data-skin="' + s[0] + '" title="' + esc(s[1]) + '" aria-label="' + esc(s[1]) + '" style="--sw:' + s[2] + '"></button>';
     }).join("");
-    var hmin = clampN(CFG.heightMin, 40, 80), hmax = clampN(CFG.heightMax, hmin + 1, 84);
+    var hmin = clampN(CFG.heightMin, 36, 83), hmax = clampN(CFG.heightMax, hmin + 1, 84);
     $("bdHeight").min = hmin; $("bdHeight").max = hmax;
     $("bdHeightMin").textContent = ftIn(hmin); $("bdHeightMax").textContent = ftIn(hmax);
     $("bdShape").innerHTML = SHAPE.map(function (s) {
@@ -260,7 +261,10 @@
     each($("bdEngine").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.engine); });
     $("bdBatch").textContent = state.batch;
     $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
-    $("bdPrompt").textContent = buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
+    charFace();
+    $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
+    $("bdSkin").classList.toggle("is-dim", !!state.char);
+    $("bdPrompt").textContent = (state.char ? "[Qwen Edit of " + (state.char.handle ? "@" + state.char.handle : state.char.name) + "'s picture]\n" : "") + buildPrompt() + (postEdit() ? "\n\nSecond pass (body only): " + postEdit() : "");
     savePrefs();
     try { window.BADDIES_STATE = snapshot(); window.dispatchEvent(new CustomEvent("baddies:change", { detail: window.BADDIES_STATE })); } catch (e) {}
   }
@@ -297,6 +301,12 @@
     $("bdShuffle").addEventListener("click", shuffle);
     $("bdReset").addEventListener("click", function () { var e = state.engine, n = state.batch; applySettings(DEFAULTS); state.engine = e; state.batch = n; $("bdName").value = ""; $("bdExtra").value = ""; sync(); });
     $("bdGo").addEventListener("click", onGenerate);
+    $("bdChars").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-char]"); if (!b) return;
+      var k = b.getAttribute("data-char");
+      state.char = k ? state.chars.filter(function (c) { return c.key === k; })[0] || null : null;
+      renderChars(); sync();
+    });
     $("bdMore").addEventListener("click", loadMine);
     $("bdWall").addEventListener("click", function (e) {
       var t = e.target.closest(".bd-tile"); if (!t) return;
@@ -333,11 +343,14 @@
 
   function heightWords(h) {
     var s = ftIn(h) + " tall";
+    if (h <= 44) return "a tiny adult woman with dwarfism, only " + s + ", short adult body proportions, short limbs, clearly a grown woman";
     if (h <= 54) return "very petite and short, only " + s + ", compact small frame with short legs";
     if (h <= 59) return "petite and short, about " + s + ", compact frame";
     if (h <= 64) return "about " + s + ", average-short height";
     if (h <= 68) return "about " + s + ", average height";
-    return "tall, about " + s + ", long legs";
+    if (h <= 74) return "tall, about " + s + ", long legs";
+    if (h <= 79) return "very tall amazon woman, about " + s + ", towering, very long legs";
+    return "a giant towering amazon woman, " + s + ", extremely tall with very long legs, towers over everything";
   }
   function exagLabel(x) { return x < 25 ? "Natural" : x < 50 ? "Curvy" : x < 70 ? "Thick" : x < 90 ? "Extra" : "Extreme"; }
   function exagWords(x) {
@@ -352,10 +365,12 @@
     var V = VIEWS[state.view];
     var skin = fromList(SKIN, state.skin)[3];
     var parts = [];
-    parts.push(V.lead + " a stunning adult woman in her late twenties, a female soldier character called a Baddie");
+    var C = state.char;
+    if (C) parts.push("Transform the person in this photo into the following character, keeping their face, facial structure and identity clearly recognizable, the same person in every view");
+    parts.push(V.lead + (C ? " this same adult person, restyled as" : "") + " a stunning adult woman in her late twenties, a female soldier character called a Baddie");
     parts.push("BODY: " + exagWords(state.exag) + ", " + [shapeWords("waist"), shapeWords("hips"), shapeWords("glutes"), shapeWords("thighs"), shapeWords("bust"), shapeWords("tone")].join(", "));
     parts.push(heightWords(state.height));
-    parts.push(skin + " skin with a smooth glowing finish");
+    parts.push(C ? "keep their own skin tone and face, with a smooth glowing finish" : skin + " skin with a smooth glowing finish");
     var hair = opt("hair"), hc = opt("haircolor");
     parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : ""));
     parts.push([opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
@@ -394,6 +409,68 @@
       ". Keep her face, hair, skin tone, tattoos, clothes, boots, weapon, pose and background exactly the same. Seamless, same art style.";
   }
 
+  // ------------------------------------------------------------ characters (trained + saved influencers)
+  // Trained characters: the admin's @handles (site_settings 'influencer_handles') on the stock presets.
+  // Saved influencers: the user's own rows in "influencers" (with their image job's first picture).
+  // A picked character turns the render into a Qwen Edit of their picture, keeping their face.
+  var IMG_INF = "img/influencer/";
+  async function loadChars() {
+    var list = [];
+    if (client) {
+      try {
+        var hs = await client.from("site_settings").select("value").eq("key", "influencer_handles").maybeSingle();
+        var handles = (hs.data && hs.data.value && hs.data.value.handles) || {};
+        Object.keys(handles).forEach(function (id) {
+          list.push({ key: "p:" + id, name: niceName(id), handle: handles[id], kind: "Trained",
+            thumb: IMG_INF + "pv/" + id + "-close.jpg", url: new URL(IMG_INF + "pv/" + id + "-full.jpg", document.baseURI).href });
+        });
+      } catch (e) {}
+      if (state.user) {
+        try {
+          var r = await client.from("influencers").select("id, name, handle, job_id, favorite, created_at").eq("user_id", state.user.id).order("created_at", { ascending: false }).limit(60);
+          var rows = (r.data || []).filter(function (x) { return x.job_id; });
+          var ids = rows.map(function (x) { return x.job_id; }), urls = {};
+          if (ids.length) {
+            var jr = await client.from("image_jobs").select("id, urls, status").in("id", ids);
+            (jr.data || []).forEach(function (j) { if (j.urls && j.urls[0]) urls[j.id] = absUrl(j.urls[0]); });
+          }
+          rows.sort(function (a, b) { return (b.handle ? 2 : 0) + (b.favorite ? 1 : 0) - (a.handle ? 2 : 0) - (a.favorite ? 1 : 0); });
+          rows.forEach(function (x) {
+            if (!urls[x.job_id]) return;
+            list.push({ key: "i:" + x.id, name: x.name || "Influencer", handle: x.handle || "", kind: "Yours", thumb: urls[x.job_id], url: urls[x.job_id] });
+          });
+        } catch (e) {}
+      }
+    }
+    state.chars = list;
+    if (state.char && (state.user || /^p:/.test(state.char.key)) && list.length && !list.some(function (c) { return c.key === state.char.key; })) state.char = null;
+    renderChars(); sync();
+  }
+  function niceName(id) { return String(id).split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" "); }
+  function absUrl(u) { return /^https?:/.test(u) ? u : RENDER() + (u.charAt(0) === "/" ? "" : "/") + u; }
+  function renderChars() {
+    var box = $("bdChars"); if (!box) return;
+    var cur = state.char ? state.char.key : "";
+    var html = '<button type="button" class="bd-char' + (cur ? "" : " is-on") + '" data-char="" role="radio" aria-checked="' + !cur + '"><span class="bd-char-none">New face</span><b>None</b></button>';
+    html += state.chars.map(function (c) {
+      return '<button type="button" class="bd-char' + (c.key === cur ? " is-on" : "") + '" data-char="' + esc(c.key) + '" role="radio" aria-checked="' + (c.key === cur) + '" title="' + esc(c.name) + '">' +
+        '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" /><b>' + (c.handle ? "@" + esc(c.handle) : esc(c.name)) + '</b><small>' + esc(c.kind) + "</small></button>";
+    }).join("");
+    if (!state.chars.length) html += '<p class="bd-note">' + (state.user ? "No characters yet. Make one on the AI Influencer page." : '<a href="auth.html">Log in</a> to use your influencers.') + "</p>";
+    box.innerHTML = html;
+  }
+  function charFace() {
+    var t = $("bdFaceTag"); if (!t) return;
+    if (state.char) { t.hidden = false; t.innerHTML = '<img src="' + esc(state.char.thumb) + '" alt="" /><span>Face: <b>' + esc(state.char.handle ? "@" + state.char.handle : state.char.name) + "</b> (used in the AI render)</span>"; }
+    else t.hidden = true;
+  }
+  async function charBlob(c) {
+    var r = await fetch(c.url, { mode: "cors", cache: "force-cache" });
+    if (!r.ok) throw new Error("Couldn't load " + (c.handle ? "@" + c.handle : c.name) + "'s picture.");
+    var b = await r.blob();
+    return new File([b], "face." + (/png/.test(b.type) ? "png" : "jpg"), { type: b.type || "image/jpeg" });
+  }
+
   // ------------------------------------------------------------ generate
   async function onGenerate() {
     if (!state.user) { location.href = "auth.html"; return; }
@@ -402,19 +479,26 @@
     if (!token) { hint("Your session expired. Log in again to keep creating.", true); return; }
     var V = VIEWS[state.view], prompt = buildPrompt(), pe = postEdit();
     var name = $("bdName").value.trim() || autoName();
+    var model = state.char ? "qwen_edit2509" : state.engine;
+    var face = null;
+    if (state.char) {
+      try { face = await charBlob(state.char); }
+      catch (e) { hint(e.message + " Pick another character or None.", true); return; }
+    }
     var fd = new FormData();
-    fd.append("model", state.engine);
-    fd.append("mode", "create");
+    fd.append("model", model);
+    fd.append("mode", face ? "edit" : "create");
     fd.append("prompt", prompt);
     fd.append("negative", NEGATIVE);
     fd.append("batch", String(state.batch));
     fd.append("width", String(V.w));
     fd.append("height", String(V.h));
-    if (state.engine === "flux2") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
+    if (face) { fd.append("size", "custom"); fd.append("image", face, face.name); }
+    if (model === "flux2" || model === "qwen_edit2509") { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
     if (pe) fd.append("post_edit", pe);
 
     var settings = snapshot();
-    var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: state.engine, prompt: prompt,
+    var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: prompt,
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: V.w, h: V.h };
     state.mine.unshift(card); renderMine();
     $("bdGo").disabled = true; hint("");
@@ -424,7 +508,7 @@
       if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
       card.job_id = d.job_id; card.stage = "Queued";
       if (client) {
-        var ins = await client.from("baddies").insert({ user_id: state.user.id, name: name, settings: settings, view: state.view, model: state.engine, prompt: prompt, job_id: d.job_id }).select("id").single();
+        var ins = await client.from("baddies").insert({ user_id: state.user.id, name: name, settings: settings, view: state.view, model: model, prompt: prompt, job_id: d.job_id }).select("id").single();
         if (ins.data) card.id = ins.data.id;
       }
       renderMine(); poll(card, 0);
@@ -564,7 +648,8 @@
   // ------------------------------------------------------------ settings in/out
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
-      weapon: state.weapon, hold: state.hold, view: state.view, style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "" };
+      weapon: state.weapon, hold: state.hold, view: state.view, style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
+      char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
     if (!s) return;
@@ -574,6 +659,7 @@
     if (s.pick) state.pick = Object.assign(clone(DEFAULTS.pick), clone(s.pick));
     if (!quiet && $("bdExtra")) $("bdExtra").value = s.extra || "";
     else if (quiet && s.extra != null) state._extra = s.extra;
+    if ("char" in s) state.char = s.char || null;
   }
   function autoName() {
     var camo = groupById("camo").opts.filter(function (o) { return o[0] === (state.pick.camo || [])[0]; })[0];
@@ -587,6 +673,7 @@
     $("bdGo").firstChild.nodeValue = u ? "Generate " : "Log in to generate ";
     renderMine();
     if (u) { loadMine(); refreshGpu(); }
+    loadChars();
     syncOff();
   }
   function isAdmin() { try { return !!(window.AIRH_GPU && AIRH_GPU.state().isAdmin); } catch (e) { return false; } }

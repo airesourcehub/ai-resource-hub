@@ -380,8 +380,19 @@ function init() {
       side:     { ua_l: v3(0.16, -1, 0.02), la_l: v3(0.06, -1, 0.12), ua_r: v3(-0.2, -1, 0.06), la_r: v3(-0.1, -1, 0.35) }
     };
     const pose = !armed || hold === "sling" ? POSES.rest : (POSES[hold] || POSES.low);
-    aim("upperarm_l", "lowerarm_l", pose.ua_l); aim("lowerarm_l", "hand_l", pose.la_l);
-    aim("upperarm_r", "lowerarm_r", pose.ua_r); aim("lowerarm_r", "hand_r", pose.la_r);
+    const hScale = ((s.height || 60) * IN) / BASE_H;
+    if (armed && (hold === "shoulder" || hold === "low") && !pistol) {   // blade the torso so the support hand reaches the handguard
+      const tw = hold === "shoulder" ? -0.42 : -0.3;
+      yawBone("spine_01", tw * 0.25); yawBone("spine_02", tw * 0.35); yawBone("spine_03", tw * 0.4);
+      yawBone("neck_01", -tw * 0.5); yawBone("head", -tw * 0.4);
+    }
+    curRig = armed && (hold === "shoulder" || hold === "low" || (pistol && hold !== "side" && hold !== "sling")) ? gunRig(w, hold, pistol, hScale) : null;
+    curGunK = 1 / hScale;
+    if (curRig) { ik("r", curRig.hr); ik("l", curRig.hl); }
+    else {
+      aim("upperarm_l", "lowerarm_l", pose.ua_l); aim("lowerarm_l", "hand_l", pose.la_l);
+      aim("upperarm_r", "lowerarm_r", pose.ua_r); aim("lowerarm_r", "hand_r", pose.la_r);
+    }
     // relax the fingers a little
     for (const n in B) if (/^(index|middle|ring|pinky)_0[123]/.test(n)) B[n].rotateZ(armed ? 0.5 : 0.2);
 
@@ -389,7 +400,12 @@ function init() {
     const hIn = s.height || 60, scale = (hIn * IN) / BASE_H;
     holder.scale.setScalar(scale);
     holder.updateMatrixWorld(true);
-    controls.target.y = 0.5 * hIn * IN + 0.05;
+    const ty = 0.5 * hIn * IN + 0.05;
+    if (lastH && lastH !== hIn) {   // keep her in frame from 3 ft to 7 ft: move the camera with her height
+      const off = camera.position.clone().sub(controls.target).multiplyScalar(Math.max(hIn, 42) / Math.max(lastH, 42));
+      controls.target.y = ty; camera.position.copy(controls.target).add(off); controls.update();
+    } else controls.target.y = ty;
+    lastH = hIn;
 
     buildExtras(s, one, has, armed, pistol, w, hold);
     drawRuler(hIn);
@@ -417,6 +433,70 @@ function init() {
     B[name].getWorldPosition(p); holder.worldToLocal(p);
     if (off) p.add(off);
     return p;
+  }
+
+  // ------------------------------------------------------------ two-hand gun rig (IK)
+  let curRig = null, curGunK = 1;
+  function gunDims(w, pistol) {
+    const src = weaponCache[w];
+    if (src) {
+      if (!src.userData.dims) { src.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(src); src.userData.dims = { zMin: b.min.z, zMax: b.max.z, yMin: b.min.y }; }
+      return src.userData.dims;
+    }
+    const L = pistol ? 0.2 : w === "barrett" ? 1.25 : w === "remington" ? 1.0 : w === "mp5" || w === "uzi" ? 0.6 : 0.88;
+    return pistol ? { zMin: -0.04, zMax: L * 0.8, yMin: -0.12 } : { zMin: -L * 0.38, zMax: L * 0.62, yMin: -0.2 };
+  }
+  function basisQ(fwd) {
+    const z = fwd.clone().normalize(), x = new THREE.Vector3(0, 1, 0).cross(z).normalize(), y = z.clone().cross(x).normalize();
+    return { q: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z)), x, y, z };
+  }
+  // Where the gun sits and where each hand must go, in body space (model is 1.60 m; guns keep real size).
+  function gunRig(w, hold, pistol, hScale) {
+    const d = gunDims(w, pistol), k = 1 / hScale;
+    const shR = bonePos("upperarm_r"), shL = bonePos("upperarm_l");
+    let fwd, G, hr, hl;
+    if (pistol) {
+      fwd = v3(0, -0.06, 1);
+      const b = basisQ(fwd), mid = shR.clone().add(shL).multiplyScalar(0.5);
+      G = mid.clone().add(v3(-0.01, -0.08, 0.44));
+      hr = G.clone().add(b.z.clone().multiplyScalar(-0.06 * k)).add(b.y.clone().multiplyScalar(-0.05 * k));
+      hl = hr.clone().add(v3(0.035, -0.015, 0.0));
+      return { G, q: b.q, k, hr, hl };
+    }
+    const pocket = shR.clone().add(v3(0.06, -0.04, 0.07));
+    if (hold === "low") { fwd = v3(0.38, -0.62, 0.72); pocket.add(v3(0.03, -0.08, 0.03)); }
+    else fwd = v3(0.035, -0.02, 1);
+    const b = basisQ(fwd);
+    G = pocket.clone().add(b.z.clone().multiplyScalar(-d.zMin * k)).add(b.y.clone().multiplyScalar(-0.025 * k));
+    hr = G.clone().add(b.z.clone().multiplyScalar(-0.1 * k)).add(b.y.clone().multiplyScalar(-0.07 * k)).add(b.x.clone().multiplyScalar(-0.03 * k));
+    const fore = Math.min(0.3, d.zMax * 0.38);
+    hl = G.clone().add(b.z.clone().multiplyScalar(fore * k)).add(b.y.clone().multiplyScalar(-0.07 * k)).add(b.x.clone().multiplyScalar(0.02 * k));
+    return { G, q: b.q, k, hr, hl };
+  }
+  function yawBone(name, ang) {
+    const b = B[name]; if (!b) return;
+    holder.updateMatrixWorld(true);
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ang);
+    const bw = new THREE.Quaternion(); b.getWorldQuaternion(bw);
+    const pw = new THREE.Quaternion(); b.parent.getWorldQuaternion(pw);
+    b.quaternion.copy(pw.invert().multiply(q).multiply(bw)); b.updateMatrixWorld(true);
+  }
+  // Two-bone IK: bend the arm so the wrist reaches T, elbow pointing down and out.
+  function ik(side, T) {
+    const ua = "upperarm_" + side, la = "lowerarm_" + side, h = "hand_" + side;
+    if (!B[ua] || !B[la] || !B[h]) return;
+    const S = bonePos(ua), Lp = bonePos(la), Hp = bonePos(h);
+    const L1 = S.distanceTo(Lp), L2 = Lp.distanceTo(Hp);
+    const D = T.clone().sub(S); let dd = D.length();
+    dd = Math.max(Math.abs(L1 - L2) + 1e-3, Math.min(dd, (L1 + L2) * 0.999));
+    const u = D.normalize();
+    const a = (L1 * L1 - L2 * L2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+    const pole = v3(side === "r" ? -0.75 : 0.75, -1, -0.25);
+    const pp = pole.sub(u.clone().multiplyScalar(pole.dot(u))).normalize();
+    const E = S.clone().add(u.clone().multiplyScalar(a)).add(pp.multiplyScalar(hh));
+    aim(ua, la, E.clone().sub(S));
+    const T2 = S.clone().add(u.clone().multiplyScalar(dd));
+    aim(la, h, T2.sub(bonePos(la)));
   }
 
   // ------------------------------------------------------------ add-ons: hair, gear, jewelry, weapon
@@ -533,7 +613,7 @@ function init() {
   }
 
   // Real weapon models (made on the hub's GPU: FLUX.2 picture -> TRELLIS.2 3D), +Z = muzzle, origin at the grip.
-  const WEAPON_GLB = {ak47: "models/weapons/ak47.glb?v=2", akm: "models/weapons/akm.glb?v=2", m4a1: "models/weapons/m4a1.glb?v=2", hk416: "models/weapons/hk416.glb?v=2", scar: "models/weapons/scar.glb?v=2", mp5: "models/weapons/mp5.glb?v=2", uzi: "models/weapons/uzi.glb?v=2", remington: "models/weapons/remington.glb?v=2", barrett: "models/weapons/barrett.glb?v=2", glock: "models/weapons/glock.glb?v=2", deagle: "models/weapons/deagle.glb?v=2" };
+  const WEAPON_GLB = {ak47: "models/weapons/ak47.glb?v=2", akm: "models/weapons/akm.glb?v=2", m4a1: "models/weapons/m4a1.glb?v=2", hk416: "models/weapons/hk416.glb?v=2", scar: "models/weapons/scar.glb?v=2", mp5: "models/weapons/mp5.glb?v=2", uzi: "models/weapons/uzi.glb?v=2", remington: "models/weapons/remington.glb?v=2", barrett: "models/weapons/barrett.glb?v=3", glock: "models/weapons/glock.glb?v=2", deagle: "models/weapons/deagle.glb?v=2" };
   const weaponCache = {}, weaponLoading = {};
   let draco = null;
   function loadWeapon(w) {
@@ -575,6 +655,8 @@ function init() {
   }
 
   function placeWeapon(g, hold, pistol) {
+    g.scale.setScalar(curGunK);
+    if (curRig) { g.position.copy(curRig.G); g.quaternion.copy(curRig.q); return; }
     // the grip sits in the right hand; the barrel points along where the hands point
     const hr = bonePos("hand_r"), hl = bonePos("hand_l");
     if (hold === "sling") {
@@ -595,11 +677,12 @@ function init() {
   }
 
   // ------------------------------------------------------------ height ruler
+  let lastH = 0;
   function drawRuler(h) {
     while (ruler.children.length) { const c = ruler.children.pop(); c.geometry && c.geometry.dispose(); }
     const X = -0.52, line = new THREE.LineBasicMaterial({ color: 0x8a8a93, transparent: true, opacity: 0.7 });
-    ruler.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([v3(X, 0, 0), v3(X, 72 * IN, 0)]), line));
-    for (let i = 36; i <= 72; i += 3) {
+    ruler.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([v3(X, 0, 0), v3(X, Math.max(72, h + 6) * IN, 0)]), line));
+    for (let i = 24; i <= Math.max(72, Math.ceil((h + 6) / 6) * 6); i += 3) {
       const y = i * IN, len = i % 12 === 0 ? 0.06 : i % 6 === 0 ? 0.04 : 0.02;
       ruler.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([v3(X, y, 0), v3(X + len, y, 0)]), line));
       if (i % 6 === 0) ruler.add(label(ft(i), X + 0.13, y, "#9a9aa3", 0.05));
