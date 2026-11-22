@@ -648,7 +648,7 @@
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
     if (C) {
       steps.push({ label: "dressing " + whoName(C), inputs: ["face"], prompt: buildCharEdit() });
-      if (poseMatch()) steps.push({ label: "matching your pose", inputs: ["prev", "pose"], w: F.w, h: F.h, prompt: posePrompt(true) });
+      if (poseMatch()) steps.push({ label: "posing her", inputs: ["prev"], w: F.w, h: F.h, prompt: charPosePrompt() });
       else if (!single) { var s2 = buildCharStep2(); if (s2) steps.push({ label: "making the " + V.label.toLowerCase(), inputs: ["prev"], w: V.w, h: V.h, prompt: s2, post: postEdit() }); }
     } else if (poseMatch()) {
       steps.push({ label: "matching your pose", inputs: ["pose"], w: F.w, h: F.h, prompt: posePrompt(false) });
@@ -661,10 +661,26 @@
     steps[steps.length - 1].batch = state.batch;
     return steps;
   }
+  // The 3D pose in words (from the bones), plus the preset wording and what happens to the gun.
+  function poseDesc() {
+    var pid = poseId(), w = fromList(WEAPONS, state.weapon), gun = "";
+    var onGun = w[0] !== "none" && (pid === "hold" || pid === "kneel");   // hands are on the gun: describe the gun hold instead
+    var d = window.BADDIES_POSE_DESC ? window.BADDIES_POSE_DESC({ hands: !onGun }) : "";
+    if (w[0] !== "none") {
+      if (handsBusy()) gun = w[3] === "pistol" ? "the pistol holstered on her thigh" : "the gun slung across her back";
+      else if (pid === "custom") gun = "holding " + w[2].replace(/^a real /, "the ") + " in her right hand";
+      else gun = "holding " + w[2].replace(/^a real /, "the ") + " " + fromList(HOLDS, state.hold)[2].replace(/^holding it /, "");
+    }
+    return [pid !== "custom" && pid !== "hold" ? poseWords() : "", d, gun].filter(Boolean).join(", ");
+  }
+  function charPosePrompt() {
+    return "Change only her pose, keeping this exact same person (same face, age, skin color, hair, glasses, body proportions, outfit, tattoos, jewelry, boots and weapon) and the same plain background. New pose: " + poseDesc() +
+      ", facing the camera. Full body head to toe in frame, one person only. " + fromList(STYLES, state.style)[2] + ".";
+  }
   function posePrompt(fromLeft) {
     var look = fromList(STYLES, state.style)[2], bg = fromList(BGS, state.bg)[2];
     if (fromLeft) return "This picture has two panels. Show the woman from the LEFT panel, alone, in exactly the pose, body angle, arm, hand, leg and head positions and camera angle of the 3D figure in the RIGHT panel. Keep her face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon exactly the same. Full body head to toe, one person only, the 3D figure itself must not appear. " + bg + ". " + look + ".";
-    return "Use the 3D figure in this picture as the pose and camera reference: create the following character with exactly the same pose, body angle, arm, hand, leg and head positions and the same camera angle and framing, rendered with full real detail (real skin, fabric and metal), not a plain 3D preview. " + promptAs("full");
+    return "Use the 3D figure in this picture as the pose and camera reference: create the following character with exactly the same pose, body angle, arm, hand, leg and head positions and the same camera angle and framing, rendered with full real detail (real skin, fabric and metal), not a plain 3D preview. Pose: " + poseDesc() + ". " + promptAs("full");
   }
   function duoPrompt() {
     var d = fromList(DUO, state.duo || "side")[2];

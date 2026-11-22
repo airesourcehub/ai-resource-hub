@@ -177,7 +177,7 @@ function init() {
   const skinned = [];    // every skinned mesh (they all share the body's morph names)
   const B = {};      // bones by name
   const restP = {};   // rest positions (pelvis moves for squats / kneeling)
-  let headRestM = null;   // head bone at rest (holder space): head add-ons follow the posed head
+  let headRestM = null, pelvisRestY = 0.95;   // head bone at rest (holder space): head add-ons follow the posed head
   const restQ = {};  // rest quaternions
   let pendingState = window.BADDIES_STATE || null;
 
@@ -195,6 +195,7 @@ function init() {
     });
     if (!eyes && M.eyes_hp) eyes = M.eyes_hp;
     if (B.head) { holder.updateMatrixWorld(true); headRestM = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld); }
+    if (B.pelvis) pelvisRestY = bonePos("pelvis").y;
     setupAssetMaterials();
     if (eyes) {
       eyes.frustumCulled = false;
@@ -1052,6 +1053,47 @@ function init() {
 
   // A clean front-view picture of the current pose (grey sculpt look, no ruler), used as the
   // pose reference for the AI render.
+  // Words for the current 3D pose (used when the AI edits a character's own photo into the pose).
+  window.BADDIES_POSE_DESC = function (opts) {
+    opts = opts || {};
+    if (!body || !B.pelvis) return "";
+    const P = bonePos("pelvis"), Hd = bonePos("head"), N = bonePos("neck_01");
+    const sh = { r: bonePos("upperarm_r"), l: bonePos("upperarm_l") }, hand = { r: bonePos("hand_r"), l: bonePos("hand_l") };
+    const knee = { r: bonePos("calf_r"), l: bonePos("calf_l") }, foot = { r: bonePos("foot_r"), l: bonePos("foot_l") };
+    const out = [], drop = pelvisRestY - P.y;
+    const kneelSide = knee.r.y < 0.14 ? "right" : knee.l.y < 0.14 ? "left" : "";
+    if (kneelSide) out.push("kneeling on her " + kneelSide + " knee with the other foot planted in front");
+    else if (drop > 0.26) out.push("in a deep squat with her hips dropped low, knees bent" + (Math.abs(knee.r.x - knee.l.x) > 0.4 ? " and pointing outward" : ""));
+    else if (drop > 0.1) out.push("in a half squat with her knees bent");
+    else out.push("standing");
+    const spread = Math.abs(foot.r.x - foot.l.x), stride = foot.r.z - foot.l.z;
+    if (!kneelSide) {
+      if (spread > 0.5) out.push("feet planted wide apart"); else if (spread < 0.16) out.push("feet close together");
+      if (stride > 0.18) out.push("her right foot stepped forward"); else if (stride < -0.18) out.push("her left foot stepped forward");
+      if (foot.r.y > 0.14) out.push("her right foot lifted off the ground"); if (foot.l.y > 0.14) out.push("her left foot lifted off the ground");
+    }
+    function handWords(side) {
+      const h = hand[side], other = side === "r" ? "l" : "r", sgn = side === "r" ? -1 : 1, x = h.x * sgn; // x > 0 = toward her own side
+      const onKnee = (k) => Math.hypot(h.x - k.x, h.z - k.z) < 0.2 && h.y > k.y - 0.08 && h.y < k.y + 0.22 && k.y < P.y + 0.05;
+      if (onKnee(knee[side])) return "resting on her " + (side === "r" ? "right" : "left") + " knee";
+      if (onKnee(knee[other])) return "resting on her other knee";
+      if (h.y > Hd.y + 0.08) return "raised up above her head";
+      if (Math.abs(h.y - Hd.y) < 0.12 && Math.abs(h.x - Hd.x) < 0.2) return "up beside her face";
+      if (x < -0.04 && h.y > P.y && h.y < N.y) return "across her chest";
+      const walking = Math.abs(foot.r.z - foot.l.z) > 0.18;
+      if (h.z < -0.08 && h.y < P.y + 0.1) return walking ? "swinging back behind her hip" : "behind her hip";
+      if (Math.abs(h.y - (P.y + 0.06)) < 0.11 && x > 0.12 && Math.abs(h.z) < 0.1) return "on her hip";
+      if (h.z > 0.1 && h.y < P.y + 0.1 && h.y > P.y - 0.25 && h.z < 0.35) return walking ? "swinging forward" : "held low in front of her";
+      if (h.z > 0.35) return "reaching forward " + (h.y > sh[side].y - 0.05 ? "at shoulder height" : h.y > P.y ? "at chest height" : "low");
+      if (h.z < -0.12) return "behind her";
+      if (h.y > sh[side].y - 0.05) return "raised out to the side at shoulder height";
+      if (h.y < P.y - 0.05) return "down by her side";
+      return "held in front of her waist";
+    }
+    if (opts.hands !== false) out.push("right hand " + handWords("r"), "left hand " + handWords("l"));
+    return out.join(", ");
+  };
+
   window.BADDIES_POSE_SNAPSHOT = async function () {
     const W = 640, H = 960, prevLook = curLookId || "game";
     const vis = [ruler.visible, handleGroup.visible, grid.visible, ground.visible];
