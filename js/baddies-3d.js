@@ -260,6 +260,7 @@ function init() {
     body.material = bodyMat;
     body.frustumCulled = false;
     skel = body.skeleton;
+    try { setupFaceFrame(); } catch (e) { faceIdx = null; }
     morphIdx = body.morphTargetDictionary || {};
     classifyVertices();
     holder.add(root);
@@ -501,6 +502,62 @@ function init() {
     b.updateMatrixWorld(true);
   }
   // A bone's position in holder (unscaled body) space.
+  // Face frame from three skinned body vertices (nose tip, left ear, right ear). The face skin is weighted partly
+  // to the neck and spine, so this follows the head as drawn better than the head bone does.
+  let faceIdx = null, faceRestF = null;
+  function skinnedPt(i) {
+    const t = new THREE.Vector3(); body.getVertexPosition(i, t); t.applyMatrix4(body.matrixWorld); holder.worldToLocal(t); return t;
+  }
+  function faceFrame() {
+    if (!faceIdx || !body) return null;
+    holder.updateMatrixWorld(true); if (body.skeleton) body.skeleton.update();
+    const n = skinnedPt(faceIdx[0]), l = skinnedPt(faceIdx[1]), r = skinnedPt(faceIdx[2]);
+    const o = l.clone().add(r).multiplyScalar(0.5), x = l.clone().sub(r).normalize();
+    const z0 = n.clone().sub(o).normalize(), y = new THREE.Vector3().crossVectors(z0, x).normalize(), z = new THREE.Vector3().crossVectors(x, y);
+    return new THREE.Matrix4().makeBasis(x, y, z).setPosition(o);
+  }
+  // per eye: the rest-pose cornea apex vertex and a ring of vertices around the eyeball centre
+  let eyeApex = null;
+  function pinIrises(G) {
+    if (!eyes || !eyes.isSkinnedMesh || !eyeInfo) return false;
+    if (!eyeApex) {
+      const P = eyes.geometry.attributes.position, ap = [-1, -1], az = [-9, -9], ring = [[], []];
+      for (let i = 0; i < P.count; i++) { const sd = P.getX(i) > 0 ? 0 : 1; if (P.getZ(i) > az[sd]) { az[sd] = P.getZ(i); ap[sd] = i; } if (i % 9 === 0) ring[sd].push(i); }
+      if (ap[0] < 0 || ap[1] < 0) return false;
+      eyeApex = { ap, ring };
+    }
+    holder.updateMatrixWorld(true); if (eyes.skeleton) eyes.skeleton.update();
+    const pt = (i) => { const t = new THREE.Vector3(); eyes.getVertexPosition(i, t); t.applyMatrix4(eyes.matrixWorld); return holder.worldToLocal(t); };
+    const fr = [], ce = [];
+    for (let sd = 0; sd < 2; sd++) {
+      fr.push(pt(eyeApex.ap[sd]));
+      const c = new THREE.Vector3(); eyeApex.ring[sd].forEach((i) => c.add(pt(i))); ce.push(c.divideScalar(eyeApex.ring[sd].length));
+    }
+    G.position.set(0, 0, 0); G.quaternion.identity(); G.scale.set(1, 1, 1);
+    const up0 = new THREE.Vector3(0, 1, 0), z0 = new THREE.Vector3(0, 0, 1);
+    G.children.forEach((m) => {
+      const d = m.userData; if (!d || d.side == null) return;
+      const dir = fr[d.side].clone().sub(ce[d.side]).normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(z0, dir);
+      const side = new THREE.Vector3(1, 0, 0).applyQuaternion(q), up = up0.clone().applyQuaternion(q);
+      m.position.copy(fr[d.side]).addScaledVector(dir, d.lift - 0.0004).addScaledVector(side, d.ex || 0).addScaledVector(up, d.ey || 0);
+      m.quaternion.copy(q);
+    });
+    return true;
+  }
+  function setupFaceFrame() {
+    if (!eyeInfo || !body) return;
+    const P = body.geometry.attributes.position, ey = (eyeInfo.l.y + eyeInfo.r.y) / 2, cz = headInfo ? headInfo.c.z : eyeInfo.front - 0.085;
+    let nose = -1, nz = -9, el = -1, ex = -9, er = -1, exr = 9;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+      if (Math.abs(x) < 0.004 && y > ey - 0.05 && y < ey - 0.01 && z > nz) { nz = z; nose = i; }
+      if (y > ey - 0.03 && y < ey + 0.01 && z > cz - 0.035 && z < cz + 0.025) { if (x > ex) { ex = x; el = i; } if (x < exr) { exr = x; er = i; } }
+    }
+    if (nose < 0 || el < 0 || er < 0) return;
+    faceIdx = [nose, el, er];
+    faceRestF = faceFrame();
+  }
   function bonePos(name, off) {
     const p = new THREE.Vector3(); if (!B[name]) return p;
     B[name].getWorldPosition(p); holder.worldToLocal(p);
@@ -638,19 +695,26 @@ function init() {
     if (headInfo) H.position.copy(headInfo.c); else H.position.copy(headB).add(v3(0, 0.085, 0.01));
     // irises on the eyeballs
     const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
+    for (const m of [eyeC, pupil]) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4; }
     const EYEG = new THREE.Group(); extras.add(EYEG);
     if (eyeInfo) for (const c of [eyeInfo.l, eyeInfo.r]) {
       const lk = (sRef.pose && sRef.pose.look) || {}, ex = Math.max(-1, Math.min(1, (lk.eyeX || 0) / 10)) * 0.0042, ey = Math.max(-1, Math.min(1, (lk.eyeY || 0) / 10)) * 0.003;
-      const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x + ex, c.y + ey, eyeInfo.front + 0.0004); EYEG.add(ir);
-      const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x + ex, c.y + ey, eyeInfo.front + 0.0008); EYEG.add(pu);
+      const side = c === eyeInfo.l ? 0 : 1;
+      const ir = new THREE.Mesh(new THREE.CircleGeometry(0.0062, 24), eyeC); ir.position.set(c.x + ex, c.y + ey, eyeInfo.front + 0.0016); ir.userData = { side, ex, ey, lift: 0.0016 }; EYEG.add(ir);
+      const pu = new THREE.Mesh(new THREE.CircleGeometry(0.0026, 16), pupil); pu.position.set(c.x + ex, c.y + ey, eyeInfo.front + 0.0021); pu.userData = { side, ex, ey, lift: 0.0021 }; EYEG.add(pu);
     }
     // head add-ons were laid out on the resting head: move them with the posed head (squats, kneeling, turned head)
     const followHead = () => {
       if (!headRestM || !B.head) return;
       holder.updateMatrixWorld(true);
-      const now = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld);
-      const delta = now.multiply(headRestM.clone().invert());
-      [H, EYEG].forEach((g) => { g.updateMatrix(); g.matrix.premultiply(delta); g.matrix.decompose(g.position, g.quaternion, g.scale); });
+      let delta;
+      const fNow = faceFrame();
+      if (fNow && faceRestF) delta = fNow.multiply(faceRestF.clone().invert());   // follow the real (skinned) face
+      else { const now = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld); delta = now.multiply(headRestM.clone().invert()); }
+      [H].forEach((g) => { g.updateMatrix(); g.matrix.premultiply(delta); g.matrix.decompose(g.position, g.quaternion, g.scale); });
+      // irises sit on the real (skinned) cornea of each eyeball, facing the way that eyeball faces
+      const pinned = pinIrises(EYEG);
+      if (!pinned) { EYEG.updateMatrix(); EYEG.matrix.premultiply(delta); EYEG.matrix.decompose(EYEG.position, EYEG.quaternion, EYEG.scale); }
     };
     const eyeY = eyeInfo ? eyeInfo.l.y - H.position.y : 0.012, eyeZ = eyeInfo ? eyeInfo.front - H.position.z : 0.08;
     if (has("gear", "shades")) { H.add(boxM(0.135, 0.032, 0.012, black, 0, eyeY, eyeZ + 0.012)); }
@@ -1330,5 +1394,5 @@ function init() {
   });
   renderer.domElement.addEventListener("pointerdown", () => { if (controls.autoRotate) { controls.autoRotate = false; syncSpin(); } });
   syncSpin();
-  window.BADDIES_3D = { build, scene, camera, controls, bones: B, get body() { return body; } };
+  window.BADDIES_3D = { build, scene, camera, controls, bones: B, get body() { return body; }, get faceIdx() { return faceIdx; }, faceFrame: () => faceFrame(), get faceRestF() { return faceRestF; } };
 }
