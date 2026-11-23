@@ -52,8 +52,17 @@ function init() {
   const rim2 = new THREE.DirectionalLight(0x9fc2ff, 1.0); rim2.position.set(2.8, 1.8, -2.6); scene.add(rim2);
   const fill = new THREE.DirectionalLight(0xc8d6ff, 0.55); fill.position.set(-3, 1.2, 2.2); scene.add(fill);
 
+  // 3D backdrop: a real-world-sized photo plane ~12 m behind her, always facing the camera, horizon at eye level.
+  // With it on, the camera stays put when the height changes, so she visibly grows/shrinks against the scenery.
+  // The plane covers the photo's own field of view (~75° wide) as seen from the camera, so things in the photo keep
+  // their true angular size; each photo's horizon (fraction from the top) is lifted to the camera's eye level.
+  const BG_D = 12, BG_FOV = Math.tan(THREE.MathUtils.degToRad(75 / 2)), BG_AR = 1024 / 1792;
+  const BG_HORIZON = { desert: 0.53, jungle: 0.59, miami: 0.61, snow: 0.6 };
+  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false, toneMapped: false, fog: false }));
+  backdrop.renderOrder = -10; backdrop.visible = false; backdrop.frustumCulled = false;
+  const bgTex = {}; let bgOn = false, bgWant = "";
   const ground = new THREE.Mesh(new THREE.CircleGeometry(0.6, 48), new THREE.MeshBasicMaterial({ map: radialTex(), transparent: true, depthWrite: false }));
-  ground.rotation.x = -Math.PI / 2; ground.position.y = 0.001; scene.add(ground);
+  ground.rotation.x = -Math.PI / 2; ground.position.y = 0.001; scene.add(ground); scene.add(backdrop);
 
   const ruler = new THREE.Group(); scene.add(ruler);
   const holder = new THREE.Group(); scene.add(holder);      // scaled by height
@@ -490,10 +499,11 @@ function init() {
     holder.scale.setScalar(scale);
     holder.updateMatrixWorld(true);
     const ty = 0.5 * hIn * IN + 0.05;
-    if (lastH && lastH !== hIn) {   // keep her in frame from 3 ft to 7 ft: move the camera with her height
+    if (bgOn) { /* backdrop on: camera stays fixed so the height change shows against the scenery */ }
+    else if (lastH && lastH !== hIn) {   // keep her in frame from 3 ft to 7 ft: move the camera with her height
       const off = camera.position.clone().sub(controls.target).multiplyScalar(Math.max(hIn, 42) / Math.max(lastH, 42));
       controls.target.y = ty; camera.position.copy(controls.target).add(off); controls.update();
-    } else controls.target.y = ty;
+    } else if (!bgOn) controls.target.y = ty;
     lastH = hIn;
 
     buildExtras(s, one, has, armed, pistol, w, hold);
@@ -1413,9 +1423,37 @@ function init() {
   // the picked Background shows behind her for the everyday looks; stylised looks keep their own backdrop
   function applyBg() {
     const plain = !curLookId || curLookId === "game" || curLookId === "photo";
-    canvasWrap.style.background = plain && curBg && curBg !== "white"
-      ? "linear-gradient(rgba(10,10,14,.35), rgba(10,10,14,.55)), url(img/baddies/bg/" + curBg + ".webp) center / cover no-repeat"
-      : lookBg;
+    const want = plain && curBg && curBg !== "white" ? curBg : "";
+    const was = bgOn; bgOn = !!want; bgWant = want;
+    if (want) {
+      canvasWrap.style.background = "#0c0d10";
+      if (bgTex[want]) backdrop.material.map = bgTex[want];
+      else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=1", document.baseURI).href, (t) => {
+        t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; bgTex[want] = t;
+        if (bgWant === want) { backdrop.material.map = t; backdrop.material.needsUpdate = true; }
+      });
+      backdrop.material.needsUpdate = true; backdrop.visible = true; ground.visible = false;
+      controls.maxDistance = 7; controls.minPolarAngle = 1.2; controls.maxPolarAngle = Math.PI / 2 + 0.06;
+      if (!was) frameForBackdrop();
+    } else {
+      backdrop.visible = false; canvasWrap.style.background = lookBg;
+      controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
+      if (curLook && !curLook.holo && !curLook.grid && !curLook.shadows) ground.visible = true;
+    }
+  }
+  // fixed "scene" framing: fits a 7'6" person, so shorter heights read as shorter against the background
+  function frameForBackdrop() {
+    const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
+    off.setLength(5.6); controls.target.set(0, 1.05, 0); camera.position.set(off.x, 1.1, off.z); controls.update();
+  }
+  function placeBackdrop() {
+    if (!backdrop.visible) return;
+    const dir = controls.target.clone().sub(camera.position); dir.y = 0; if (dir.lengthSq() < 1e-6) return; dir.normalize();
+    const flat = camera.position.clone().sub(controls.target); flat.y = 0;
+    const L = BG_D + flat.length(), W = 2 * L * BG_FOV, Hh = W * BG_AR, hz = BG_HORIZON[bgWant] ?? 0.55;
+    backdrop.scale.set(W, Hh, 1);
+    backdrop.position.set(controls.target.x + dir.x * BG_D, camera.position.y + (hz - 0.5) * Hh, controls.target.z + dir.z * BG_D);
+    backdrop.rotation.set(0, Math.atan2(-dir.x, -dir.z), 0);
   }
   function applyLook(id) {
     if (id === curLookId) return;
@@ -1433,7 +1471,7 @@ function init() {
       renderer.shadowMap.enabled = sh; renderer.shadowMap.type = THREE.PCFSoftShadowMap; key.castShadow = sh;
       scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
     }
-    shadowPlane.visible = sh; ground.visible = !sh && !L.holo && !L.grid;
+    shadowPlane.visible = sh; ground.visible = !sh && !L.holo && !L.grid && !bgOn;
     grid.visible = !!L.grid;
     outline.defaultThickness = L.outline || 0.004; outline.defaultColor = L.outlineColor || [0, 0, 0];
     renderer.setPixelRatio(basePR * (L.pixel || 1));
@@ -1474,6 +1512,7 @@ function init() {
     controls.update();
     ruler.rotation.y = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
     patchSceneMaterials();
+    placeBackdrop();
     if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
   });
 
@@ -1646,7 +1685,7 @@ function init() {
     const cp = camera.position.clone(), ct = controls.target.clone(), ar = controls.autoRotate, pr = renderer.getPixelRatio(), bg = canvasWrap.style.background;
     try {
       curLookId = ""; applyLook("game");
-      ruler.visible = false; handleGroup.visible = false; grid.visible = false;
+      ruler.visible = false; handleGroup.visible = false; grid.visible = false; backdrop.visible = false;
       controls.autoRotate = false;
       // frame the pose itself (a squat or kneel is much shorter than standing)
       const sc = holder.scale.y, top = ((B.head ? bonePos("head").y : 1.5) + 0.2) * sc, t14 = Math.tan(THREE.MathUtils.degToRad(14));
@@ -1658,7 +1697,7 @@ function init() {
       return await new Promise((res) => dom.toBlob(res, "image/png"));
     } finally {
       renderer.setClearColor(0x000000, 0);
-      ruler.visible = vis[0]; handleGroup.visible = vis[1]; grid.visible = vis[2];
+      ruler.visible = vis[0]; handleGroup.visible = vis[1]; grid.visible = vis[2]; backdrop.visible = bgOn;
       camera.position.copy(cp); controls.target.copy(ct); controls.autoRotate = ar;
       curLookId = ""; applyLook(prevLook); renderer.setPixelRatio(pr); resize(); controls.update();
       canvasWrap.style.background = bg;
