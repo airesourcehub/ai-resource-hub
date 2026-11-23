@@ -427,10 +427,14 @@
       b.classList.toggle("is-on", !!p && Object.keys(p[2]).every(function (k) { return p[2][k] === LKv[k]; }));
     });
     $("bdPoseNote").textContent = pid === "custom" ? "Drag the colored dots in the 3D preview: blue = hands, green = feet, orange = hips. To sit her down, pick what she sits on above. The AI render copies this pose."
-      : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the gun goes on a sling across her back. " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
+      : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the " + (fromList(WEAPONS, state.weapon)[3] === "pistol" ? "pistol goes in a thigh holster" : "gun is slung across her back") + ". To have her hold it, pick Low ready, Shouldered or At her side (that switches to the Gun hold pose). " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
     each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
     $("bdDuo").hidden = !state["with"];
-    var holdG = document.querySelector('[data-single="hold"]'); if (holdG) holdG.closest(".bd-group").classList.toggle("is-dim", state.weapon === "none" || handsBusy());
+    var holdG = document.querySelector('[data-single="hold"]'); if (holdG) holdG.closest(".bd-group").classList.toggle("is-dim", state.weapon === "none");
+    if (handsBusy() && state.weapon !== "none" && state.hold !== "sling") state.hold = "sling";   // keep the chips honest
+    var slB = document.querySelector('[data-single="hold"][data-opt="sling"]'), slL = slB && (slB.querySelector("span") || slB);
+    if (slL) slL.textContent = fromList(WEAPONS, state.weapon)[3] === "pistol" ? "Holstered" : "Slung";
+    each(document.querySelectorAll("#bd [data-single='hold']"), function (b) { b.classList.toggle("is-on", state.hold === b.getAttribute("data-opt")); });
     var viewG = document.querySelector('[data-single="view"]'); if (viewG) viewG.closest(".bd-group").classList.toggle("is-dim", singleShot());
     $("bdSkinName").textContent = state.char ? "Their own" : skin[1];
     $("bdSkin").classList.toggle("is-dim", !!state.char);
@@ -564,7 +568,16 @@
         sync(); return;
       }
       var s = e.target.closest("[data-single]");
-      if (s) { state[s.getAttribute("data-single")] = s.getAttribute("data-opt"); sync(); }
+      if (s) {
+        var key = s.getAttribute("data-single"), val = s.getAttribute("data-opt");
+        state[key] = val;
+        if (key === "hold" && val !== "sling" && handsBusy()) {   // she can't hold it with her hands busy: go to the Gun hold pose
+          state.pose = { look: lookOf(), seat: "none", preset: "hold", custom: null, match: !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
+          hint("Switched the pose to Gun hold so she can hold it " + fromList(HOLDS, val)[1].toLowerCase() + ".");
+        }
+        if (key === "hold") state.holdPick = val;
+        sync();
+      }
     });
     $("bdExtra").addEventListener("input", sync);
     $("bdEngine").addEventListener("click", function (e) { var b = e.target.closest("[data-v]"); if (b) { state.engine = b.getAttribute("data-v"); sync(); } });
@@ -584,6 +597,8 @@
       var id = b.getAttribute("data-pose");
       state.pose = { look: lookOf(), seat: id === "sit" ? ((state.pose && state.pose.seat && state.pose.seat !== "none") ? state.pose.seat : "chair") : (id === "custom" ? (state.pose && state.pose.seat) || "none" : "none"), preset: id, custom: id === "custom" ? (state.pose && state.pose.custom) || null : null, match: id === "custom" ? true : !!(state.pose && state.pose.match && state.pose.preset !== "custom") };
       if (id === "custom") { var sp = $("bdPreview"); if (sp && sp.scrollIntoView) sp.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      if (handsBusy()) { if (state.hold !== "sling") state.holdBefore = state.hold; state.hold = "sling"; }
+      else if (state.hold === "sling" && state.holdBefore && state.holdPick !== "sling") state.hold = state.holdBefore;
       sync();
     });
     $("bdPose").addEventListener("change", function (e) { if (e.target.id === "bdPoseMatch") { state.pose.match = e.target.checked; sync(); } });

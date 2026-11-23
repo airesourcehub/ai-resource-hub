@@ -1184,7 +1184,7 @@ function init() {
     if (WEAPON_GLB[w]) loadWeapon(w);
     if (weaponCache[w]) {
       g.add(weaponCache[w].clone());
-      placeWeapon(g, hold, pistol);
+      placeWeapon(g, hold, pistol, w);
       return g;
     }
     const wood = std({ color: 0x7a4a22, roughness: 0.55 }), metal = black, isAK = w === "ak47", furn = isAK ? wood : metal;
@@ -1202,19 +1202,26 @@ function init() {
       if (w !== "remington" && w !== "barrett") g.add(boxM(0.028, 0.15, 0.05, metal, 0, -0.1, long * 0.14, isAK || w === "akm" ? -0.35 : -0.12));
       if (w === "m4a1" || w === "hk416" || w === "scar") g.add(boxM(0.03, 0.035, 0.07, metal, 0, 0.055, long * 0.08));
     }
-    placeWeapon(g, hold, pistol);
+    placeWeapon(g, hold, pistol, w);
     return g;
   }
 
-  function placeWeapon(g, hold, pistol) {
+  function placeWeapon(g, hold, pistol, w) {
     g.scale.setScalar(curGunK);
     if (curRig) { g.position.copy(curRig.G); g.quaternion.copy(curRig.q); return; }
     // the grip sits in the right hand; the barrel points along where the hands point
     const hr = bonePos("hand_r"), hl = bonePos("hand_l");
     if (hold === "sling") {
-      const sp = bonePos("spine_03");
-      g.position.copy(sp).add(v3(0, -0.05, -0.17)); g.rotation.set(0, Math.PI / 2, pistol ? 0 : 0.85);
-      if (pistol) { const t = bonePos("thigh_r"); g.position.copy(t).add(v3(-0.1, -0.12, 0.0)); g.rotation.set(Math.PI / 2, 0, 0); }
+      if (pistol) { const t = bonePos("thigh_r"); g.position.copy(t).add(v3(-0.1, -0.12, 0.0)); g.rotation.set(Math.PI / 2, 0, 0); return; }
+      // slung diagonally across her back: stock behind her right shoulder, muzzle down toward her left hip,
+      // lying flat against the back (its side facing out), top rail toward her right side
+      const s3 = bonePos("spine_03"), nk = bonePos("neck_01"), sh = bonePos("upperarm_r"), hipL = bonePos("thigh_l");
+      const top = v3(sh.x * 0.85, nk.y - 0.03, s3.z - 0.12);
+      // down toward the far hip, leaning out behind her so the lower end clears her hips and glutes
+      const z = v3(Math.max(0.55, (hipL.x - top.x) * 2.2), -1.0, -0.4).normalize(), x = v3(0, 0, -1), y = z.clone().cross(x).normalize(), x2 = y.clone().cross(z).normalize();
+      g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x2, y, z));
+      const dm = gunDims(w, false), k = curGunK;
+      g.position.copy(top).addScaledVector(z, -dm.zMin * k);   // the butt sits at the shoulder end
     } else {
       g.position.copy(hr).add(v3(0, -0.02, 0.03));
       const dir = pistol || hold === "side" ? null : hl.clone().sub(hr);
