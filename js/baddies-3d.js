@@ -134,17 +134,21 @@ function init() {
   };
   function camoTex(id) {
     const p = CAMO[id] || CAMO.snow;
-    return canvasTex("camo-" + id, 512, 512, (g, w, h) => {
+    // tileable woodland-style camo: smooth organic blobs (clusters of overlapping lobes), wrapped at the edges
+    return canvasTex("camo2-" + id, 512, 512, (g, w, h) => {
       const r = rnd(id.length * 977 + 13);
       g.fillStyle = p[0]; g.fillRect(0, 0, w, h);
+      const blob = (x, y, rr) => {
+        const lobes = 3 + Math.floor(r() * 4);
+        for (let l = 0; l < lobes; l++) {
+          const ox = x + (r() - 0.5) * rr * 1.6, oy = y + (r() - 0.5) * rr * 1.1, rx = rr * (0.45 + r() * 0.5), ry = rx * (0.55 + r() * 0.35), rot = r() * Math.PI;
+          for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) { g.beginPath(); g.ellipse(ox + dx, oy + dy, rx, ry, rot, 0, Math.PI * 2); g.fill(); }
+        }
+      };
+      const counts = [0, 95, 80, 70];
       for (let layer = 1; layer < p.length; layer++) {
         g.fillStyle = p[layer];
-        for (let i = 0; i < 60; i++) {
-          const x = r() * w, y = r() * h, rr = 6 + r() * 18;
-          g.beginPath();
-          for (let a = 0; a < 7; a++) { const ang = a / 7 * Math.PI * 2, d = rr * (0.6 + r() * 0.6); g.lineTo(x + Math.cos(ang) * d, y + Math.sin(ang) * d * 0.7); }
-          g.closePath(); g.fill();
-        }
+        for (let i = 0; i < (counts[layer] || 60); i++) blob(r() * w, r() * h, 9 + r() * (layer === 3 ? 9 : 15));
       }
     });
   }
@@ -270,7 +274,7 @@ function init() {
           }
           if (deep > 0.5) discard;
         }
-        vec3 camoC = texture2D(uCamo, vUv2 * 3.0).rgb;
+        vec3 camoC = texture2D(uCamo, vUv2 * 4.5).rgb;
         vec3 col = uSkin;
         if (gB > 0.5) { col = uBotCol.w > 0.5 ? camoC : uBotCol.rgb; garK = 1.0; }
         if (gT > 0.5) { col = uTopCol.w > 0.5 ? camoC : uTopCol.rgb; garK = 1.0; }
@@ -1220,9 +1224,17 @@ function init() {
           float gm = uWhich < 0.5 ? garTop(vRest) : uWhich < 1.5 ? garBot(vRest) : uWhich < 2.5 ? garGlove() : uWhich < 3.5 ? garPad(vRest) : garBand(vRest);
           if (gm < 0.5) discard;`)
         .replace("#include <color_fragment>", `#include <color_fragment>
-          vec3 gc = uShellCol.w > 0.5 ? texture2D(uCamo, vGUv * 3.0).rgb : uShellCol.rgb;
+          vec3 gc = uShellCol.w > 0.5 ? texture2D(uCamo, vGUv * 4.5).rgb : uShellCol.rgb;
           if (uKnit > 0.0) gc *= 1.0 - uKnit * (0.5 + 0.5 * sin(atan(vRest.x, vRest.z + 0.02) * 260.0 + vRest.y * 6.0));
-          if (uQuilt > 0.0) gc *= 1.0 - uQuilt * step(gArm(), 0.5) * smoothstep(0.82, 1.0, abs(cos(((vRest.y - 1.0) / 0.052) * 3.14159)));
+          if (uQuilt > 0.0) gc *= 1.0 - uQuilt * step(gArm(), 0.5) * smoothstep(0.86, 1.0, abs(cos(((vRest.y - 1.0) / 0.058) * 3.14159)));
+          if (uWhich < 1.5) {   // hems, cuffs, necklines and waistbands: a darker binding along every edge of the garment
+            float edge = 0.0;
+            for (int k = 0; k < 4; k++) {
+              vec3 o = k == 0 ? vec3(0.0, 0.011, 0.0) : k == 1 ? vec3(0.0, -0.011, 0.0) : k == 2 ? vec3(0.011, 0.0, 0.0) : vec3(-0.011, 0.0, 0.0);
+              edge = max(edge, 1.0 - (uWhich < 0.5 ? garTop(vRest + o) : garBot(vRest + o)));
+            }
+            gc = mix(gc, gc * 0.55 + vec3(0.02), edge * 0.85);
+          }
           diffuseColor.rgb = gc;`);
     };
     patchLook(m);
@@ -1355,7 +1367,7 @@ function init() {
   function webbingTex(base) {   // MOLLE webbing rows
     return canvasTex("molle-" + base, 256, 256, (g, w, h) => {
       g.fillStyle = base; g.fillRect(0, 0, w, h);
-      for (let y = 0; y < h; y += 32) { g.fillStyle = "rgba(0,0,0,0.28)"; g.fillRect(0, y + 10, w, 2); g.fillRect(0, y + 22, w, 2); g.fillStyle = "rgba(255,255,255,0.05)"; g.fillRect(0, y + 12, w, 10);
+      for (let y = 0; y < h; y += 32) { g.fillStyle = "rgba(255,255,255,0.07)"; g.fillRect(0, y + 8, w, 1); g.fillRect(0, y + 24, w, 1); g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(0, y + 10, w, 2); g.fillRect(0, y + 22, w, 2); g.fillStyle = "rgba(255,255,255,0.05)"; g.fillRect(0, y + 12, w, 10);
         for (let x = 0; x < w; x += 32) { g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x + 15, y + 10, 2, 14); } }
       for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? "0,0,0" : "255,255,255"},0.05)`; g.fillRect(Math.random() * w, Math.random() * h, 1, 1); }
     });
@@ -1387,19 +1399,20 @@ function init() {
     return out;
   }
   const TOPS = {
-    puffer: { hem: 1.085, sleeves: 2, neck: 2, open: 0, col: "main", thick: 0.02, rough: 0.3, clearcoat: 0.6, sheen: 0.15, quilt: 0.28 },
-    crop:   { hem: 1.1, sleeves: 1, neck: 0, open: 0, col: "dark", thick: 0.0028, rough: 0.78, sheen: 0.5 },
-    jacket: { hem: 1.055, sleeves: 2, neck: 2, open: 0.036, col: "camo", thick: 0.0065, rough: 0.92, sheen: 0.4 },
+    puffer: { hem: 1.075, sleeves: 2, neck: 2, open: 0, col: "camo", thick: 0.018, rough: 0.5, clearcoat: 0.3, sheen: 0.25, quilt: 0.22, zip: true },
+    crop:   { hem: 1.065, sleeves: 0, neck: 0, open: 0, col: "camo", thick: 0.0028, rough: 0.82, sheen: 0.5 },
+    jacket: { hem: 1.055, sleeves: 2, neck: 2, open: 0, col: "camo", thick: 0.0065, rough: 0.92, sheen: 0.4, zip: true, pockets: true },
     hoodie: { hem: 1.06, sleeves: 2, neck: 0, open: 0, col: "camo", thick: 0.0078, rough: 0.97, sheen: 0.9 },
-    tank:   { hem: 0.995, sleeves: 0, neck: 1, open: 0, col: "dark", thick: 0.0024, rough: 0.8, sheen: 0.5, knit: 0.1, strap: 0.096 }
+    tank:   { hem: 0.935, sleeves: 0, neck: 1, open: 0, col: "camo", thick: 0.0024, rough: 0.8, sheen: 0.5, knit: 0.06, strap: 0.096 }
   };
   const BOTS = {
-    bodysuit: { kind: 1, waist: 0, hem: 0, dip: 0, col: "dark", thick: 0.0014, rough: 0.55, sheen: 0.7 },
-    shorts:   { kind: 2, waist: 0.985, hem: 0.6, dip: 0.012, col: "dark", thick: 0.0022, rough: 0.6, sheen: 0.6 },
+    bodysuit: { kind: 1, waist: 0, hem: 0, dip: 0, col: "camo", thick: 0.0014, rough: 0.6, sheen: 0.6 },
+    shorts:   { kind: 2, waist: 0.985, hem: 0.66, dip: 0.012, col: "camo", thick: 0.0045, flare: 0.006, rough: 0.7, sheen: 0.5 },
     cargo:    { kind: 2, waist: 0.955, hem: 0.668, dip: 0, col: "camo", thick: 0.0085, flare: 0.007, pockets: 0.722, belt: true, rough: 0.95 },
     leggings: { kind: 2, waist: 0.99, hem: 0, dip: 0.012, col: "camo", thick: 0.0019, rough: 0.7, sheen: 0.5 },
     pants:    { kind: 2, waist: 0.935, hem: 0, dip: 0, col: "camo", thick: 0.0095, loose: 0.005, pockets: 0.6, belt: true, rough: 0.95 }
   };
+  const GEAR_BLACK = "#26272b";
   const domeCache = {};
   let headMesh = null;
   function headRay() {
@@ -1481,7 +1494,7 @@ function init() {
     U.uBotA.value.set(Bt.kind, Bt.waist, Bt.hem, Bt.dip); U.uBotCol.value.copy(colOf(Bt.col));
     const sneakers = one("boots") === "sneakers";
     U.uGearA.value.set(has("gear", "gloves") ? 1 : 0, has("gear", "pads") ? 1 : 0, M.cl_boots ? (sneakers || bottom === "leggings" || bottom === "pants" ? 0 : 0.28) : (sneakers ? 0.13 : 0.3), 0);
-    U.uGearB.value.copy(G.knee); U.uPadCol.value.set(CP[3] === "#ffffff" ? "#2b2d31" : SC[1]);
+    U.uGearB.value.copy(G.knee); U.uPadCol.value.set("#1e1f22");
     for (const k of ["cl_leggings", "cl_jeans", "cl_shorts"]) if (M[k]) M[k].visible = false;
     U.uGarOn.value = 1;
 
@@ -1489,9 +1502,9 @@ function init() {
     const topT = (i) => {
       if (top !== "puffer") return T.thick + (T.neck === 2 && yOf(i) > 1.33 ? 0.003 : 0);
       const y = yOf(i), x = axOf(i);
-      if (gArmJ(i) > 0.5) { const d = Math.hypot(x - 0.155, y - 1.263), w = 0.01 + 0.012 * Math.pow(Math.abs(Math.sin(d / 0.05 * Math.PI)), 0.55); return G.R1[i * 4 + 3] > 0.15 ? w * 0.45 : w; }
+      if (gArmJ(i) > 0.5) { const d = Math.hypot(x - 0.155, y - 1.263), w = 0.011 + 0.0075 * Math.pow(Math.abs(Math.sin(d / 0.055 * Math.PI)), 0.45); return G.R1[i * 4 + 3] > 0.15 ? w * 0.5 : w; }
       if (y > 1.335) return 0.012;
-      return (0.011 + 0.013 * Math.pow(Math.abs(Math.sin((y - 1.0) / 0.052 * Math.PI)), 0.55)) * (0.5 + 0.5 * sstep(T.hem, T.hem + 0.03, y));
+      return (0.013 + 0.0085 * Math.pow(Math.abs(Math.sin((y - 1.0) / 0.058 * Math.PI)), 0.45)) * (0.55 + 0.45 * sstep(T.hem, T.hem + 0.03, y));
     };
     const botT = (i) => {
       let t = Bt.thick;
@@ -1531,7 +1544,7 @@ function init() {
     }
     // ---- plate carrier
     if (has("gear", "vest")) {
-      const g = new THREE.Group(), base = CP[1], wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
+      const g = new THREE.Group(), base = GEAR_BLACK, wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
       const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
       const pm = std({ color: new THREE.Color(base).multiplyScalar(0.92), roughness: 0.92 }); pm.userData.cloth = true;
       const zf = extent(CS, [-0.12, 0.12, 1.03, 1.29], "front", false) + tMax, zb = extent(CS, [-0.12, 0.12, 1.03, 1.29], "back", false) - tMax;
@@ -1554,7 +1567,7 @@ function init() {
     }
     // ---- chest rig
     if (has("gear", "chest")) {
-      const g = new THREE.Group(), base = CP[1], wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
+      const g = new THREE.Group(), base = GEAR_BLACK, wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
       const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
       const pm = std({ color: new THREE.Color(base).multiplyScalar(0.9), roughness: 0.92 }); pm.userData.cloth = true;
       const zf = extent(CS, [-0.13, 0.13, 0.97, 1.06], "front", false) + (top === "puffer" ? 0 : T.thick), zb = extent(CS, [-0.1, 0.1, 1.0, 1.2], "back", false) - (T.hem < 1.0 ? T.thick : tMax);
@@ -1584,10 +1597,32 @@ function init() {
       for (const [a, b2] of [[0.6, 0.628], [0.735, 0.763]]) band("strap" + a, new THREE.Vector4(a, b2, -1, 1), (i) => botT(i) * (botJ(i) ? 1 : 0) + 0.0042, new THREE.Vector4(0.05, 0.05, 0.055, 0), { min: 0.002 });
     }
     // ---- puffer fur hood / hoodie hood + drawstrings
-    if (top === "puffer") {
-      const pts = neckRing(CS, 1.385, 1.33, 0.012, 48);
-      const fur = new THREE.MeshStandardMaterial({ color: new THREE.Color(camo === "snow" ? "#ebe6de" : "#e4ddd2"), roughness: 1 }); fur.userData.cloth = true;
-      const g = new THREE.Group(); g.add(fuzzyRing(pts, (t) => { const f = Math.cos(t * Math.PI * 2); return 0.03 + 0.024 * Math.pow((1 - f) / 2, 1.5); }, fur, true, 0.35));
+    // zipper up the front of a zipped top, following the top's own (smoothed) surface on the centre line
+    const topShell = shells.find((m) => m.userData.garment === "top");
+    if (T.zip && topShell) {
+      const P = topShell.geometry.attributes.position, AR = topShell.geometry.attributes.aRest, bins = {};
+      for (let i = 0; i < P.count; i++) {
+        if (Math.abs(AR.getX(i)) > 0.009 || AR.getZ(i) < 0.02 || !topJ(i)) continue;
+        const y = AR.getY(i), b = Math.round(y / 0.016); if (!bins[b] || P.getZ(i) > bins[b].z) bins[b] = { x: 0, y: P.getY(i), z: P.getZ(i) };
+      }
+      const pts = Object.keys(bins).map(Number).sort((a, b) => a - b).map((b) => v3(0, bins[b].y, bins[b].z + 0.0018));
+      if (pts.length > 3) {
+        const zm = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.35, metalness: 0.6 }), g = new THREE.Group();
+        g.add(sweep(pts, 0, zm, { flat: [0.0075, 0.0022], side: v3(1, 0, 0), seg: pts.length * 6 }));
+        const pull = rbox(0.008, 0.02, 0.003, 0.002, new THREE.MeshStandardMaterial({ color: 0x9a9da2, roughness: 0.25, metalness: 1 }));
+        const tp = pts[pts.length - 1]; pull.position.set(0, tp.y - 0.022, tp.z + 0.003); g.add(pull);
+        ride(g, "spine_03");
+      }
+    }
+    if (top === "puffer") {   // fur-trimmed hood lying back on the shoulders (open at the front)
+      const ring = neckRing(CS, 1.37, 1.32, 0.016, 56), N = ring.length;
+      const back = ring.filter((p, k) => { const th = k / N * Math.PI * 2; return th > Math.PI * 0.32 && th < Math.PI * 1.68; });
+      const fur = new THREE.MeshStandardMaterial({ color: new THREE.Color(camo === "snow" ? "#ece8e1" : "#d8d0c4"), roughness: 1 }); fur.userData.cloth = true;
+      const hm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: camoTex(camo), roughness: 0.5, clearcoat: 0.3 }); hm.userData.cloth = true;
+      const g = new THREE.Group();
+      const hood = back.map((p) => { const o = v3(p.x, 0, p.z - 0.012).normalize(); return p.clone().addScaledVector(o, 0.012).add(v3(0, -0.018, -0.008)); });
+      g.add(fuzzyRing(hood, (t) => 0.02 + 0.03 * Math.sin(Math.PI * t), hm, false, 0.05));
+      g.add(fuzzyRing(back, (t) => 0.012 + 0.016 * Math.sin(Math.PI * t), fur, false, 0.45));
       ride(g, "spine_03");
     } else if (top === "hoodie") {
       const ring = neckRing(CS, 1.37, 1.335, T.thick + 0.004, 48), back = ring.filter((p, k) => { const th = k / 48 * Math.PI * 2; return th > Math.PI * 0.55 && th < Math.PI * 1.45; });
@@ -1652,7 +1687,15 @@ function init() {
     }
     const hairOff = (one("hair") === "pixie" || one("hair") === "buzz") ? 0.004 : 0.008;
     if (has("jewelry", "crystalband")) {
-      const pts = headArc(hairOff + 0.004, 0.42, -1.3, 1.3, 34);
+      for (const [tl, rs] of [[0.37, 0.0034], [0.47, 0.0034]]) {   // extra rows either side of the main one
+        const row = headArc(hairOff + 0.0045, tl, -1.25, 1.25, 30); if (!row || row.length < 5) continue;
+        const c = new THREE.CatmullRomCurve3(row), L = c.getLength(), n = Math.round(L / 0.0072), fr = [];
+        for (let k = 0; k <= n; k++) { const p = c.getPointAt(k / n), d = p.clone().sub(G.headC).normalize(), T2 = c.getTangentAt(k / n), Z = new THREE.Vector3().crossVectors(T2, d).normalize(); fr.push(new THREE.Matrix4().makeBasis(T2, d, Z).setPosition(p)); }
+        HG.add(instAlong(brilliant(rs), new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, ior: 2.4, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4.5, emissive: 0x1a1b22 }), fr));
+      }
+      const band = headArc(hairOff + 0.0025, 0.42, -1.3, 1.3, 34);
+      if (band && band.length > 4) HG.add(sweep(band, 0, new THREE.MeshPhysicalMaterial({ color: 0x1b1b1e, metalness: 0.4, roughness: 0.4 }), { flat: [0.024, 0.003], side: v3(0, 0, 1), seg: 60 }));
+      const pts = headArc(hairOff + 0.005, 0.42, -1.3, 1.3, 34);
       if (pts && pts.length > 4) {
         const fr = []; const c = new THREE.CatmullRomCurve3(pts), L = c.getLength(), n = Math.round(L / 0.0095);
         for (let k = 0; k <= n; k++) { const p = c.getPointAt(k / n), d = p.clone().sub(G.headC).normalize(), T2 = c.getTangentAt(k / n), Z = new THREE.Vector3().crossVectors(T2, d).normalize(); fr.push(new THREE.Matrix4().makeBasis(T2, d, Z).setPosition(p)); }
@@ -1665,7 +1708,7 @@ function init() {
       const d = headDome("beanie", eyeY + 0.045, eyeY - 0.012, hairOff + 0.008, 0.26);
       if (d) {
         const kt = knitTex().clone(); kt.wrapS = kt.wrapT = THREE.RepeatWrapping; kt.repeat.set(1, 1); kt.needsUpdate = true;
-        const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(camo === "snow" ? "#26272b" : SC[1]), map: kt, roughness: 1, side: THREE.DoubleSide }); m.userData.cloth = true;
+        const m = new THREE.MeshStandardMaterial({ color: new THREE.Color("#222326"), map: kt, roughness: 1, side: THREE.DoubleSide }); m.userData.cloth = true;
         HG.add(new THREE.Mesh(d.g, m));
         HG.add(sweep(d.rim, 0.004, m, { closed: true, radial: 8 }));
       }
@@ -1674,7 +1717,7 @@ function init() {
       const d = headDome("cap", eyeY + 0.052, eyeY + 0.008, hairOff + 0.006, 0);
       if (d) {
         const st = seamTex().clone(); st.needsUpdate = true;
-        const cc = new THREE.Color(CP[1]);
+        const cc = new THREE.Color("#1c1d20");
         const m = new THREE.MeshStandardMaterial({ color: cc, map: st, roughness: 0.9, side: THREE.DoubleSide }); m.userData.cloth = true;
         HG.add(new THREE.Mesh(d.g, m));
         // brim: from the front rim forward, curved down at the sides
@@ -1698,7 +1741,7 @@ function init() {
     }
     if (has("gear", "headset") && faceFit && faceFit.ear) {
       const arc = headArc(hairOff + (has("gear", "beanie") ? 0.018 : has("gear", "cap") ? 0.014 : 0.006), -0.12, -1.25, 1.25, 30);
-      const hm = std({ color: 0x1a1b1e, roughness: 0.55, metalness: 0.2 }), pad = std({ color: 0x2a2c30, roughness: 0.9 }), olive = std({ color: new THREE.Color(SC[1]), roughness: 0.7 });
+      const hm = std({ color: 0x1a1b1e, roughness: 0.55, metalness: 0.2 }), pad = std({ color: 0x2a2c30, roughness: 0.9 }), olive = std({ color: 0x232427, roughness: 0.6 });
       if (arc && arc.length > 4) HG.add(sweep(arc, 0, hm, { flat: [0.026, 0.008], side: v3(0, 0, 1), seg: 48 }));
       for (const E of faceFit.ear) {
         const sd = Math.sign(E.x) || 1, c = E.clone().add(v3(sd * 0.026, 0.004, -0.004));
@@ -1912,7 +1955,7 @@ function init() {
       t.position.set(sd * 0.062, eyeY + 0.03, eyeZ - 0.022); t.rotation.y = sd * 1.1; H.add(t);
     }
     if (has("jewelry", "nails")) {   // long glossy nails on every fingertip
-      const nailM = std({ color: 0xd94c8a, roughness: 0.15, metalness: 0.1 });
+      const nailM = new THREE.MeshPhysicalMaterial({ color: 0xe9b8b8, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 });
       for (const sd of ["l", "r"]) for (const f of ["thumb", "index", "middle", "ring", "pinky"]) {
         const a = B[f + "_02_" + sd], b2 = B[f + "_03_" + sd]; if (!a || !b2) continue;
         const pa = bonePos(f + "_02_" + sd), pb = bonePos(f + "_03_" + sd), dir = pb.clone().sub(pa); const seg = dir.length() || 0.02; dir.normalize();
