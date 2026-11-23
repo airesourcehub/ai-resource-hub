@@ -141,6 +141,13 @@
 
     <footer class="bd-foot">
       <div class="bd-foot-row bd-edit-row">
+        <span class="bd-edit-lbl" title="The model that draws the first picture (when no character face or 3D pose is used)">Create</span>
+        <div class="bd-seg bd-seg-sm" id="bdEngine" role="radiogroup" aria-label="Create engine">
+          <button type="button" data-v="zimage" title="Fast: Z-Image Turbo, about 15 seconds">Z-Image</button>
+          <button type="button" data-v="flux2" title="Best: FLUX.2 Dev, slower, more detail">FLUX.2</button>
+        </div>
+      </div>
+      <div class="bd-foot-row bd-edit-row">
         <span class="bd-edit-lbl" title="The model that edits pictures: your influencer's photo, the 3D pose, hair references, turnarounds">Edits</span>
         <div class="bd-seg bd-seg-sm" id="bdEdit" role="radiogroup" aria-label="Edit engine">
           <button type="button" data-v="klein9b_edit" title="FLUX.2 Klein 9B: about 40 seconds a step, follows pose and hair pictures well, uses a trained FLUX.2 LoRA">Klein</button>
@@ -149,10 +156,6 @@
         </div>
       </div>
       <div class="bd-foot-row">
-        <div class="bd-seg bd-seg-sm" id="bdEngine" role="radiogroup" aria-label="Engine">
-          <button type="button" data-v="zimage" title="Z-Image Turbo, about 15 seconds">Fast</button>
-          <button type="button" data-v="flux2" title="FLUX.2, slower, more detail">Best</button>
-        </div>
         <div class="bd-batch" aria-label="How many">
           <button type="button" id="bdBatchDn" aria-label="Fewer">&minus;</button><span id="bdBatch">1</span><button type="button" id="bdBatchUp" aria-label="More">+</button>
         </div>
@@ -248,8 +251,8 @@
 <script src="js/main.js"></script>
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
-<script src="js/baddies-thumbs.js?v=20261122d"></script>
-<script src="js/baddies.js?v=20261123b"></script>
-<script type="module" src="js/baddies-3d.js?v=20261123a"></script>
+<script src="js/baddies-thumbs.js?v=20261123a"></script>
+<script src="js/baddies.js?v=20261123c"></script>
+<script type="module" src="js/baddies-3d.js?v=20261123b"></script>
 </body>
 </html>

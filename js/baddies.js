@@ -306,7 +306,11 @@
     ["halloween", "Halloween", "a spooky Halloween night with glowing jack-o'-lanterns, a haunted Victorian house and a full moon background"],
     ["newyear", "New Year's Eve", "a luxury city rooftop on New Year's Eve with gold balloons and fireworks over the skyline background"],
     ["valentine", "Valentine's Day", "a romantic Valentine's Day garden terrace with a red rose arch, rose petals and heart string lights background"],
-    ["july4", "4th of July", "a Fourth of July night on a Miami beach with American flags and red, white and blue fireworks over the ocean background"]
+    ["july4", "4th of July", "a Fourth of July night on a Miami beach with American flags and red, white and blue fireworks over the ocean background"],
+    ["brickellam", "Brickell morning", "a selfie-style photo taken at arm's length while she walks down a palm-lined sidewalk in Brickell, Miami in the soft golden early morning, glass high-rise towers behind her"],
+    ["brickell", "Brickell day", "a selfie-style photo taken at arm's length while she walks down a palm-lined sidewalk in Brickell, Miami on a bright sunny day, gleaming glass skyscrapers behind her"],
+    ["brickellpm", "Brickell night", "a selfie-style photo taken at arm's length while she walks down a sidewalk in Brickell, Miami at night, glowing skyscrapers, colorful tower lights and street lamps behind her"],
+    ["ultra", "Ultra Music Festival", "Ultra Music Festival at Bayfront Park in Miami at night: a huge main stage with giant LED screens, lasers and pyrotechnics, a dancing crowd and the downtown Miami skyline behind her"]
   ];
 
   var NEGATIVE = "child, minor, teen, young-looking, childlike body, nude, nudity, topless, nipples, genitals, nsfw, explicit, " +
@@ -1210,7 +1214,7 @@
     var abs = absUrl(url);
     $("bdViewerImg").src = abs; $("bdViewerImg").alt = c.name || "Baddie";
     $("bdViewerName").textContent = c.name || "Baddie";
-    $("bdViewerWhen").textContent = when(c.created_at) + " · " + ((VIEWS[c.view] || {}).label || "") + " · " + (c.model === "flux2" ? "Best" : "Fast");
+    $("bdViewerWhen").textContent = when(c.created_at) + " · " + ((VIEWS[c.view] || {}).label || "") + " · " + (c.model === "flux2" ? "FLUX.2" : c.model === "zimage" ? "Z-Image" : (MODEL_NAMES[c.model] || c.model || ""));
     $("bdViewerSpecs").innerHTML = specs(c.settings || {}).concat([["Model", modelsLabel(c)]]).map(function (s) { return "<li><span>" + esc(s[0]) + "</span><b>" + esc(s[1]) + "</b></li>"; }).join("");
     var q = encodeURIComponent(abs);
     document.querySelector('[data-va="spin"]').href = "spin-360.html?image=" + q;
@@ -1226,7 +1230,7 @@
     else if (act === "dl") downloadImg(absUrl(vUrl), vCard.name);
     else if (act === "del") delCard(vCard);
   });
-  var MODEL_NAMES = { zimage: "Z-Image Turbo", flux2: "FLUX.2 Dev", klein9b_edit: "FLUX.2 Klein 9B (edit)", flux2_edit: "FLUX.2 Dev (edit)", qwen_edit2509: "Qwen Image Edit 2509" };
+  var MODEL_NAMES = { zimage: "Z-Image Turbo (Fast)", flux2: "FLUX.2 Dev (Best)", klein9b_edit: "FLUX.2 Klein 9B (edit)", flux2_edit: "FLUX.2 Dev (edit)", qwen_edit2509: "Qwen Image Edit 2509" };
   function modelsLabel(c) {
     var s = c.settings || {}, list = s.models && s.models.length ? s.models : [c.model || "zimage"];
     return list.map(function (m) { return MODEL_NAMES[m] || m; }).join(" + ");

@@ -57,7 +57,7 @@ function init() {
   // The plane covers the photo's own field of view (~75° wide) as seen from the camera, so things in the photo keep
   // their true angular size; each photo's horizon (fraction from the top) is lifted to the camera's eye level.
   const BG_D = 12, BG_FOV = Math.tan(THREE.MathUtils.degToRad(75 / 2)), BG_AR = 1024 / 1792;
-  const BG_HORIZON = { desert: 0.5, jungle: 0.59, miami: 0.61, snow: 0.6, christmas: 0.52, halloween: 0.64, newyear: 0.6, valentine: 0.62, july4: 0.68 };
+  const BG_HORIZON = { brickellam: 0.63, brickell: 0.7, brickellpm: 0.67, ultra: 0.58, desert: 0.5, jungle: 0.59, miami: 0.61, snow: 0.6, christmas: 0.52, halloween: 0.64, newyear: 0.6, valentine: 0.62, july4: 0.68 };
   const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false, toneMapped: false, fog: false }));
   backdrop.renderOrder = -10; backdrop.visible = false; backdrop.frustumCulled = false;
   const bgTex = {}; let bgOn = false, bgWant = "";
@@ -201,7 +201,7 @@ function init() {
   const skinned = [];    // every skinned mesh (they all share the body's morph names)
   const B = {};      // bones by name
   const restP = {};   // rest positions (pelvis moves for squats / kneeling)
-  let headRestM = null, pelvisRestY = 0.95;   // head bone at rest (holder space): head add-ons follow the posed head
+  let headRestM = null, pelvisRestY = 0.95, lastTy = 0.9;   // head bone at rest (holder space): head add-ons follow the posed head
   const restQ = {};  // rest quaternions
   let pendingState = window.BADDIES_STATE || null;
 
@@ -498,7 +498,7 @@ function init() {
     const hIn = s.height || 60, scale = (hIn * IN) / BASE_H;
     holder.scale.setScalar(scale);
     holder.updateMatrixWorld(true);
-    const ty = 0.5 * hIn * IN + 0.05;
+    const ty = 0.5 * hIn * IN + 0.05; lastTy = ty;
     if (bgOn) { /* backdrop on: camera stays fixed so the height change shows against the scenery */ }
     else if (lastH && lastH !== hIn) {   // keep her in frame from 3 ft to 7 ft: move the camera with her height
       const off = camera.position.clone().sub(controls.target).multiplyScalar(Math.max(hIn, 42) / Math.max(lastH, 42));
@@ -1442,7 +1442,14 @@ function init() {
       backdrop.material.needsUpdate = true; backdrop.visible = true; ground.visible = false;
       controls.maxDistance = 7; controls.minPolarAngle = 1.2; controls.maxPolarAngle = Math.PI / 2 + 0.06;
       if (!was) frameForBackdrop();
+    } else if (plain && (!curBg || curBg === "white")) {   // white studio: light seamless sweep with her shadow on the floor
+      backdrop.visible = false;
+      canvasWrap.style.background = "radial-gradient(120% 85% at 50% 35%, #ffffff 0%, #f1f1f2 45%, #dcdcde 100%)";
+      controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
+      ground.visible = true;
+      if (was) unframeBackdrop();
     } else {
+      if (was) unframeBackdrop();
       backdrop.visible = false; canvasWrap.style.background = lookBg;
       controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       if (curLook && !curLook.holo && !curLook.grid && !curLook.shadows) ground.visible = true;
@@ -1452,6 +1459,10 @@ function init() {
   function frameForBackdrop() {
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
     off.setLength(5.6); controls.target.set(0, 1.05, 0); camera.position.set(off.x, 1.1, off.z); controls.update();
+  }
+  function unframeBackdrop() {   // back to the normal follow-her-height framing
+    const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
+    off.setLength(3.9); controls.target.set(0, lastTy, 0); camera.position.set(off.x, lastTy + 0.18, off.z); controls.update();
   }
   function placeBackdrop() {
     if (!backdrop.visible) return;
