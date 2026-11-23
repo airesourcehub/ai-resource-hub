@@ -91,12 +91,24 @@ function init() {
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
   const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
-  const PANOS = { desert: "1123b", miami: "1123b", snow: "1123b", jungle: "1123b", christmas: "1123b", halloween: "1123b", newyear: "1123b", valentine: "1123b", july4: "1123b", brickellam: "1123b", brickell: "1123b", brickellpm: "1123b", ultra: "1123b" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANOS = { desert: "1123c", miami: "1123c", snow: "1123c", jungle: "1123c", christmas: "1123c", halloween: "1123c", newyear: "1123c", valentine: "1123c", july4: "1123c", brickellam: "1123c", brickell: "1123c", brickellpm: "1123c", ultra: "1123c" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
+  // 4K loads first; on desktops whose GPU takes 8192-px textures the 8K version follows and swaps in when ready
+  const PANO_8K = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && renderer.capabilities.maxTextureSize >= 8192;
+  const panoHi = {};
+  function panoTexFrom(t) { t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; }
   function loadPano(id, cb) {
     if (panoTex[id]) return cb(panoTex[id]); if (panoMiss[id] || !PANOS[id]) return cb(null);
     new THREE.TextureLoader().load(new URL("img/baddies/pano/" + id + ".webp?v=" + PANOS[id], document.baseURI).href, (t) => {
-      t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); panoTex[id] = t; cb(t);
+      panoTex[id] = panoTexFrom(t); cb(t);
+      if (PANO_8K && !panoHi[id]) {
+        panoHi[id] = 1;
+        new THREE.TextureLoader().load(new URL("img/baddies/pano/" + id + "-8k.webp?v=" + PANOS[id], document.baseURI).href, (h) => {
+          const lo = panoTex[id]; panoTex[id] = panoTexFrom(h);
+          if (sky && sky.material.map === lo) { sky.material.map = h; sky.material.needsUpdate = true; }
+          lo.dispose();
+        }, undefined, () => {});
+      }
     }, undefined, () => { panoMiss[id] = true; cb(null); });
   }
   // where each panorama's main subject sits (0..1 across the image): turned to stand behind her in the front view
