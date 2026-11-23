@@ -15,7 +15,7 @@
   var POLL_MS = 3000, PAGE = 24, PREFS = "airh-baddies";
 
   // ------------------------------------------------------------ admin settings
-  var CFG = { enabled: true, preview: true, heightMin: 36, heightMax: 84, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "flux3", view: "sheet" };
+  var CFG = { enabled: true, preview: true, heightMin: 36, heightMax: 84, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "zimage", view: "sheet" };
   try { var ss = JSON.parse(localStorage.getItem("airh-site-settings") || "null"); if (ss && ss.baddies) CFG = Object.assign(CFG, ss.baddies); } catch (e) {}
 
   // ------------------------------------------------------------ catalog
@@ -331,7 +331,8 @@
   var prefs = loadPrefs();
   var state = clone(DEFAULTS);
   // 2026-11-23: FLUX 3 Klein became the default create model (it follows poses far better than Z-Image Turbo)
-  state.engine = prefs.engine && prefs.engineV === 2 ? prefs.engine : (CFG.engine && CFG.engine !== "zimage" ? CFG.engine : "flux3");
+  // 2026-11-23: Christopher picked Z-Image Turbo as the default after the model comparison
+  state.engine = prefs.engine && prefs.engineV === 3 ? prefs.engine : (CFG.engine || "zimage");
   state.editEngine = prefs.editEngine || "klein9b_edit";
   state.batch = clampN(prefs.batch || 1, 1, CFG.maxBatch || 4);
   if (prefs.last) applySettings(prefs.last, true);
@@ -1360,7 +1361,7 @@
   }
   function realId(id) { return id && String(id).indexOf("tmp-") !== 0 ? String(id) : null; }
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS) || "{}") || {}; } catch (e) { return {}; } }
-  function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engineV: 2, engine: state.engine, editEngine: state.editEngine, batch: state.batch, last: snapshot() })); } catch (e) {} }
+  function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engineV: 3, engine: state.engine, editEngine: state.editEngine, batch: state.batch, last: snapshot() })); } catch (e) {} }
 
   // ------------------------------------------------------------ boot
   window.BADDIES_STYLES = STYLES;
