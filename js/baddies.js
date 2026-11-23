@@ -446,7 +446,19 @@
     each($("bdEdit").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.editEngine); });
     $("bdBatch").textContent = state.batch;
     var cl = document.querySelector(".bd-camlock"); if (cl) cl.hidden = state.view !== "cam";
-    $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
+    // which models this Generate will run, in order (from the real plan for the current settings)
+    var chain = [], steps = [];
+    try {
+      var LONG = (typeof MODEL_NAMES === "object" && MODEL_NAMES) || {};
+      var SHORT = { zimage: "Z-Image", flux3: "FLUX 3", flux2: "FLUX.2", klein9b_edit: "Klein", qwen_edit2509: "Qwen", flux2_edit: "FLUX.2 edit" };
+      planSteps().forEach(function (st) {
+        var m = st.inputs.length ? editModel() : state.engine;
+        chain.push(SHORT[m] || m); steps.push((st.label || (st.inputs.length ? "editing" : "creating her")) + ": " + (LONG[m] || m));
+        if (st.post) { chain.push("Qwen"); steps.push("keeping her curves: " + (LONG.qwen_edit2509 || "Qwen Image Edit")); }
+      });
+    } catch (e) {}
+    $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "") + (chain.length ? " (" + chain.reduce(function (o, m) { var l = o[o.length - 1]; if (l && l.m === m) l.n++; else o.push({ m: m, n: 1 }); return o; }, []).map(function (x) { return x.m + (x.n > 1 ? " ×" + x.n : ""); }).join(" → ") + ")" : "");
+    $("bdGo").title = steps.length ? "This render runs " + steps.length + " step" + (steps.length > 1 ? "s" : "") + ":\n" + steps.map(function (x, i) { return (i + 1) + ". " + x; }).join("\n") : "";
     charFace();
     each(document.querySelectorAll('#bd [data-opt="own"]'), function (b) { b.hidden = !state.char; });
     var pid = poseId();
