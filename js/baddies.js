@@ -280,10 +280,15 @@
   ];
   var BGS = [
     ["white", "White studio", "plain light-grey seamless studio background, soft even lighting"],
-    ["snow", "Snowy ruins", "a snowy war-torn city street background"],
-    ["desert", "Desert base", "a dusty desert military compound background"],
-    ["miami", "Miami night", "a neon-lit Miami street at night background"],
-    ["jungle", "Jungle", "a dense jungle background"]
+    ["desert", "Desert dunes", "endless golden sand dunes in the desert at sunset, warm orange glowing sky background"],
+    ["miami", "Miami Beach", "Ocean Drive in Miami Beach at golden hour with pastel art deco hotels and palm trees background"],
+    ["snow", "Snowy base", "a snowy mountain military base with wooden cabins and pine trees background"],
+    ["jungle", "Jungle", "a dense tropical jungle clearing background"],
+    ["christmas", "Christmas", "a snowy town square on Christmas Eve with a giant lit Christmas tree, garlands and string lights background"],
+    ["halloween", "Halloween", "a spooky Halloween night with glowing jack-o'-lanterns, a haunted Victorian house and a full moon background"],
+    ["newyear", "New Year's Eve", "a luxury city rooftop on New Year's Eve with gold balloons and fireworks over the skyline background"],
+    ["valentine", "Valentine's Day", "a romantic Valentine's Day garden terrace with a red rose arch, rose petals and heart string lights background"],
+    ["july4", "4th of July", "a Fourth of July night on a Miami beach with American flags and red, white and blue fireworks over the ocean background"]
   ];
 
   var NEGATIVE = "child, minor, teen, young-looking, childlike body, nude, nudity, topless, nipples, genitals, nsfw, explicit, " +

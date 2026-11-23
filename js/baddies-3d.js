@@ -57,7 +57,7 @@ function init() {
   // The plane covers the photo's own field of view (~75° wide) as seen from the camera, so things in the photo keep
   // their true angular size; each photo's horizon (fraction from the top) is lifted to the camera's eye level.
   const BG_D = 12, BG_FOV = Math.tan(THREE.MathUtils.degToRad(75 / 2)), BG_AR = 1024 / 1792;
-  const BG_HORIZON = { desert: 0.53, jungle: 0.59, miami: 0.61, snow: 0.6 };
+  const BG_HORIZON = { desert: 0.5, jungle: 0.59, miami: 0.61, snow: 0.6, christmas: 0.52, halloween: 0.64, newyear: 0.6, valentine: 0.62, july4: 0.68 };
   const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false, toneMapped: false, fog: false }));
   backdrop.renderOrder = -10; backdrop.visible = false; backdrop.frustumCulled = false;
   const bgTex = {}; let bgOn = false, bgWant = "";
@@ -1428,7 +1428,7 @@ function init() {
     if (want) {
       canvasWrap.style.background = "#0c0d10";
       if (bgTex[want]) backdrop.material.map = bgTex[want];
-      else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=1", document.baseURI).href, (t) => {
+      else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=2", document.baseURI).href, (t) => {
         t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; bgTex[want] = t;
         if (bgWant === want) { backdrop.material.map = t; backdrop.material.needsUpdate = true; }
       });
