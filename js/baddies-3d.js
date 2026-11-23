@@ -501,12 +501,22 @@ function init() {
       for (const m of skinned) { const d = m.morphTargetDictionary; if (d && d[name] != null) m.morphTargetInfluences[d[name]] = v; }
     };
     const pair = (up, dn, x, boost = k) => { set(up, x > 0 ? x * boost : 0); set(dn, x < 0 ? -x : 0); };
-    pair("hips_up", "hips_dn", e("hips"));
-    pair("glutes_up", "glutes_dn", e("glutes"), k * 1.15);
-    pair("waist_in", "waist_out", e("waist"), Math.min(1.6, k));
-    pair("thighs_up", "thighs_dn", e("thighs"));
-    pair("bust_up", "bust_dn", e("bust"), 1);
-    pair("tone_up", "tone_dn", e("tone", 3), 1);
+    const male = s.gender === "male";
+    if (male) {   // the preview body is female: flatten it toward a male build (flat chest, straight hips, more muscle)
+      pair("hips_up", "hips_dn", Math.min(0.15, e("hips") * 0.35) - 0.75);
+      pair("glutes_up", "glutes_dn", e("glutes") * 0.4 - 0.45, 1);
+      pair("waist_in", "waist_out", e("waist") * 0.3 - 0.6, 1);
+      pair("thighs_up", "thighs_dn", e("thighs") * 0.6 - 0.2);
+      set("bust_up", 0); set("bust_dn", 1.6 + Math.max(0, e("bust")) * 0.3);
+      pair("tone_up", "tone_dn", Math.max(0.5, e("tone", 3) + 0.6), 1.2);
+    } else {
+      pair("hips_up", "hips_dn", e("hips"));
+      pair("glutes_up", "glutes_dn", e("glutes"), k * 1.15);
+      pair("waist_in", "waist_out", e("waist"), Math.min(1.6, k));
+      pair("thighs_up", "thighs_dn", e("thighs"));
+      pair("bust_up", "bust_dn", e("bust"), 1);
+      pair("tone_up", "tone_dn", e("tone", 3), 1);
+    }
     // facial expression (shape keys on the body, brows and lashes)
     const EXPRS = ["confident", "smirk", "fierce", "smile", "pout", "surprised", "sultry", "wink"], ex = one("expr") || "confident";
     const EXW = { confident: 1.5, smile: 1.5, smirk: 1.2, sultry: 1.4, pout: 0.65 };
@@ -518,7 +528,8 @@ function init() {
     U.uBoot.value.set(BOOTS[one("boots")] || BOOTS.white);
     U.uInk.value = inkTex(one("inkstyle") || "color");
     const MK = { natural: ["#a8625c", 0.3, 0, "#5a3a30", 0], glam: ["#b8475a", 0.72, 0.55, "#6b4636", 0.38], bold: ["#3a0b16", 0.92, 1.0, "#2a1414", 0.5] }[one("makeup") || "glam"] || [0, 0, 0, 0, 0];
-    if (MK[0]) { U.uLip.value.set(MK[0]); U.uLipAmt.value = MK[1]; U.uLiner.value = MK[2]; U.uShadowC.value.set(MK[3]); U.uShadowAmt.value = MK[4]; }
+    if (s.gender === "male") { U.uLipAmt.value = 0.08; U.uLiner.value = 0; U.uShadowAmt.value = 0; }
+    else if (MK[0]) { U.uLip.value.set(MK[0]); U.uLipAmt.value = MK[1]; U.uLiner.value = MK[2]; U.uShadowC.value.set(MK[3]); U.uShadowAmt.value = MK[4]; }
     curBg = s.bg || "white"; applyBg();
     const top = one("top") || "puffer", bottom = one("bottom") || "bodysuit", tat = one("tattoos") || "none";
     const sleeves = top === "puffer" || top === "jacket" || top === "hoodie";

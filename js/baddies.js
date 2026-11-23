@@ -43,6 +43,26 @@
     { id: "tone", label: "Muscle tone", lo: "Soft", hi: "Ripped", words: ["soft curves", "smooth curves", "lightly toned curves", "toned athletic curves", "visibly muscular, fit curves"] }
   ];
 
+  // Male Baddies: the same sliders, worded for a man (Bust becomes Chest)
+  var SHAPE_M = {
+    waist: ["a natural waist", "a trim waist", "a narrow, trim waist", "a very narrow V-taper waist", "an extreme V-taper waist"],
+    hips: ["narrow hips", "average hips", "solid hips", "wide hips", "very wide hips"],
+    glutes: ["a flat rear", "an athletic rear", "muscular glutes", "big muscular glutes", "very big, muscular glutes"],
+    thighs: ["slim legs", "athletic legs", "thick muscular thighs", "very thick, muscular thighs", "massive bodybuilder thighs"],
+    bust: ["a lean chest", "a fit chest", "a defined chest", "a broad muscular chest", "a huge, powerful chest"],
+    tone: ["a soft build", "a lean build", "an athletic build", "a muscular, ripped build", "a huge, shredded bodybuilder build"]
+  };
+  function isMale() { return state.gender === "male"; }
+  // Every prompt is written for a woman; for a male Baddie the words are swapped on the way to the GPU.
+  function genderize(t) {
+    if (!t || !isMale()) return t;
+    var NOT_POSS = /^(and|or|to|in|at|from|with|by|on|off|the|a|an|as|so|but|is|was|into|onto|over|out|up|down|for|of|like|than)$/i;
+    return t.replace(/\bwomen\b/g, "men").replace(/\bWomen\b/g, "Men").replace(/\bwoman\b/g, "man").replace(/\bWoman\b/g, "Man").replace(/\bWOMAN\b/g, "MAN")
+      .replace(/\bfemale\b/g, "male").replace(/\bFemale\b/g, "Male").replace(/\bgirl\b/g, "guy")
+      .replace(/\bherself\b/g, "himself").replace(/\bhers\b/g, "his").replace(/\bshe\b/g, "he").replace(/\bShe\b/g, "He")
+      .replace(/\b([Hh])er\b(\s*)([\w-]+)?/g, function (m, h, sp, w) { var his = h === "H" ? "His" : "his", him = h === "H" ? "Him" : "him"; return (w && !NOT_POSS.test(w) ? his : him) + sp + (w || ""); })
+      .replace(/\bstunning adult man\b/g, "handsome adult man").replace(/\bhourglass\b/g, "V-shaped");
+  }
   var BODY_PRESETS = [
     { id: "ref", label: "Signature", v: { waist: 9, hips: 9, glutes: 10, thighs: 9, bust: 5, tone: 3 }, exag: 80 },
     { id: "slimthick", label: "Slim thick", v: { waist: 8, hips: 7, glutes: 7, thighs: 7, bust: 5, tone: 4 }, exag: 60 },
@@ -361,7 +381,7 @@
     pick: { hair: ["straight"], haircolor: ["black"], makeup: ["glam"], eyes: ["brown"], expr: ["confident"],
       camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], eyewear: ["none"], boots: ["white"],
       tattoos: ["legs"], inkstyle: ["color"], jewelry: ["studs"] },
-    weapon: "ak47", hold: "low", camlock: "on", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
+    weapon: "ak47", hold: "low", camlock: "on", gender: "female", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
     pose: { preset: "hold", custom: null, match: false, look: { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 } }, duo: "side"
   };
 
@@ -390,6 +410,8 @@
     var hmin = clampN(CFG.heightMin, 36, 83), hmax = clampN(CFG.heightMax, hmin + 1, 84);
     $("bdHeight").min = hmin; $("bdHeight").max = hmax;
     $("bdHeightMin").textContent = ftIn(hmin); $("bdHeightMax").textContent = ftIn(hmax);
+    $("bdGender").innerHTML = '<button type="button" data-gender="female">Female</button><button type="button" data-gender="male">Male</button>';
+    $("bdGender").addEventListener("click", function (e) { var b = e.target.closest("[data-gender]"); if (b) { state.gender = b.getAttribute("data-gender"); sync(); } });
     $("bdShape").innerHTML = SHAPE.map(function (s) {
       return '<div class="bd-slider bd-slider-sm"><div class="bd-row-lbl"><label for="bdS_' + s.id + '">' + s.label + '</label><b data-sv="' + s.id + '"></b></div>' +
         '<input type="range" id="bdS_' + s.id + '" data-shape="' + s.id + '" min="0" max="10" step="1" />' +
@@ -452,6 +474,8 @@
     each($("bdEngine").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.engine); });
     each($("bdEdit").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.editEngine); });
     $("bdBatch").textContent = state.batch;
+    each($("bdGender").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-gender") === (state.gender || "female")); });
+    var bl = document.querySelector('label[for="bdS_bust"]'); if (bl) bl.textContent = isMale() ? "Chest" : "Bust";
     var cl = document.querySelector(".bd-camlock"); if (cl) cl.hidden = state.view !== "cam";
     // which models this Generate will run, in order (from the real plan for the current settings)
     var chain = [], steps = [];
@@ -714,7 +738,7 @@
 
   // ------------------------------------------------------------ prompt
   function tier(v) { return v <= 2 ? 0 : v <= 4 ? 1 : v <= 6 ? 2 : v <= 8 ? 3 : 4; }
-  function shapeWords(id) { var s = SHAPE.filter(function (x) { return x.id === id; })[0]; return s.words[tier(state.shape[id])]; }
+  function shapeWords(id) { var s = SHAPE.filter(function (x) { return x.id === id; })[0]; return (isMale() ? SHAPE_M[id] : s.words)[tier(state.shape[id])]; }
   function opt(gid) { var g = groupById(gid), v = (state.pick[gid] || [])[0]; var o = g && g.opts.filter(function (x) { return x[0] === v; })[0]; return o ? o[2] : ""; }
   function opts(gid) { var g = groupById(gid); return (state.pick[gid] || []).map(function (v) { var o = g.opts.filter(function (x) { return x[0] === v; })[0]; return o ? o[2] : ""; }).filter(Boolean); }
   function fromList(list, id) { var o = list.filter(function (x) { return x[0] === id; })[0]; return o || list[0]; }
@@ -732,6 +756,7 @@
   }
   function exagLabel(x) { return x < 25 ? "Natural" : x < 50 ? "Curvy" : x < 70 ? "Thick" : x < 90 ? "Extra" : "Extreme"; }
   function exagWords(x) {
+    if (isMale()) return x < 25 ? "realistic, natural body proportions" : x < 50 ? "a fit athletic build with broad shoulders" : x < 70 ? "a strong V-shaped build with broad shoulders" : x < 90 ? "a heavily exaggerated V-shaped physique, very broad shoulders and a narrow waist" : "an extremely exaggerated, stylized superhero physique, huge shoulders and arms, tiny waist";
     if (x < 25) return "realistic, natural body proportions";
     if (x < 50) return "a curvy hourglass figure";
     if (x < 70) return "a thick, pronounced hourglass figure";
@@ -849,7 +874,7 @@
     return body.replace("edit only the woman's body proportions", "edit the woman's body proportions").replace("edit only this woman's body proportions", "edit this woman's body proportions").replace(/ Keep her face, hair,/, " " + fix + " Keep her face,");
   }
   function bodyEdit() {
-    if (state.exag < 70) return "";
+    if (state.exag < 70 || isMale()) return "";
     var asks = [];
     if (state.shape.waist >= 7) asks.push("the waist much narrower and snatched");
     if (state.shape.hips >= 7) asks.push("the hips much wider");
@@ -1186,7 +1211,7 @@
     var settings = snapshot(), model = stepModel(plan[0]);
     settings.models = plan.map(stepModel).concat(plan.some(function (st) { return st.post; }) ? ["qwen_edit2509"] : [])
       .filter(function (m, i, a) { return a.indexOf(m) === i; });
-    var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: plan.map(function (x) { return x.prompt; }).join("\n\n"),
+    var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: genderize(plan.map(function (x) { return x.prompt; }).join("\n\n")),
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
       plan: plan, si: -1, blobs: blobs, editModel: editModel(), engine: state.engine, wearing: wearingLine(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
     state.mine.unshift(card); renderMine();
@@ -1212,15 +1237,15 @@
     fd.append("model", mdl);
     fd.append("mode", img ? "edit" : "create");
     // FLUX.2 Klein: naming the trained @character loads their FLUX.2 LoRA on the server (when they have one)
-    fd.append("prompt", (mdl === "klein9b_edit" && card.who && st.who ? card.who + " is the woman in Picture 1. " : "") + st.prompt +
-      (mdl !== "qwen_edit2509" && card.wearing && !/^adding/.test(st.label || "") ? card.wearing : ""));
+    fd.append("prompt", genderize((mdl === "klein9b_edit" && card.who && st.who ? card.who + " is the woman in Picture 1. " : "") + st.prompt +
+      (mdl !== "qwen_edit2509" && card.wearing && !/^adding/.test(st.label || "") ? card.wearing : "")));
     fd.append("negative", NEGATIVE + (img && i > 0 ? ", different person, extra people, mannequin" : ""));
     fd.append("batch", String(st.batch || 1));
     if (st.w) { fd.append("width", String(st.w)); fd.append("height", String(st.h)); if (img) fd.append("size", "custom"); }
     if (img) fd.append("image", img, img.name || "input.png");
     if (st.multi) { if (ins[1]) fd.append("image2", ins[1], ins[1].name || "image2.png"); if (ins[2]) fd.append("image3", ins[2], ins[2].name || "image3.png"); }
     if (mdl === "flux2" || /_edit/.test(mdl)) { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
-    if (st.post) fd.append("post_edit", st.post);
+    if (st.post) fd.append("post_edit", genderize(st.post));
     var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
     var d = await r.json().catch(function () { return {}; });
     if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
@@ -1393,14 +1418,14 @@
   // ------------------------------------------------------------ settings in/out
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
-      weapon: state.weapon, hold: state.hold, view: state.view, camlock: state.camlock || "on", loraMode: loraMode(), style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
+      weapon: state.weapon, hold: state.hold, view: state.view, camlock: state.camlock || "on", loraMode: loraMode(), gender: state.gender || "female", style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
       hairTouched: !!state.hairTouched, pose: clone(state.pose || DEFAULTS.pose), duo: state.duo || "side",
       "with": state["with"] ? { key: state["with"].key, name: state["with"].name, handle: state["with"].handle, kind: state["with"].kind, thumb: state["with"].thumb, url: state["with"].url } : null,
       char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
     if (!s) return;
-    ["skin", "height", "exag", "weapon", "hold", "view", "camlock", "loraMode", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
+    ["skin", "height", "exag", "weapon", "hold", "view", "camlock", "loraMode", "gender", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
     if (!VIEWS[state.view]) state.view = "sheet";
     if (s.shape) state.shape = Object.assign(clone(DEFAULTS.shape), s.shape);
     if (s.pick) state.pick = Object.assign(clone(DEFAULTS.pick), clone(s.pick));
