@@ -226,3 +226,4 @@
 .bd-lora-row .bd-seg button i { font-style: normal; font-size: 0.62rem; opacity: 0.65; margin-left: 2px; }
 .bd-char.is-off { opacity: 0.32; filter: grayscale(1); cursor: not-allowed; }
 .bd-char.is-off:hover { border-color: var(--color-border); }
+.bd-presets button[hidden] { display: none !important; }

@@ -63,13 +63,40 @@
       .replace(/\b([Hh])er\b(\s*)([\w-]+)?/g, function (m, h, sp, w) { var his = h === "H" ? "His" : "his", him = h === "H" ? "Him" : "him"; return (w && !NOT_POSS.test(w) ? his : him) + sp + (w || ""); })
       .replace(/\bstunning adult man\b/g, "handsome adult man").replace(/\bhourglass\b/g, "V-shaped");
   }
+  // One-tap body types. g = gender, h = height in inches (optional), x = extra body words for the prompt (optional).
   var BODY_PRESETS = [
-    { id: "ref", label: "Signature", v: { waist: 9, hips: 9, glutes: 10, thighs: 9, bust: 5, tone: 3 }, exag: 80 },
-    { id: "slimthick", label: "Slim thick", v: { waist: 8, hips: 7, glutes: 7, thighs: 7, bust: 5, tone: 4 }, exag: 60 },
-    { id: "petite", label: "Petite curvy", v: { waist: 7, hips: 6, glutes: 7, thighs: 6, bust: 4, tone: 3 }, exag: 50 },
-    { id: "athletic", label: "Athletic", v: { waist: 7, hips: 6, glutes: 7, thighs: 7, bust: 4, tone: 8 }, exag: 45 },
-    { id: "max", label: "Max curves", v: { waist: 10, hips: 10, glutes: 10, thighs: 10, bust: 6, tone: 2 }, exag: 100 }
+    { g: "female", id: "ref", label: "Signature", v: { waist: 9, hips: 9, glutes: 10, thighs: 9, bust: 5, tone: 3 }, exag: 80 },
+    { g: "female", id: "slimthick", label: "Slim thick", v: { waist: 8, hips: 7, glutes: 7, thighs: 7, bust: 5, tone: 4 }, exag: 60 },
+    { g: "female", id: "petite", label: "Petite curvy", v: { waist: 7, hips: 6, glutes: 7, thighs: 6, bust: 4, tone: 3 }, exag: 50, h: 59 },
+    { g: "female", id: "athletic", label: "Athletic", v: { waist: 7, hips: 6, glutes: 7, thighs: 7, bust: 4, tone: 8 }, exag: 45 },
+    { g: "female", id: "max", label: "Max curves", v: { waist: 10, hips: 10, glutes: 10, thighs: 10, bust: 6, tone: 2 }, exag: 100 },
+    { g: "female", id: "maxbust", label: "Max curves + max bust", v: { waist: 10, hips: 10, glutes: 10, thighs: 10, bust: 10, tone: 2 }, exag: 100, x: "a very large, full bust" },
+    { g: "female", id: "maxflat", label: "Max curves, small bust", v: { waist: 10, hips: 10, glutes: 10, thighs: 10, bust: 0, tone: 2 }, exag: 100, x: "a small, flat bust" },
+    { g: "female", id: "petitemax", label: "Petite max curves", v: { waist: 10, hips: 10, glutes: 10, thighs: 9, bust: 4, tone: 2 }, exag: 95, h: 58 },
+    { g: "female", id: "bbl", label: "BBL", v: { waist: 10, hips: 9, glutes: 10, thighs: 7, bust: 6, tone: 3 }, exag: 90, x: "a sculpted BBL-style figure, very round lifted rear and tiny waist" },
+    { g: "female", id: "pear", label: "Pear shape", v: { waist: 7, hips: 10, glutes: 9, thighs: 9, bust: 2, tone: 3 }, exag: 70 },
+    { g: "female", id: "busty", label: "Busty slim", v: { waist: 8, hips: 5, glutes: 5, thighs: 5, bust: 10, tone: 4 }, exag: 50 },
+    { g: "female", id: "fitness", label: "Fitness model", v: { waist: 8, hips: 6, glutes: 8, thighs: 7, bust: 5, tone: 9 }, exag: 45, x: "visible toned abs" },
+    { g: "female", id: "amazon", label: "Tall Amazon", v: { waist: 7, hips: 7, glutes: 7, thighs: 8, bust: 6, tone: 8 }, exag: 55, h: 74, x: "a tall, strong, statuesque frame" },
+    { g: "female", id: "plus", label: "Thick / plus", v: { waist: 3, hips: 9, glutes: 9, thighs: 10, bust: 8, tone: 1 }, exag: 60, x: "a soft, thick plus-size figure" },
+    { g: "female", id: "runway", label: "Runway slim", v: { waist: 7, hips: 3, glutes: 3, thighs: 2, bust: 3, tone: 5 }, exag: 15, h: 70, x: "a slim, long-legged model figure" },
+    { g: "female", id: "natural", label: "Natural", v: { waist: 5, hips: 5, glutes: 5, thighs: 5, bust: 5, tone: 4 }, exag: 10 },
+    { g: "male", id: "m_sixpack", label: "Athletic six-pack", v: { waist: 8, hips: 4, glutes: 5, thighs: 5, bust: 6, tone: 8 }, exag: 40, h: 70, x: "a lean athletic build with a clearly defined six-pack" },
+    { g: "male", id: "m_muscle", label: "Fully muscular", v: { waist: 7, hips: 5, glutes: 7, thighs: 8, bust: 9, tone: 10 }, exag: 75, h: 71, x: "muscular all over: big chest, shoulders and arms, strong legs" },
+    { g: "male", id: "m_skinnylegs", label: "Big upper, skinny legs", v: { waist: 8, hips: 3, glutes: 3, thighs: 1, bust: 10, tone: 9 }, exag: 70, h: 70, x: "a massive muscular upper body (chest, shoulders, arms) on noticeably skinny legs" },
+    { g: "male", id: "m_thicklegs", label: "Thick legs, full upper", v: { waist: 6, hips: 6, glutes: 8, thighs: 10, bust: 10, tone: 9 }, exag: 80, h: 71, x: "a full muscular upper torso and very thick, powerful legs" },
+    { g: "male", id: "m_swimmer", label: "Swimmer V-taper", v: { waist: 9, hips: 3, glutes: 4, thighs: 4, bust: 7, tone: 7 }, exag: 55, h: 74, x: "a swimmer's build: wide shoulders, long torso, narrow hips" },
+    { g: "male", id: "m_superhero", label: "Superhero", v: { waist: 10, hips: 4, glutes: 7, thighs: 8, bust: 10, tone: 10 }, exag: 100, h: 75, x: "a heroic comic-book physique, huge shoulders and chest, tiny waist" },
+    { g: "male", id: "m_bodybuilder", label: "Bodybuilder", v: { waist: 6, hips: 6, glutes: 9, thighs: 10, bust: 10, tone: 10 }, exag: 100, h: 70, x: "a competition bodybuilder, huge and shredded with visible veins" },
+    { g: "male", id: "m_lean", label: "Lean / slim", v: { waist: 6, hips: 3, glutes: 3, thighs: 3, bust: 3, tone: 5 }, exag: 10, h: 70 },
+    { g: "male", id: "m_runner", label: "Runner", v: { waist: 7, hips: 3, glutes: 5, thighs: 5, bust: 3, tone: 8 }, exag: 20, h: 69, x: "a lean distance-runner build" },
+    { g: "male", id: "m_bigstrong", label: "Big & strong", v: { waist: 3, hips: 7, glutes: 7, thighs: 9, bust: 9, tone: 5 }, exag: 50, h: 75, x: "a big, heavy, powerful frame" },
+    { g: "male", id: "m_dadbod", label: "Dad bod", v: { waist: 2, hips: 6, glutes: 5, thighs: 6, bust: 5, tone: 1 }, exag: 10, h: 70, x: "a relaxed dad bod with a soft belly" },
+    { g: "male", id: "m_short", label: "Short & stocky", v: { waist: 5, hips: 6, glutes: 7, thighs: 8, bust: 8, tone: 7 }, exag: 45, h: 64, x: "a short, stocky, muscular frame" }
   ];
+  function activePreset() {
+    return BODY_PRESETS.filter(function (p) { return p.g === (state.gender || "female") && p.exag === state.exag && SHAPE.every(function (s) { return p.v[s.id] === state.shape[s.id]; }); })[0] || null;
+  }
 
   // Option groups: [id, label, prompt wording]
   var LOOK = [
@@ -403,7 +430,7 @@
 
   // ------------------------------------------------------------ render the panel
   function renderPanel() {
-    $("bdBodyPresets").innerHTML = BODY_PRESETS.map(function (p) { return '<button type="button" data-bp="' + p.id + '">' + esc(p.label) + "</button>"; }).join("");
+    $("bdBodyPresets").innerHTML = BODY_PRESETS.map(function (p) { return '<button type="button" data-bp="' + p.id + '" data-bg="' + p.g + '">' + esc(p.label) + "</button>"; }).join("");
     $("bdSkin").innerHTML = SKIN.map(function (s) {
       return '<button type="button" role="radio" data-skin="' + s[0] + '" title="' + esc(s[1]) + '" aria-label="' + esc(s[1]) + '" style="--sw:' + s[2] + '"></button>';
     }).join("");
@@ -411,7 +438,15 @@
     $("bdHeight").min = hmin; $("bdHeight").max = hmax;
     $("bdHeightMin").textContent = ftIn(hmin); $("bdHeightMax").textContent = ftIn(hmax);
     $("bdGender").innerHTML = '<button type="button" data-gender="female">Female</button><button type="button" data-gender="male">Male</button>';
-    $("bdGender").addEventListener("click", function (e) { var b = e.target.closest("[data-gender]"); if (b) { state.gender = b.getAttribute("data-gender"); sync(); } });
+    $("bdGender").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-gender]"); if (!b) return;
+      var g = b.getAttribute("data-gender"); if (g === (state.gender || "female")) return;
+      var was = activePreset(); state.gender = g;
+      if (was) {   // was on a body type: switch to the matching first body type for the new gender
+        var p = BODY_PRESETS.filter(function (x) { return x.g === g; })[0]; state.shape = clone(p.v); state.exag = p.exag; if (p.h) state.height = p.h;
+      }
+      sync();
+    });
     $("bdShape").innerHTML = SHAPE.map(function (s) {
       return '<div class="bd-slider bd-slider-sm"><div class="bd-row-lbl"><label for="bdS_' + s.id + '">' + s.label + '</label><b data-sv="' + s.id + '"></b></div>' +
         '<input type="range" id="bdS_' + s.id + '" data-shape="' + s.id + '" min="0" max="10" step="1" />' +
@@ -467,9 +502,10 @@
     var noInk = (state.pick.tattoos || [])[0] === "none";
     var inkStyle = document.querySelector('.bd-group[data-g="inkstyle"]'); if (inkStyle) inkStyle.classList.toggle("is-dim", noInk);
     var holdRow = document.querySelector('[data-single="hold"]'); if (holdRow) holdRow.closest(".bd-group").classList.toggle("is-dim", state.weapon === "none");
+    var ap = activePreset();
     each(document.querySelectorAll("#bdBodyPresets [data-bp]"), function (b) {
-      var p = BODY_PRESETS.filter(function (x) { return x.id === b.getAttribute("data-bp"); })[0];
-      b.classList.toggle("is-on", !!p && p.exag === state.exag && SHAPE.every(function (s) { return p.v[s.id] === state.shape[s.id]; }));
+      b.hidden = b.getAttribute("data-bg") !== (state.gender || "female");
+      b.classList.toggle("is-on", !!ap && ap.id === b.getAttribute("data-bp"));
     });
     each($("bdEngine").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.engine); });
     each($("bdEdit").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.editEngine); });
@@ -636,7 +672,7 @@
     $("bdBodyPresets").addEventListener("click", function (e) {
       var b = e.target.closest("[data-bp]"); if (!b) return;
       var p = BODY_PRESETS.filter(function (x) { return x.id === b.getAttribute("data-bp"); })[0];
-      state.shape = clone(p.v); state.exag = p.exag; sync();
+      state.shape = clone(p.v); state.exag = p.exag; state.gender = p.g; if (p.h) state.height = p.h; sync();
     });
     $("bdScroll").addEventListener("click", function (e) {
       var b = e.target.closest("[data-gid]");
@@ -723,7 +759,7 @@
     state.skin = pick(SKIN)[0];
     var hmin = +$("bdHeight").min, hmax = +$("bdHeight").max;
     state.height = hmin + Math.floor(Math.random() * (hmax - hmin + 1));
-    var p = pick(BODY_PRESETS); state.shape = clone(p.v); state.exag = p.exag;
+    var p = pick(BODY_PRESETS.filter(function (x) { return x.g === (state.gender || "female"); })); state.shape = clone(p.v); state.exag = p.exag;
     LOOK.concat(GEAR, INK).forEach(function (g) {
       if (g.multi) { var o = g.opts.slice().sort(function () { return Math.random() - 0.5; }); state.pick[g.id] = o.slice(0, 1 + Math.floor(Math.random() * g.multi)).map(function (x) { return x[0]; }); }
       else state.pick[g.id] = [pick(g.opts.filter(function (o) { return o[0] !== "own"; }))[0]];
@@ -824,7 +860,8 @@
       parts.push("Restyle the exact person in this photo as a soldier character called a Baddie. IDENTITY FIRST: it must stay unmistakably this same person: same face, same age, same facial features and bone structure, same skin color (do not lighten or darken it), same head shape and neck, same eyes, nose, lips and eyebrows, and any glasses or distinctive features they have, recognizable in every view");
       parts.push(V.lead + " this same person as a female soldier character called a Baddie");
     } else parts.push(V.lead + " a stunning adult woman in her late twenties, a female soldier character called a Baddie");
-    parts.push("BODY: " + exagWords(state.exag) + ", " + [shapeWords("waist"), shapeWords("hips"), shapeWords("glutes"), shapeWords("thighs"), shapeWords("bust"), shapeWords("tone")].join(", "));
+    var apx = activePreset();
+    parts.push("BODY: " + (apx && apx.x ? apx.x + ", " : "") + exagWords(state.exag) + ", " + [shapeWords("waist"), shapeWords("hips"), shapeWords("glutes"), shapeWords("thighs"), shapeWords("bust"), shapeWords("tone")].join(", "));
     parts.push(heightWords(state.height));
     parts.push(C || o.lora ? "keep their own skin tone and face, with a smooth glowing finish" : skin + " skin with a smooth glowing finish");
     var hair = opt("hair"), hc = opt("haircolor");

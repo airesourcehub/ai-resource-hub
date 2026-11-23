@@ -503,12 +503,12 @@ function init() {
     const pair = (up, dn, x, boost = k) => { set(up, x > 0 ? x * boost : 0); set(dn, x < 0 ? -x : 0); };
     const male = s.gender === "male";
     if (male) {   // the preview body is female: flatten it toward a male build (flat chest, straight hips, more muscle)
-      pair("hips_up", "hips_dn", Math.min(0.15, e("hips") * 0.35) - 0.75);
-      pair("glutes_up", "glutes_dn", e("glutes") * 0.4 - 0.45, 1);
-      pair("waist_in", "waist_out", e("waist") * 0.3 - 0.6, 1);
-      pair("thighs_up", "thighs_dn", e("thighs") * 0.6 - 0.2);
-      set("bust_up", 0); set("bust_dn", 1.6 + Math.max(0, e("bust")) * 0.3);
-      pair("tone_up", "tone_dn", Math.max(0.5, e("tone", 3) + 0.6), 1.2);
+      pair("hips_up", "hips_dn", e("hips") * 0.45 - 0.6, 1);
+      pair("glutes_up", "glutes_dn", e("glutes") * 0.7 - 0.3, 1);
+      pair("waist_in", "waist_out", e("waist") * 0.9 - 0.35, 1);       // low = thick belly, high = V-taper
+      pair("thighs_up", "thighs_dn", e("thighs") * 1.1, 1.1);           // skinny legs … very thick legs
+      set("bust_up", 0); set("bust_dn", 1.7);
+      pair("tone_up", "tone_dn", e("tone", 3) * 1.4 + 0.3, 1.4);         // soft … shredded
     } else {
       pair("hips_up", "hips_dn", e("hips"));
       pair("glutes_up", "glutes_dn", e("glutes"), k * 1.15);
