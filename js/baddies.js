@@ -301,6 +301,13 @@
     if (c.dist < 1.1) words.push("shot close with a wide 28mm lens"); else if (c.dist > 4.5) words.push("shot from a distance with a long lens");
     return { w: w, h: h, lead: lead, tail: words.join(", "), info: c };
   }
+  // ---- "Draw characters with": the photo (edit their picture) or one of their trained LoRAs (draw them from scratch)
+  var LORA_MODES = [["photo", "Photo", "Edits their picture (works for everyone)"], ["zimage", "Z-Image LoRA", "Z-Image Turbo draws them from their trained LoRA"], ["flux2", "FLUX LoRA", "FLUX.2 Klein draws them from their trained LoRA"]];
+  function loraMode() { return state.loraMode === "zimage" || state.loraMode === "flux2" ? state.loraMode : "photo"; }
+  function hasLora(c, f) { return !!(c && c.handle && c.fams && c.fams.indexOf(f || loraMode()) >= 0); }
+  function useLora(c) { return loraMode() !== "photo" && hasLora(c); }
+  function loraModel() { return loraMode() === "zimage" ? "zimage" : "klein9b"; }
+  function loraTag(c) { return "@" + c.handle + " " + (loraMode() === "zimage" ? "Z-Image" : "FLUX") + " LoRA"; }
   function camLock() { return state.view === "cam" && state.camlock !== "off"; }
   function camPrompt() {   // Klein edit: Picture 1 = the 3D view from the viewer camera, Picture 2 = the rendered character
     var V = camShot();
@@ -452,8 +459,8 @@
       var LONG = (typeof MODEL_NAMES === "object" && MODEL_NAMES) || {};
       var SHORT = { zimage: "Z-Image", flux3: "FLUX 3", flux2: "FLUX.2", klein9b_edit: "Klein", qwen_edit2509: "Qwen", flux2_edit: "FLUX.2 edit" };
       planSteps().forEach(function (st) {
-        var m = st.inputs.length ? editModel() : state.engine;
-        chain.push(SHORT[m] || m); steps.push((st.label || (st.inputs.length ? "editing" : "creating her")) + ": " + (LONG[m] || m));
+        var m = st.model || (st.inputs.length ? editModel() : state.engine), SH = { klein9b: "FLUX Klein" };
+        chain.push((SH[m] || SHORT[m] || m) + (st.lora ? " + " + st.lora.replace(/ (Z-Image|FLUX) LoRA$/, " LoRA") : "")); steps.push((st.label || (st.inputs.length ? "editing" : "creating her")) + ": " + (LONG[m] || (m === "klein9b" ? "FLUX.2 Klein 9B" : m)) + (st.lora ? " + " + st.lora : ""));
         if (st.post) { chain.push("Qwen"); steps.push("keeping her curves: " + (LONG.qwen_edit2509 || "Qwen Image Edit")); }
       });
     } catch (e) {}
@@ -658,8 +665,10 @@
       var k = e.target.getAttribute && e.target.getAttribute("data-look-k"); if (!k) return;
       state.pose.look = Object.assign(lookOf(), state.pose.look || {}); state.pose.look[k] = +e.target.value; sync();
     });
+    document.addEventListener("click", function (e) { var b = e.target.closest("[data-lora]"); if (b && b.closest("[data-lora-seg]")) setLoraMode(b.getAttribute("data-lora")); });
     $("bdWith").addEventListener("click", function (e) {
       var b = e.target.closest("[data-with]"); if (!b) return;
+      if (b.classList.contains("is-off")) { hint("No " + (loraMode() === "zimage" ? "Z-Image" : "FLUX") + " LoRA for this character yet. Switch \"Draw characters with\" to Photo to use them.", true); return; }
       var k = b.getAttribute("data-with");
       state["with"] = k ? state.chars.filter(function (c) { return c.key === k; })[0] || null : null;
       renderChars(); sync();
@@ -667,6 +676,7 @@
     $("bdDuo").addEventListener("click", function (e) { var b = e.target.closest("[data-duo]"); if (b) { state.duo = b.getAttribute("data-duo"); sync(); } });
     $("bdChars").addEventListener("click", function (e) {
       var b = e.target.closest("[data-char]"); if (!b) return;
+      if (b.classList.contains("is-off")) { hint("No " + (loraMode() === "zimage" ? "Z-Image" : "FLUX") + " LoRA for this character yet. Switch \"Draw characters with\" to Photo to use them.", true); return; }
       var k = b.getAttribute("data-char");
       var had = !!state.char;
       state.char = k ? state.chars.filter(function (c) { return c.key === k; })[0] || null : null;
@@ -773,26 +783,33 @@
     return lead + ". " + fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ".";
   }
 
-  function buildPrompt() {
-    if (state.char) return buildCharEdit();
-    var V = state.view === "cam" ? camShot() : VIEWS[state.view];
+  function buildPrompt(o) {
+    o = o || {};
+    if (state.char && !o.lora) return buildCharEdit();
+    var V = o.duo ? VIEWS.full : state.view === "cam" ? camShot() : VIEWS[state.view];
     var skin = fromList(SKIN, state.skin)[3];
     var parts = [];
-    var C = state.char;
-    if (C) {
+    var C = o.lora ? null : state.char;
+    if (o.lora) {   // a trained character drawn straight from their LoRA (the @handle loads it on the GPU)
+      parts.push(V.lead + " @" + o.lora + " as a soldier character called a Baddie, unmistakably the same person with the same face");
+    } else if (o.duo) {
+      parts.push("Wide full-body shot of two people together, head to toe: a stunning adult woman in her late twenties, a female soldier character called a Baddie, and @" + o.duo +
+        " (exactly as they really look, in their own clothes). They are " + fromList(DUO, state.duo || "side")[2] + ". Everything below describes the woman");
+    } else if (C) {
       parts.push("Restyle the exact person in this photo as a soldier character called a Baddie. IDENTITY FIRST: it must stay unmistakably this same person: same face, same age, same facial features and bone structure, same skin color (do not lighten or darken it), same head shape and neck, same eyes, nose, lips and eyebrows, and any glasses or distinctive features they have, recognizable in every view");
       parts.push(V.lead + " this same person as a female soldier character called a Baddie");
     } else parts.push(V.lead + " a stunning adult woman in her late twenties, a female soldier character called a Baddie");
     parts.push("BODY: " + exagWords(state.exag) + ", " + [shapeWords("waist"), shapeWords("hips"), shapeWords("glutes"), shapeWords("thighs"), shapeWords("bust"), shapeWords("tone")].join(", "));
     parts.push(heightWords(state.height));
-    parts.push(C ? "keep their own skin tone and face, with a smooth glowing finish" : skin + " skin with a smooth glowing finish");
+    parts.push(C || o.lora ? "keep their own skin tone and face, with a smooth glowing finish" : skin + " skin with a smooth glowing finish");
     var hair = opt("hair"), hc = opt("haircolor");
-    if (C) {
+    if (o.lora) { var hl = hairDesc(); parts.push(hl.own ? "keeping their own natural hair" : "HAIR: " + hl.text); }
+    else if (C) {
       var hd = hairDesc();
       parts.push(hd.own ? "HAIR: keep " + hd.text + ", identical in every view"
         : "HAIR: completely replace their original hair with " + hd.text + ", the same new hairstyle and color in the front, side and back views; none of their original hairstyle or hair color anywhere, including the back of the head");
     } else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : "") + (opts("hairx").length ? ", with " + opts("hairx").join(" and ") : ""));
-    parts.push(C ? [opt("makeup") ? opt("makeup") + " applied to their own face" : "", opt("expr")].filter(Boolean).join(", ")
+    parts.push(C || o.lora ? [opt("makeup") ? opt("makeup") + " applied to their own face" : "", opt("expr")].filter(Boolean).join(", ")
       : [opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
     var camo = opt("camo");
     var outfit = "wearing " + [opt("top"), opt("bottom")].filter(Boolean).join(" and ") + " in " + camo + ", a stylish streetwear outfit with a military touch";
@@ -811,7 +828,7 @@
     }
     if (poseWords()) parts.push("POSE: " + poseWords());
     var extra = $("bdExtra").value.trim(); if (extra) parts.push(extra);
-    parts.push(V.tail);
+    parts.push(o.duo ? "both of them fully in frame and clearly recognizable, exactly two people" : V.tail);
     if (C) parts.push("Most important: the face in every view is clearly the same person as in the photo, same age and same skin color");
     parts.push(fromList(BGS, state.bg)[2]);
     parts.push(fromList(STYLES, state.style)[2]);
@@ -877,30 +894,58 @@
         } catch (e) {}
       }
     }
+    try {   // which LoRAs each @handle has (z-image / flux2 / wan22 / ltx23), from the GPU's character registry
+      var tok = state.user ? await freshToken() : null;
+      var fr = await fetch(RENDER() + (tok ? "/my-characters" : "/characters"), tok ? { headers: { Authorization: "Bearer " + tok } } : {});
+      var fj = await fr.json(), fam = {};
+      (fj.characters || []).forEach(function (x) { if (x.handle) fam[String(x.handle).toLowerCase()] = x.families || []; });
+      list.forEach(function (c) { c.fams = c.handle ? (fam[String(c.handle).toLowerCase()] || []) : []; });
+    } catch (e) { list.forEach(function (c) { c.fams = c.fams || []; }); }
     state.chars = list;
     if (state.char) { var fresh = list.filter(function (c) { return c.key === state.char.key; })[0]; if (fresh) state.char = fresh; }
     if (state["with"]) { var fw = list.filter(function (c) { return c.key === state["with"].key; })[0]; if (fw) state["with"] = fw; }
     if (state.char && (state.user || /^p:/.test(state.char.key)) && list.length && !list.some(function (c) { return c.key === state.char.key; })) state.char = null;
     renderChars(); sync();
   }
+  function famLabel(c) {
+    var f = c.fams || [], out = [];
+    if (f.indexOf("zimage") >= 0) out.push("Z-Image"); if (f.indexOf("flux2") >= 0) out.push("FLUX");
+    return out.length ? out.join(" · ") : "Photo only";
+  }
+  function charCard(c, kind, cur) {
+    var off = loraMode() !== "photo" && !hasLora(c);
+    return '<button type="button" class="bd-char' + (c.key === cur ? " is-on" : "") + (off ? " is-off" : "") + '" data-' + kind + '="' + esc(c.key) + '" role="radio" aria-checked="' + (c.key === cur) + '"' +
+      (off ? ' aria-disabled="true"' : "") + ' title="' + esc(c.name + " · " + c.kind + (off ? " · no " + (loraMode() === "zimage" ? "Z-Image" : "FLUX") + " LoRA yet" : "")) + '">' +
+      '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" /><b>' + (c.handle ? "@" + esc(c.handle) : esc(c.name)) + '</b><small>' + esc(famLabel(c)) + "</small></button>";
+  }
+  function setLoraMode(m) {
+    state.loraMode = m;
+    var lbl = m === "zimage" ? "Z-Image" : "FLUX", gone = [];
+    if (m !== "photo") {
+      if (state.char && !hasLora(state.char)) { gone.push(whoName(state.char)); state.char = null; onCharChange(true); }
+      if (state["with"] && !hasLora(state["with"])) { gone.push(whoName(state["with"])); state["with"] = null; }
+    }
+    renderChars(); sync();
+    if (gone.length) hint(gone.join(" and ") + (gone.length > 1 ? " don't" : " doesn't") + " have a " + lbl + " LoRA yet, so " + (gone.length > 1 ? "they were" : "it was") + " unselected.");
+  }
   function niceName(id) { return String(id).split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" "); }
   function renderChars() {
     var box = $("bdChars"); if (!box) return;
     var cur = state.char ? state.char.key : "";
     var html = '<button type="button" class="bd-char' + (cur ? "" : " is-on") + '" data-char="" role="radio" aria-checked="' + !cur + '"><span class="bd-char-none">New face</span><b>None</b></button>';
-    html += state.chars.map(function (c) {
-      return '<button type="button" class="bd-char' + (c.key === cur ? " is-on" : "") + '" data-char="' + esc(c.key) + '" role="radio" aria-checked="' + (c.key === cur) + '" title="' + esc(c.name) + '">' +
-        '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" /><b>' + (c.handle ? "@" + esc(c.handle) : esc(c.name)) + '</b><small>' + esc(c.kind) + "</small></button>";
-    }).join("");
+    html += state.chars.map(function (c) { return charCard(c, "char", cur); }).join("");
     if (!state.chars.length) html += '<p class="bd-note">' + (state.user ? "No characters yet. Make one on the AI Influencer page." : '<a href="auth.html">Log in</a> to use your influencers.') + "</p>";
     box.innerHTML = html;
     var wb = $("bdWith"); if (!wb) return;
     var wc = state["with"] ? state["with"].key : "";
     wb.innerHTML = '<button type="button" class="bd-char' + (wc ? "" : " is-on") + '" data-with="" role="radio" aria-checked="' + !wc + '"><span class="bd-char-none">Just her</span><b>Nobody</b></button>' +
-      state.chars.map(function (c) {
-        return '<button type="button" class="bd-char' + (c.key === wc ? " is-on" : "") + '" data-with="' + esc(c.key) + '" role="radio" aria-checked="' + (c.key === wc) + '" title="' + esc(c.name) + '">' +
-          '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" /><b>' + (c.handle ? "@" + esc(c.handle) : esc(c.name)) + '</b><small>' + esc(c.kind) + "</small></button>";
+      state.chars.map(function (c) { return charCard(c, "with", wc); }).join("");
+    each(document.querySelectorAll("[data-lora-seg]"), function (el) {
+      el.innerHTML = LORA_MODES.map(function (m) {
+        var n = m[0] === "photo" ? state.chars.length : state.chars.filter(function (c) { return hasLora(c, m[0]); }).length;
+        return '<button type="button" data-lora="' + m[0] + '" class="' + (loraMode() === m[0] ? "is-on" : "") + '" title="' + esc(m[2]) + '">' + esc(m[1]) + (m[0] === "photo" ? "" : ' <i>' + n + "</i>") + "</button>";
       }).join("");
+    });
   }
   // Hair when a character is picked: a fresh design takes the character's own hair;
   // mid-design (hair already chosen) keeps the current hair. "Their own hair" is always selectable.
@@ -1007,6 +1052,17 @@
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
   function planSteps() {
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
+    var LC = useLora(C) ? C : null, LW = !C && useLora(state["with"]) ? state["with"] : null;
+    if (LC || LW) {   // LoRA mode: the trained character is drawn from scratch by its LoRA
+      var L = LC || LW, CV = state.view === "cam" && !LW ? camShot() : null, sz = LW ? { w: 1216, h: 832 } : CV || V;
+      steps.push({ label: "drawing " + whoName(L) + " with their LoRA", inputs: [], model: loraModel(), lora: loraTag(L), w: sz.w, h: sz.h,
+        prompt: LC ? buildPrompt({ lora: L.handle }) : buildPrompt({ duo: L.handle }), post: LC && !(CV && camLock()) ? bodyEdit() : "" });
+      if (CV && camLock()) steps.push({ label: "matching your camera", inputs: ["cam", "prev"], multi: true, w: CV.w, h: CV.h, prompt: camPrompt(), post: bodyEdit() });
+      if (gunRef()) steps.push({ label: "fixing the weapon", who: !!LC, inputs: ["prev", "gunref"], multi: true, prompt: gunFixPrompt(!LW && state.view === "sheet") });
+      if (LC && state["with"]) steps.push({ label: "adding " + whoName(state["with"]), inputs: ["prev", "with"], w: 1216, h: 832, prompt: duoPrompt() });
+      steps[steps.length - 1].batch = state.batch;
+      return steps;
+    }
     if (state.view === "cam" && !state.with) {   // Viewer angle: the shot from the 3D viewer's camera
       var CV = camShot();
       if (C) {
@@ -1126,12 +1182,13 @@
       }
     } catch (e) { hint(e.message, true); $("bdGo").disabled = false; return; }
     var last = state.view === "cam" && !state.with ? camShot() : VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
-    var settings = snapshot(), model = plan[0].inputs.length ? editModel() : state.engine;
-    settings.models = plan.map(function (st) { return st.inputs.length ? editModel() : state.engine; }).concat(plan.some(function (st) { return st.post; }) ? ["qwen_edit2509"] : [])
+    var stepModel = function (st) { return st.model || (st.inputs.length ? editModel() : state.engine); };
+    var settings = snapshot(), model = stepModel(plan[0]);
+    settings.models = plan.map(stepModel).concat(plan.some(function (st) { return st.post; }) ? ["qwen_edit2509"] : [])
       .filter(function (m, i, a) { return a.indexOf(m) === i; });
     var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: plan.map(function (x) { return x.prompt; }).join("\n\n"),
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
-      plan: plan, si: -1, blobs: blobs, editModel: editModel(), wearing: wearingLine(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
+      plan: plan, si: -1, blobs: blobs, editModel: editModel(), engine: state.engine, wearing: wearingLine(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
     state.mine.unshift(card); renderMine();
     try { await runStep(card, 0, token); }
     catch (e) {
@@ -1151,7 +1208,7 @@
     }
     var img = ins.length > 1 && !st.multi ? await composite(ins) : ins[0];
     var fd = new FormData();
-    var mdl = img ? (card.editModel || "qwen_edit2509") : state.engine;
+    var mdl = st.model || (img ? (card.editModel || "qwen_edit2509") : (card.engine || state.engine));
     fd.append("model", mdl);
     fd.append("mode", img ? "edit" : "create");
     // FLUX.2 Klein: naming the trained @character loads their FLUX.2 LoRA on the server (when they have one)
@@ -1336,14 +1393,14 @@
   // ------------------------------------------------------------ settings in/out
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
-      weapon: state.weapon, hold: state.hold, view: state.view, camlock: state.camlock || "on", style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
+      weapon: state.weapon, hold: state.hold, view: state.view, camlock: state.camlock || "on", loraMode: loraMode(), style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
       hairTouched: !!state.hairTouched, pose: clone(state.pose || DEFAULTS.pose), duo: state.duo || "side",
       "with": state["with"] ? { key: state["with"].key, name: state["with"].name, handle: state["with"].handle, kind: state["with"].kind, thumb: state["with"].thumb, url: state["with"].url } : null,
       char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
     if (!s) return;
-    ["skin", "height", "exag", "weapon", "hold", "view", "camlock", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
+    ["skin", "height", "exag", "weapon", "hold", "view", "camlock", "loraMode", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
     if (!VIEWS[state.view]) state.view = "sheet";
     if (s.shape) state.shape = Object.assign(clone(DEFAULTS.shape), s.shape);
     if (s.pick) state.pick = Object.assign(clone(DEFAULTS.pick), clone(s.pick));

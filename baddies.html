@@ -21,7 +21,7 @@
 <meta name="description" content="Design your own Baddie character on your GPU: pick skin tone, height, body shape and how exaggerated the curves are, then outfit, tattoos and a real-world weapon. Turnaround sheets in one click." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/baddies.css?v=20261122d" />
+<link rel="stylesheet" href="css/baddies.css?v=20261123a" />
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
@@ -64,12 +64,14 @@
       <section class="bd-sec" data-sec="char">
         <h2 class="bd-sec-h">Character</h2>
         <p class="bd-note">Use the face of one of your trained characters or saved influencers. Everything else (body, outfit, weapon) comes from your settings below.</p>
+        <div class="bd-lora-row"><span>Draw characters with</span><div class="bd-seg bd-seg-sm" data-lora-seg role="radiogroup" aria-label="Draw characters with"></div></div>
         <div class="bd-chars" id="bdChars" role="radiogroup" aria-label="Character"></div>
       </section>
 
       <section class="bd-sec" data-sec="with">
         <h2 class="bd-sec-h">With someone</h2>
         <p class="bd-note">Put one of your characters in the picture next to her. You get one shot of the two of them together.</p>
+        <div class="bd-lora-row"><span>Draw characters with</span><div class="bd-seg bd-seg-sm" data-lora-seg role="radiogroup" aria-label="Draw characters with"></div></div>
         <div class="bd-chars" id="bdWith" role="radiogroup" aria-label="With someone"></div>
         <div id="bdDuo"></div>
       </section>
@@ -256,7 +258,7 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/baddies-thumbs.js?v=20261123b"></script>
-<script src="js/baddies.js?v=20261123g"></script>
+<script src="js/baddies.js?v=20261123h"></script>
 <script type="module" src="js/baddies-3d.js?v=20261123d"></script>
 </body>
 </html>

@@ -219,3 +219,10 @@
 #bdBodyPresets.bd-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
 #bdBodyPresets button.has-th { display: flex; flex-direction: column; gap: 4px; padding: 4px 4px 6px; border-radius: 12px; font-size: 0.7rem; }
 .bd-sw-own { background: conic-gradient(#141110, #6b3b20, #c8913f, #e9dfc6, #ff4fa8, #a9dcff, #141110); }
+
+/* "Draw characters with": Photo / Z-Image LoRA / FLUX LoRA */
+.bd-lora-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 2px 0 10px; }
+.bd-lora-row > span { font-size: 0.72rem; color: var(--color-text-muted); letter-spacing: 0.02em; }
+.bd-lora-row .bd-seg button i { font-style: normal; font-size: 0.62rem; opacity: 0.65; margin-left: 2px; }
+.bd-char.is-off { opacity: 0.32; filter: grayscale(1); cursor: not-allowed; }
+.bd-char.is-off:hover { border-color: var(--color-border); }
