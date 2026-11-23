@@ -90,8 +90,8 @@ function init() {
   }
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
-  const PANO_H = 1.6, PANO_R = 38;
-  const PANOS = {};   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
+  const PANOS = { desert: "1123", miami: "1123", snow: "1123", jungle: "1123", christmas: "1123", halloween: "1123", newyear: "1123", valentine: "1123", july4: "1123", brickellam: "1123", brickell: "1123", brickellpm: "1123", ultra: "1123" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
   function loadPano(id, cb) {
     if (panoTex[id]) return cb(panoTex[id]); if (panoMiss[id] || !PANOS[id]) return cb(null);
@@ -99,9 +99,13 @@ function init() {
       t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; panoTex[id] = t; cb(t);
     }, undefined, () => { panoMiss[id] = true; cb(null); });
   }
+  // where each panorama's main subject sits (0..1 across the image): turned to stand behind her in the front view
+  const PANO_HERO = { desert: 0.45, snow: 0.4, christmas: 0.55, halloween: 0.85, newyear: 0.42, valentine: 0.3, july4: 0.72, brickellpm: 0.3, miami: 0.55, ultra: 0.93 };
+  let panoId = "";
   function showPano(t) {
     if (!sky) { sky = new GroundedSkybox(t, PANO_H, PANO_R, 96); sky.position.y = PANO_H - 0.005; sky.material.toneMapped = false; sky.renderOrder = -20; scene.add(sky); }
     else if (sky.material.map !== t) { sky.material.map = t; sky.material.needsUpdate = true; }
+    sky.rotation.y = PANO_BASE + ((PANO_HERO[panoId] ?? 0.5) - 0.5) * Math.PI * 2;
     sky.visible = true; panoOn = true; backdrop.visible = false; floor.visible = false; skyFill.visible = false;
   }
 
@@ -2364,6 +2368,7 @@ function init() {
         });
         backdrop.visible = true;
       };
+      panoId = want;
       if (panoTex[want]) showPano(panoTex[want]);
       else { flat(); loadPano(want, (t) => { if (t && bgWant === want && bgOn) showPano(t); }); }
       ground.visible = true;
