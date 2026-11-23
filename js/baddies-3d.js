@@ -252,6 +252,18 @@ function init() {
       headInfo = eyeInfo ? { c: new THREE.Vector3(0, eyeInfo.l.y + 0.012, eyeInfo.front - 0.085), r: 0.092, top: bb.max.y }
                          : { c: bb.getCenter(new THREE.Vector3()), r: 0.092, top: bb.max.y };
     }
+    // reshape two stock hair meshes to match the menu pictures:
+    //   ponytail01 hangs low from the nape -> drop the tail (a high pony is built from the crown in buildExtras)
+    //   bob01 has a fringe over one eye -> trim it to a clean middle-part bob
+    if (eyeInfo) {
+      const cut = (o, drop) => { if (!o || !o.geometry.index) return; const g = o.geometry, P = g.attributes.position, src = g.index.array, keep = [];
+        for (let t = 0; t < src.length; t += 3) { let x = 0, y = 0, z = 0; for (let q = 0; q < 3; q++) { x += P.getX(src[t + q]); y += P.getY(src[t + q]); z += P.getZ(src[t + q]); }
+          if (!drop(x / 3, y / 3, z / 3)) keep.push(src[t], src[t + 1], src[t + 2]); }
+        g.setIndex(keep); };
+      const ey = eyeInfo.l.y, ef = eyeInfo.front;
+      cut(M.hair_pony, (x, y, z) => y < ey - 0.02 && z < ef - 0.14);
+      cut(M.hair_bob, (x, y, z) => z > ef - 0.035 && y < ey + 0.04 && Math.abs(x) < 0.07);
+    }
     if (!body) return fail("No body in the model");
     if (body.material && body.material.map) { U.uSkinTex.value = body.material.map; U.uHasSkin.value = 1; }
     body.material = bodyMat;
@@ -300,8 +312,16 @@ function init() {
     const m = new THREE.MeshStandardMaterial({ map: src && src.map, roughness: opts.roughness ?? 0.5, metalness: 0,
       alphaTest: opts.alpha ? 0.35 : 0, transparent: false, side: opts.alpha ? THREE.DoubleSide : THREE.FrontSide });
     m.userData.uTint = { value: new THREE.Color(1, 1, 1) };
+    m.userData.uWave = { value: 0 };
     m.onBeforeCompile = (sh) => {
-      sh.uniforms.uTint = m.userData.uTint;
+      sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave;
+      // body-wave: ripple long hair below the ears (rest-space y; eyes sit at ~1.5 m)
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave;")
+        .replace("#include <begin_vertex>", `#include <begin_vertex>
+          float wv = smoothstep(1.47, 1.36, position.y) * uWave;
+          transformed += normal * wv * (0.55 + 0.45 * sin(position.y * 42.0 + position.x * 9.0)) * 0.032;
+          transformed.x += wv * sin(position.y * 34.0 + 1.3) * 0.011;
+          transformed.z += wv * cos(position.y * 34.0 + position.x * 12.0) * 0.008;`);
       sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uTint;")
         .replace("#include <map_fragment>", `#include <map_fragment>
           float lum = clamp(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)) * ${gain.toFixed(2)}, 0.0, 1.0);
@@ -542,7 +562,25 @@ function init() {
     });
     return true;
   }
+  // Rigid head frame from the two eyeballs (they ride the skull exactly): origin between the eye centres.
+  let eyeRestF = null, eyeRing = null, faceFit = null;
+  function eyeFrame() {
+    if (!eyes || !eyes.isSkinnedMesh) return null;
+    if (!eyeRing) {
+      const P = eyes.geometry.attributes.position, ap = [-1, -1], az = [-9, -9], ring = [[], []];
+      for (let i = 0; i < P.count; i++) { const sd = P.getX(i) > 0 ? 0 : 1; if (P.getZ(i) > az[sd]) { az[sd] = P.getZ(i); ap[sd] = i; } if (i % 7 === 0) ring[sd].push(i); }
+      if (ap[0] < 0 || ap[1] < 0) return null;
+      eyeRing = { ap, ring };
+    }
+    holder.updateMatrixWorld(true); if (eyes.skeleton) eyes.skeleton.update();
+    const pt = (i) => { const t = new THREE.Vector3(); eyes.getVertexPosition(i, t); t.applyMatrix4(eyes.matrixWorld); return holder.worldToLocal(t); };
+    const ce = [0, 1].map((sd) => { const c = new THREE.Vector3(); eyeRing.ring[sd].forEach((i) => c.add(pt(i))); return c.divideScalar(eyeRing.ring[sd].length); });
+    const fw = [0, 1].map((sd) => pt(eyeRing.ap[sd]).sub(ce[sd])).reduce((a, b) => a.add(b)).normalize();
+    const x = ce[0].clone().sub(ce[1]).normalize(), y = new THREE.Vector3().crossVectors(fw, x).normalize(), z = new THREE.Vector3().crossVectors(x, y);
+    return new THREE.Matrix4().makeBasis(x, y, z).setPosition(ce[0].clone().add(ce[1]).multiplyScalar(0.5));
+  }
   function setupFaceFrame() {
+    eyeRestF = eyeFrame();
     if (!eyeInfo || !body) return;
     const P = body.geometry.attributes.position, ey = (eyeInfo.l.y + eyeInfo.r.y) / 2, cz = headInfo ? headInfo.c.z : eyeInfo.front - 0.085;
     let nose = -1, nz = -9, el = -1, ex = -9, er = -1, exr = 9;
@@ -553,6 +591,13 @@ function init() {
     }
     if (nose < 0 || el < 0 || er < 0) return;
     faceIdx = [nose, el, er];
+    // glasses fit: nose-bridge depth between the eyes and where each ear meets the head
+    let bz = -9; for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i); if (Math.abs(x) < 0.006 && Math.abs(y - (ey + 0.004)) < 0.006) bz = Math.max(bz, P.getZ(i)); }
+    // earlobes: the outermost skin points ~4.5 cm under the eyes, around the ear's depth
+    const ezc = P.getZ(el), lobe = [null, null], lx = [0, 0];
+    for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+      if (y > ey - 0.058 && y < ey - 0.036 && Math.abs(z - ezc) < 0.03) { const sd = x > 0 ? 0 : 1; if (Math.abs(x) > lx[sd]) { lx[sd] = Math.abs(x); lobe[sd] = new THREE.Vector3(x, y, z); } } }
+    faceFit = { bridgeZ: bz, ear: [new THREE.Vector3(P.getX(el), P.getY(el), P.getZ(el)), new THREE.Vector3(P.getX(er), P.getY(er), P.getZ(er))], lobe };
     faceRestF = faceFrame();
   }
   function bonePos(name, off) {
@@ -700,10 +745,87 @@ function init() {
     return S;
   }
   // a strap around the back of the head: an arc in the horizontal plane with its gap at the front (+z)
+  // elastic strap hugging the head: an elliptical band (rx wide, rz deep) with the gap at the front
+  let headEll = { rx: 0.084, rz: 0.098, zc: -0.006 };
   function headStrap(r, tube, mat, y, z, arc = Math.PI * 1.3, flat = 0.5) {
-    const g = new THREE.TorusGeometry(r, tube, 8, 48, arc);
-    g.rotateZ(Math.PI / 2 - arc / 2); g.rotateX(-Math.PI / 2); g.scale(1, flat, 1);
+    const rx = headEll.rx + 0.004, rz = headEll.rz + 0.004;
+    const g = new THREE.TorusGeometry(rx, 0.0024, 6, 64, arc);
+    g.rotateZ(Math.PI / 2 - arc / 2); g.rotateX(-Math.PI / 2); g.scale(1, Math.max(2.5, flat * 2.2), rz / rx);
+    z = headEll.zc;
     const m = new THREE.Mesh(g, mat); m.position.set(0, y, z); return m;
+  }
+  // Long braids / locs: tubes rooted all over the scalp that hug the skull, then fall behind the shoulders.
+  // Knotless = alternating braid lobes; butterfly = thicker, lumpy twisted locs.
+  function braidHair(style, R, len, hairM, scalp) {
+    const G = new THREE.Group(), r = rnd(style === "butterfly" ? 41 : style === "curly" ? 53 : 29), fly = style === "butterfly", curly = style === "curly";
+    const mat = hairM.clone(); mat.roughness = fly ? 0.7 : curly ? 0.62 : 0.55;
+    // scalp ellipsoid from the short-hair cap's bounds (relative to H), else a sphere guess
+    const d2r = Math.PI / 180, sc = scalp || { c: new THREE.Vector3(0, 0.004, -0.008), r: new THREE.Vector3(R, R, R) }, RS = 1.0;
+    const sp = (a, e, rad) => new THREE.Vector3(Math.sin(a) * Math.cos(e) * (sc.r.x * rad + (rad - 1) * 0.0), Math.sin(e) * sc.r.y * rad, -Math.cos(a) * Math.cos(e) * sc.r.z * rad).add(sc.c);
+    const n = fly ? 46 : curly ? 100 : 70, thick = fly ? 0.0085 : curly ? 0.0042 : 0.0058;
+    for (let k = 0; k < n; k++) {
+      // spread roots evenly over the back / sides / crown (golden-angle spiral), hairline stays off the face
+      const u = (k + 0.5) / n, e = (8 + 78 * Math.sqrt(1 - u)) * d2r, a = ((k * 137.508) % 300 - 150) * d2r;
+      const front = Math.abs(a) > 105 * d2r;
+      if (front && e < 45 * d2r) continue;
+      const way = [[a, e]];
+      if (front) way.push([Math.sign(a) * 100 * d2r, e * 0.75]);      // front roots sweep back over the crown
+      const a1 = way[way.length - 1][0];
+      const pts = way.map(([aa, ee]) => sp(aa, ee, 1.02));
+      const puff = curly ? 0.022 + r() * 0.018 : 0;   // curls stand off the scalp for volume
+      for (let ee = way[way.length - 1][1] - 15 * d2r; ee > -50 * d2r; ee -= 15 * d2r) pts.push(sp(a1, ee, 1.04 + (puff * (1 + (e - ee)) + (ee < 0 ? -ee * (curly ? 0.04 : 0.01) : 0)) / 0.09));
+      // hang: behind the shoulders, spreading a little, gentle sway
+      const last = pts[pts.length - 1], drop = len * (0.82 + r() * 0.3);
+      for (let j = 1; j <= 5; j++) {
+        const t = j / 5, y = last.y - drop * t;
+        const x = THREE.MathUtils.clamp(last.x * (1 + (curly ? 0.9 : 0.35) * t), curly ? -0.21 : -0.16, curly ? 0.21 : 0.16) + Math.sin(t * 5 + k) * 0.006;
+        const z = Math.min(last.z, -0.06) - 0.035 * t - (y < -0.2 ? 0.03 + Math.abs(x) * 0.15 : 0) - r() * 0.012;
+        pts.push(new THREE.Vector3(x, y, z));
+      }
+      let curve = new THREE.CatmullRomCurve3(pts);
+      if (curly) {   // wind a tight spiral around the path
+        const NS = 90, sp2 = curve.getSpacedPoints(NS), fr = curve.computeFrenetFrames(NS, false), cr = 0.007 + r() * 0.004, ph0 = r() * 6.28;
+        curve = new THREE.CatmullRomCurve3(sp2.map((pp, i) => { const t = i / NS * 26 + ph0, k2 = Math.min(1, i / 6);
+          return pp.clone().addScaledVector(fr.normals[i], Math.cos(t) * cr * k2).addScaledVector(fr.binormals[i], Math.sin(t) * cr * k2); }));
+      }
+      const TS = curly ? 150 : 64, RAD = curly ? 5 : 7;
+      const g = new THREE.TubeGeometry(curve, TS, thick * (0.85 + r() * 0.3), RAD, false), P = g.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+      const ph = r() * 6.28;
+      for (let i = 0; i <= TS; i++) {
+        curve.getPointAt(i / TS, c);
+        const taper = i < 3 ? 0.55 + i * 0.15 : i > TS - 4 ? 0.65 + (TS - i) * 0.09 : 1;
+        for (let j = 0; j <= RAD; j++) {
+          const idx = i * (RAD + 1) + j, ang = (j / RAD) * Math.PI * 2;
+          const f = curly ? 1 : fly ? 1 + 0.38 * Math.max(0, Math.sin(i * 0.9 + ph + ang)) + 0.12 * Math.sin(i * 2.7 + ph)
+                        : 1 + 0.3 * Math.max(0, Math.sin(i * 1.6 + (j % 2 ? Math.PI : 0) + ang * 0.5));
+          v.fromBufferAttribute(P, idx).sub(c).multiplyScalar(f * taper).add(c); P.setXYZ(idx, v.x, v.y, v.z);
+        }
+      }
+      g.computeVertexNormals();
+      G.add(new THREE.Mesh(g, mat));
+    }
+    // ends: small cuffs / sealed tips on butterfly locs
+    return G;
+  }
+  // Sleek high ponytail: a bundle of strands gathered at the crown with a band, arcing back and down the back.
+  function highPony(hairM, eyeY, eyeZ, top) {
+    const G = new THREE.Group(), r = rnd(17), mat = hairM.clone(); mat.roughness = 0.35;
+    const base = new THREE.Vector3(0, top - 0.02, eyeZ - 0.155);
+    const spine = [base, new THREE.Vector3(0, top + 0.012, eyeZ - 0.2), new THREE.Vector3(0, eyeY + 0.03, eyeZ - 0.255),
+      new THREE.Vector3(0, eyeY - 0.12, eyeZ - 0.262), new THREE.Vector3(0, eyeY - 0.3, eyeZ - 0.255), new THREE.Vector3(0, eyeY - 0.46, eyeZ - 0.245)];
+    const sc = new THREE.CatmullRomCurve3(spine), NS = 40, fr = sc.computeFrenetFrames(NS, false), sp = sc.getSpacedPoints(NS);
+    for (let k = 0; k < 34; k++) {
+      const a = r() * 6.28, rr = Math.sqrt(r()), ln = 0.75 + r() * 0.25, pts = [];
+      for (let i = 0; i <= NS * ln; i++) {
+        const t = i / NS, w = 0.012 + 0.022 * Math.sin(Math.min(1, t * 1.6) * Math.PI * 0.5) * (1 - t * 0.55);   // fans out then narrows to a tip
+        pts.push(sp[i].clone().addScaledVector(fr.normals[i], Math.cos(a) * rr * w).addScaledVector(fr.binormals[i], Math.sin(a) * rr * w * 1.3));
+      }
+      if (pts.length < 4) continue;
+      G.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.0055 + r() * 0.003, 6, false), mat));
+    }
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.0045, 8, 24), std({ color: 0x111111, roughness: 0.5 }));
+    band.position.copy(sp[2]); band.lookAt(sp[3]); G.add(band);
+    return G;
   }
   function eyewear(type, H, eyeY, eyeZ, eyeX) {
     const G = new THREE.Group(); H.add(G);
@@ -715,12 +837,23 @@ function init() {
     // lenses and polished frames reflect a studio room even when the look has no environment light
     if (!envTex) envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     for (const m of [frameBlack, gold, lensDark, lensGrad, mirror]) m.envMap = envTex;
-    const z0 = eyeZ + 0.017, ex = eyeX;
+    // sit the lenses just in front of the nose bridge (about 1 cm off the eyes), arms running back to the real ears
+    if (faceFit) { const ex2 = Math.abs(faceFit.ear[0].x - faceFit.ear[1].x) / 2; headEll = { rx: ex2 - 0.002, rz: 0.096, zc: eyeZ - 0.088 }; }
+    const zcF = eyeZ - 0.088;
+    const hp = H.position, bridge = faceFit && faceFit.bridgeZ > -1 ? faceFit.bridgeZ - hp.z : eyeZ + 0.008;
+    const z0 = Math.max(eyeZ + 0.009, bridge + 0.003), ex = eyeX;
+    const ears = faceFit ? faceFit.ear.map((e) => e.clone().sub(hp)) : null;
+    const bar = (a, b, th, hgt, mat) => {
+      const A = new THREE.Vector3(...a), Bv = new THREE.Vector3(...b), m = new THREE.Mesh(new THREE.BoxGeometry(th, hgt, A.distanceTo(Bv)), mat);
+      m.position.copy(A).add(Bv).multiplyScalar(0.5); m.lookAt(m.position.clone().add(Bv.clone().sub(A))); G.add(m); return m;
+    };
     const temples = (mat, th = 0.0035, hgt = 0.006, y = 0.009) => {
       for (const sd of [-1, 1]) {
-        const len = 0.105, t = new THREE.Mesh(new THREE.BoxGeometry(th, hgt, len), mat);
-        t.position.set(sd * (ex + 0.031), eyeY + y * 0.5, z0 - len / 2 - 0.002); t.rotation.y = sd * -0.06; G.add(t);
-        const tip = new THREE.Mesh(new THREE.BoxGeometry(th, hgt * 0.8, 0.025), mat); tip.position.set(sd * (ex + 0.026), eyeY - 0.004, z0 - len - 0.008); tip.rotation.x = 0.7; G.add(tip);
+        const e = ears ? ears[sd > 0 ? 0 : 1] : new THREE.Vector3(sd * (ex + 0.035), eyeY - 0.005, z0 - 0.1);
+        const ox = sd * Math.max(ex + 0.031, Math.abs(e.x) + th);           // hinge at the frame corner, never inside the head
+        const earPt = [sd * (Math.abs(e.x) + th * 0.6 + 0.0015), e.y + 0.01, e.z + 0.008];
+        bar([ox, eyeY + y * 0.5, z0 - 0.002], earPt, th, hgt, mat);
+        bar(earPt, [earPt[0] - sd * 0.003, earPt[1] - 0.026, earPt[2] - 0.016], th, hgt * 0.8, mat);   // tip curls down behind the ear
       }
     };
     if (["wayfarer", "smart", "aviator", "round", "cateye"].includes(type)) {
@@ -747,48 +880,60 @@ function init() {
       return G;
     }
     if (type === "shield") {   // one wrap-around mirrored visor
-      const r = z0 + 0.004, v = new THREE.Mesh(new THREE.CylinderGeometry(r, r - 0.004, 0.04, 48, 1, true, -0.95, 1.9), mirror);
-      v.position.set(0, eyeY, 0); G.add(v);
-      const top = new THREE.Mesh(new THREE.TorusGeometry(r + 0.001, 0.0022, 8, 48, 1.9), frameBlack); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 0.95; top.position.set(0, eyeY + 0.02, 0); G.add(top);
+      const r = z0 - zcF + 0.003, v = new THREE.Mesh(new THREE.CylinderGeometry(r, r - 0.003, 0.038, 48, 1, true, -0.72, 1.44), mirror);
+      v.position.set(0, eyeY, zcF); G.add(v);
+      const top = new THREE.Mesh(new THREE.TorusGeometry(r + 0.001, 0.0022, 8, 48, 1.44), frameBlack); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 0.72; top.position.set(0, eyeY + 0.019, zcF); G.add(top);
       temples(frameBlack, 0.004, 0.006); return G;
     }
     if (type === "goggles") {
-      const r = z0 + 0.012;
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.034, 48, 1, true, -0.8, 1.6), new THREE.MeshPhysicalMaterial({ color: 0x5a6a5a, roughness: 0.04, metalness: 0.6, transparent: true, opacity: 0.8, clearcoat: 1, envMap: envTex, envMapIntensity: 2, side: THREE.DoubleSide }));
-      lens.position.set(0, eyeY, 0); G.add(lens);
-      const rim = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.002, r - 0.002, 0.044, 48, 1, true, -0.85, 1.7), new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.8, side: THREE.DoubleSide }));
-      rim.scale.set(1, 1, 1); rim.position.set(0, eyeY, -0.002); G.add(rim);
+      const r = z0 - zcF + 0.01;
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.034, 48, 1, true, -0.62, 1.24), new THREE.MeshPhysicalMaterial({ color: 0x5a6a5a, roughness: 0.04, metalness: 0.6, transparent: true, opacity: 0.8, clearcoat: 1, envMap: envTex, envMapIntensity: 2, side: THREE.DoubleSide }));
+      lens.position.set(0, eyeY, zcF); G.add(lens);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.003, r - 0.003, 0.044, 48, 1, true, -0.68, 1.36), new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.8, side: THREE.DoubleSide }));
+      rim.position.set(0, eyeY, zcF - 0.002); G.add(rim);
       G.add(headStrap(0.098, 0.008, new THREE.MeshStandardMaterial({ color: 0x1d1f1a, roughness: 0.95 }), eyeY + 0.004, -0.006, Math.PI * 1.3, 1.6));
       return G;
     }
     if (type === "vr") {
-      const sh = new THREE.Shape(), w = 0.076, h = 0.04, rr = 0.016;
+      const sh = new THREE.Shape(), w = 0.072, h = 0.03, rr = 0.014;
       sh.moveTo(-w + rr, -h); sh.lineTo(w - rr, -h); sh.quadraticCurveTo(w, -h, w, -h + rr); sh.lineTo(w, h - rr); sh.quadraticCurveTo(w, h, w - rr, h);
       sh.lineTo(-w + rr, h); sh.quadraticCurveTo(-w, h, -w, h - rr); sh.lineTo(-w, -h + rr); sh.quadraticCurveTo(-w, -h, -w + rr, -h);
       const white = new THREE.MeshPhysicalMaterial({ color: 0xf2f2f0, roughness: 0.35, clearcoat: 0.6 });
       white.envMap = envTex;
       const box = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.034, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 4, curveSegments: 16 }), white);
-      box.position.set(0, eyeY - 0.004, eyeZ + 0.002); G.add(box);
+      box.position.set(0, eyeY + 0.008, eyeZ + 0.012); G.add(box);
+      // soft black light seal between the visor and the face
+      const seal = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.016, bevelEnabled: false, curveSegments: 16 }), new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.95 }));
+      seal.scale.set(0.94, 0.9, 1); seal.position.set(0, eyeY + 0.008, eyeZ - 0.004); G.add(seal);
       const face = new THREE.Mesh(new THREE.ShapeGeometry(sh, 16), new THREE.MeshPhysicalMaterial({ color: 0x0c0c10, roughness: 0.15, clearcoat: 1 }));
       face.visible = false;
       const pillM = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, roughness: 0.1, clearcoat: 1 });
       for (const x of [-0.042, 0, 0.042]) {   // three sensor pills across the front
         const pill = new THREE.Mesh(new THREE.CapsuleGeometry(0.0055, 0.012, 6, 12), pillM); pill.rotation.z = Math.PI / 2; pill.scale.z = 0.3;
-        pill.position.set(x, eyeY - 0.004, eyeZ + 0.0465); G.add(pill);
+        pill.position.set(x, eyeY + 0.008, eyeZ + 0.0565); G.add(pill);
       }
       const strapM = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.85 });
       G.add(headStrap(0.099, 0.006, strapM, eyeY, -0.01, Math.PI * 1.35, 2.2));
       const top = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.005, 6, 32, Math.PI * 0.9), strapM); top.rotation.y = Math.PI / 2; top.rotation.z = Math.PI * 0.05; top.position.set(0, eyeY - 0.005, -0.012); G.add(top);
       return G;
     }
-    if (type === "nvg") {
-      const blk = new THREE.MeshStandardMaterial({ color: 0x1b1d1a, roughness: 0.7, metalness: 0.2 });
-      const mount = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.025), blk); mount.position.set(0, eyeY + 0.045, eyeZ + 0.01); G.add(mount);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.012), blk); arm.position.set(0, eyeY + 0.022, eyeZ + 0.03); G.add(arm);
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.02), blk); bridge.position.set(0, eyeY + 0.004, eyeZ + 0.04); G.add(bridge);
+    if (type === "nvg") {   // ballistic helmet with a front shroud, flip-down arm and twin green-glow tubes
+      const olive = new THREE.MeshPhysicalMaterial({ color: 0x3b4230, roughness: 0.78, clearcoat: 0.15 });
+      const blk = new THREE.MeshStandardMaterial({ color: 0x17181a, roughness: 0.6, metalness: 0.3 });
+      const hr = { x: headEll.rx + 0.02, y: 0.108, z: headEll.rz + 0.02 };
+      const helm = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.53), olive);
+      helm.scale.set(hr.x, hr.y, hr.z); helm.position.set(0, eyeY + 0.028, zcF - 0.004); helm.rotation.x = -0.22; G.add(helm);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 6, 64), blk); rim.scale.set(hr.x * 0.99, hr.z * 0.99, 0.14); rim.rotation.x = Math.PI / 2 - 0.22;
+      rim.position.set(0, eyeY + 0.028 - 0.006, zcF - 0.004); G.add(rim);
+      for (const sd of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.016, 0.07), blk); rail.position.set(sd * (hr.x - 0.002), eyeY + 0.045, zcF - 0.01); rail.rotation.z = sd * 0.12; G.add(rail); }
+      const fz = zcF + hr.z * Math.cos(0.35) - 0.004, fy = eyeY + 0.028 + hr.y * Math.sin(0.35) + 0.006;
+      const shroud = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.022, 0.012), blk); shroud.position.set(0, fy, fz); shroud.rotation.x = -0.35; G.add(shroud);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.05, 0.012), blk); arm.position.set(0, (fy + eyeY + 0.012) / 2, z0 + 0.03); arm.rotation.x = 0.2; G.add(arm);
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.016, 0.022), blk); bridge.position.set(0, eyeY + 0.012, z0 + 0.034); G.add(bridge);
       for (const sd of [-1, 1]) {
-        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.012, 0.065, 24), blk); tube.rotation.x = Math.PI / 2; tube.position.set(sd * ex, eyeY, eyeZ + 0.055); G.add(tube);
-        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0125, 24), new THREE.MeshStandardMaterial({ color: 0x0f2a12, emissive: 0x33ff55, emissiveIntensity: 0.6 })); lens.position.set(sd * ex, eyeY, eyeZ + 0.0885); G.add(lens);
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0115, 0.06, 28), olive); tube.rotation.x = Math.PI / 2; tube.position.set(sd * ex, eyeY, z0 + 0.034); G.add(tube);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0132, 0.0018, 8, 28), blk); ring.position.set(sd * ex, eyeY, z0 + 0.064); G.add(ring);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0122, 28), new THREE.MeshPhysicalMaterial({ color: 0x0a2a10, emissive: 0x2bff5a, emissiveIntensity: 0.55, roughness: 0.05, clearcoat: 1 })); lens.position.set(sd * ex, eyeY, z0 + 0.0645); G.add(lens);
       }
       return G;
     }
@@ -824,7 +969,9 @@ function init() {
       holder.updateMatrixWorld(true);
       let delta;
       const fNow = faceFrame();
-      if (fNow && faceRestF) delta = fNow.multiply(faceRestF.clone().invert());   // follow the real (skinned) face
+      const eNow = eyeRestF ? eyeFrame() : null;
+      if (eNow) delta = eNow.multiply(eyeRestF.clone().invert());                 // follow the skull (eyeballs are rigid to it)
+      else if (fNow && faceRestF) delta = fNow.multiply(faceRestF.clone().invert());   // follow the real (skinned) face
       else { const now = holder.matrixWorld.clone().invert().multiply(B.head.matrixWorld); delta = now.multiply(headRestM.clone().invert()); }
       [H].forEach((g) => { g.updateMatrix(); g.matrix.premultiply(delta); g.matrix.decompose(g.position, g.quaternion, g.scale); });
       // irises sit on the real (skinned) cornea of each eyeball, facing the way that eyeball faces
@@ -842,14 +989,35 @@ function init() {
     const realHair = !!M.hair_long;
     if (realHair) {
       const want = HAIRMAP[style] || "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
-      for (const k in M) if (/^hair_/.test(k)) { M[k].visible = k === want && !(capped && (k === "hair_afro" || k === "hair_bob" || k === "hair_pixie")); M[k].material.userData.uTint.value.copy(tint); }
+      const braided = style === "knotless" || style === "butterfly" || style === "curly";
+      for (const k in M) if (/^hair_/.test(k)) { M[k].visible = !(braided && k === "hair_pixie") && !(style === "curly" && k === "hair_afro") && k === want && !(capped && (k === "hair_afro" || k === "hair_bob" || k === "hair_pixie")); M[k].material.userData.uTint.value.copy(tint); }
       if (M.brows) M.brows.material.userData.uTint.value.copy(tint).multiplyScalar(0.7);
+      if (M.hair_long) M.hair_long.material.userData.uWave.value = style === "wave" ? 1 : 0;
     }
     if (realHair) { /* real hair meshes handle the main styles */ }
     else if (hairCap) { hairCap.visible = !capped; hairCap.material = hairM.clone(); }
     else if (style !== "bob" && !capped) { const cap = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.55), hairM); cap.position.set(0, 0.008, -0.012); cap.rotation.x = -0.32; H.add(cap); }
     const backLen = { straight: 0.5, wave: 0.45, curly: 0.38, knotless: 0.52, butterfly: 0.48, pony: 0.45 }[style] || 0;
-    if (realHair && !(style === "knotless" || style === "butterfly" || style === "buns" || style === "spike")) { /* nothing extra */ }
+    const zc = eyeZ - 0.085;   // skull centre depth relative to H
+    let scalp = null;
+    if (M.hair_pixie) { const g = M.hair_pixie.geometry; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox;
+      const c = bb.getCenter(new THREE.Vector3()).sub(H.position), hs = bb.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+      // the cap runs down to the nape; use its top half for the dome
+      scalp = { c: new THREE.Vector3(0, c.y + hs.y - hs.x * 1.05, c.z), r: new THREE.Vector3(hs.x * 0.96, hs.x * 1.05, hs.z * 0.96) }; }
+    const scalpTop = M.hair_pixie ? (M.hair_pixie.geometry.boundingBox || (M.hair_pixie.geometry.computeBoundingBox(), M.hair_pixie.geometry.boundingBox)).max.y - H.position.y : R;
+    if (realHair && scalp && (style === "knotless" || style === "butterfly" || style === "curly")) {   // tight scalp cap under the braids / curls
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.6), hairM);
+      cap.scale.copy(scalp.r).multiplyScalar(1.005); cap.position.copy(scalp.c); cap.rotation.x = -0.62; H.add(cap);
+    }
+    if (realHair && style === "curly") H.add(braidHair("curly", R, 0.26, hairM, scalp));
+    else if (realHair && style === "pony") H.add(highPony(hairM, eyeY, eyeZ, scalpTop));
+    else if (realHair && style === "buns") {
+      for (const sd of [-1, 1]) {
+        const bn = sphere(0.04, hairM, sd * 0.052, scalpTop - 0.024, zc - 0.004, 1, 0.9, 1); H.add(bn);
+        const tw = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 8, 28), hairM); tw.position.set(sd * 0.05, scalpTop - 0.034, zc - 0.004); tw.rotation.set(Math.PI / 2 - 0.2, 0, sd * 0.4); H.add(tw);
+      }
+    }
+    else if (realHair && !(style === "knotless" || style === "butterfly" || style === "spike")) { /* nothing extra */ }
     else if (style === "straight" || style === "wave") {
       const panel = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, backLen, 8, 24), hairM);
       panel.position.set(0, -backLen / 2 - 0.03, -0.075); panel.scale.set(1.15, 1, 0.3); panel.rotation.x = 0.1; H.add(panel);
@@ -862,10 +1030,7 @@ function init() {
       const r = rnd(7);
       for (let i = 0; i < 34; i++) { const a = r() * Math.PI * 2, yy = 0.08 - r() * 0.48; H.add(sphere(0.055 + r() * 0.03, hairM, Math.cos(a) * 0.13, yy, -0.04 + Math.sin(a) * 0.07 - (yy < -0.05 ? 0.06 : 0))); }
     } else if (style === "knotless" || style === "butterfly") {
-      for (let i = 0; i < 13; i++) {
-        const a = -1.5 + i * 0.25, x = Math.sin(a) * 0.095, z = -Math.cos(a) * 0.075 - 0.01;
-        H.add(limb([x, 0.03, z], [x * 1.3, -backLen, z - 0.05], style === "butterfly" ? 0.016 : 0.011, style === "butterfly" ? 0.014 : 0.009, hairM, false));
-      }
+      H.add(braidHair(style, R, backLen, hairM, scalp));
     } else if (style === "pony") {
       H.add(sphere(0.032, hairM, 0, 0.07, -0.1));
       H.add(limb([0, 0.07, -0.12], [0, -backLen, -0.17], 0.038, 0.018, hairM));
@@ -913,12 +1078,13 @@ function init() {
       const hb = new THREE.Mesh(new THREE.TorusGeometry(R * 1.08, 0.009, 8, 32, Math.PI), black); hb.position.set(0, 0.0, -0.005); H.add(hb);
       for (const sd of [-1, 1]) H.add(sphere(0.028, black, sd * R * 1.04, 0, 0, 0.6, 1, 1));
     }
-    if (has("jewelry", "hoops")) for (const sd of [-1, 1]) { const h = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.0028, 8, 24), gold); h.position.set(sd * 0.072, -0.045, 0.0); h.rotation.y = Math.PI / 2; H.add(h); }
+    const lobeAt = (sd) => { const L = faceFit && faceFit.lobe && faceFit.lobe[sd > 0 ? 0 : 1]; return L ? L.clone().sub(H.position) : new THREE.Vector3(sd * 0.073, -0.03, 0.005); };
+    if (has("jewelry", "hoops")) for (const sd of [-1, 1]) { const L = lobeAt(sd), h = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.0024, 8, 32), gold); h.position.set(L.x + sd * 0.002, L.y - 0.015, L.z); h.rotation.y = Math.PI / 2; H.add(h); }
     if (has("jewelry", "crystalband")) {   // rhinestone band over the crown, ear to ear
       const ice = std({ color: 0xffffff, metalness: 0.7, roughness: 0.05, emissive: 0x333344 });
       for (let i = 0; i <= 14; i++) { const a = -1.25 + i * (2.5 / 14); H.add(sphere(0.0065, ice, Math.sin(a) * R * 1.12, -0.035 + Math.cos(a) * R * 1.12, 0.012 + Math.cos(a) * 0.012, 1, 1, 0.6)); }
     }
-    if (has("jewelry", "studs")) for (const sd of [-1, 1]) H.add(sphere(0.005, std({ color: 0xffffff, metalness: 0.6, roughness: 0.05 }), sd * 0.073, -0.03, 0.005));
+    if (has("jewelry", "studs")) for (const sd of [-1, 1]) { const L = lobeAt(sd); H.add(sphere(0.0032, new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.02, clearcoat: 1, envMap: envTex || null, envMapIntensity: 2.5 }), L.x + sd * 0.0015, L.y - 0.002, L.z)); }
 
     // fur hood / chains at the neck
     const nk = neck.clone().add(v3(0, 0.02, -0.01));
@@ -1510,5 +1676,5 @@ function init() {
   });
   renderer.domElement.addEventListener("pointerdown", () => { if (controls.autoRotate) { controls.autoRotate = false; syncSpin(); } });
   syncSpin();
-  window.BADDIES_3D = { build, scene, camera, controls, bones: B, get body() { return body; }, get faceIdx() { return faceIdx; }, faceFrame: () => faceFrame(), get faceRestF() { return faceRestF; } };
+  window.BADDIES_3D = { build, scene, camera, controls, bones: B, get body() { return body; }, get faceIdx() { return faceIdx; }, faceFrame: () => faceFrame(), get faceRestF() { return faceRestF; }, get dbg() { return { eyeInfo, headInfo, faceFit, extras, holder }; } };
 }
