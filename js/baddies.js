@@ -220,6 +220,7 @@
     var L = lookOf(), out = [], t = norm180(L.turn), face = norm180(t + L.twist + L.head);
     var side = function (v) { return v > 0 ? "left" : "right"; };
     var away = Math.abs(t) > 110, sideways = !away && Math.abs(t) > 60, threeq = !away && !sideways && Math.abs(t) >= 20;
+    if (state.view === "cam") { away = sideways = threeq = false; }
     if (away) out.push("turned away with her back to the camera");
     else if (sideways) out.push("turned sideways, her " + (t > 0 ? "right" : "left") + " side toward the camera");
     else if (threeq) out.push("body turned three-quarters, her " + (t > 0 ? "right" : "left") + " shoulder toward the camera");
@@ -276,8 +277,38 @@
     full: { label: "Full body", w: 832, h: 1216, lead: "Full-body shot, head to toe, of", tail: "standing facing the camera, whole body in frame including boots" },
     back: { label: "Rear 3/4", w: 832, h: 1216, lead: "Full-body three-quarter rear view shot, head to toe, of", tail: "looking back over her shoulder at the camera, whole body in frame including boots" },
     action: { label: "Action pose", w: 832, h: 1216, lead: "Dynamic full-body action shot of", tail: "in a confident combat stance, whole body in frame" },
-    portrait: { label: "Portrait", w: 896, h: 1152, lead: "Waist-up portrait of", tail: "looking into the camera" }
+    portrait: { label: "Portrait", w: 896, h: 1152, lead: "Waist-up portrait of", tail: "looking into the camera" },
+    cam: { label: "Viewer angle", w: 832, h: 1216, lead: "Photo of", tail: "" }   // filled in from the 3D viewer's camera (camShot)
   };
+  // ---- "Viewer angle": the shot is taken from wherever the 3D viewer's camera is (height, side, distance, shape)
+  function camShot() {
+    var c = window.BADDIES_CAMERA ? window.BADDIES_CAMERA() : null;
+    if (!c) return { w: 832, h: 1216, lead: "Full-body shot, head to toe, of", tail: "facing the camera" };
+    var w = c.aspect < 0.85 ? 832 : c.aspect > 1.2 ? 1216 : 1024, h = c.aspect < 0.85 ? 1216 : c.aspect > 1.2 ? 832 : 1024;
+    var lead = { full: "Full-body shot, head to toe including her boots, of", knees: "Three-quarter shot from the knees up of", waist: "Medium shot from the waist up of",
+      chest: "Close-up from the chest up of", face: "Tight close-up portrait of the face of" }[c.frame];
+    var words = [];
+    if (c.camH > 1.15 || c.pitch <= -28) words.push(c.pitch <= -50 ? "steep high-angle shot from far above, the camera looking down on her, the ground all around her filling the background" : "high-angle shot from above, the camera looking down at her, the ground visible around her");
+    else if (c.camH < 0.3 || c.pitch >= 18) words.push("low-angle hero shot from near the ground, the camera looking up at her, sky above her");
+    else if (c.camH < 0.7) words.push("camera at waist height");
+    else words.push("eye-level camera");
+    var a = Math.abs(c.az), side = c.az > 0 ? "left" : "right";
+    if (a < 22) words.push("she faces the camera");
+    else if (a < 67) words.push("three-quarter view, her " + side + " side turned toward the camera");
+    else if (a < 112) words.push("side profile view, her " + side + " side to the camera");
+    else if (a < 157) words.push("three-quarter rear view from behind her " + side + " shoulder");
+    else words.push("seen from directly behind, her back to the camera");
+    if (c.dist < 1.1) words.push("shot close with a wide 28mm lens"); else if (c.dist > 4.5) words.push("shot from a distance with a long lens");
+    return { w: w, h: h, lead: lead, tail: words.join(", "), info: c };
+  }
+  function camLock() { return state.view === "cam" && state.camlock !== "off"; }
+  function camPrompt() {   // Klein edit: Picture 1 = the 3D view from the viewer camera, Picture 2 = the rendered character
+    var V = camShot();
+    return "Picture 1 is a 3D preview taken from the exact camera position to use. Picture 2 shows the real woman. Make a real photo of the woman from Picture 2 seen from exactly the camera angle, camera height, distance, lens and framing of Picture 1: " +
+      V.tail + ". Her pose, body angle, arms, legs and head match the 3D figure in Picture 1, and the background scene sits the same way it does in Picture 1. " +
+      "Copy her exact appearance from Picture 2: same face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon. Rendered with full real detail (real skin, fabric and metal), not a 3D preview. " +
+      fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ".";
+  }
   // Looks: drive both the AI render style and the live 3D preview (js/baddies-3d.js LOOKS uses the same ids).
   var STYLES = [
     ["game", "FPS game", "high-end 3D video game character render, Unreal Engine 5 quality, detailed skin shading, crisp"],
@@ -323,7 +354,7 @@
     pick: { hair: ["straight"], haircolor: ["black"], makeup: ["glam"], eyes: ["brown"], expr: ["confident"],
       camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], eyewear: ["none"], boots: ["white"],
       tattoos: ["legs"], inkstyle: ["color"], jewelry: ["studs"] },
-    weapon: "ak47", hold: "low", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
+    weapon: "ak47", hold: "low", camlock: "on", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
     pose: { preset: "hold", custom: null, match: false, look: { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 } }, duo: "side"
   };
 
@@ -374,6 +405,8 @@
       '<label class="bd-toggle"><input type="checkbox" id="bdPoseMatch" /> <span>Match my 3D pose exactly in the AI render</span></label>';
     $("bdDuo").innerHTML = '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
+      '<div class="bd-camlock">' + chipRow("camlock", "Viewer angle: match it", [["on", "Exactly (3D picture)"], ["off", "Words only (faster)"]]) +
+      '<p class="bd-note">Frame her in the 3D viewer (drag, scroll, or High / Low / Close), then Generate. "Exactly" sends a picture from your camera so the render copies the angle.</p></div>' +
       chipRow("style", "Look", STYLES) + chipRow("bg", "Background", BGS);
   }
   function groupHtml(g) {
@@ -412,6 +445,7 @@
     each($("bdEngine").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.engine); });
     each($("bdEdit").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.editEngine); });
     $("bdBatch").textContent = state.batch;
+    var cl = document.querySelector(".bd-camlock"); if (cl) cl.hidden = state.view !== "cam";
     $("bdGoSub").textContent = VIEWS[state.view].label + (state.batch > 1 ? " ×" + state.batch : "");
     charFace();
     each(document.querySelectorAll('#bd [data-opt="own"]'), function (b) { b.hidden = !state.char; });
@@ -729,7 +763,7 @@
 
   function buildPrompt() {
     if (state.char) return buildCharEdit();
-    var V = VIEWS[state.view];
+    var V = state.view === "cam" ? camShot() : VIEWS[state.view];
     var skin = fromList(SKIN, state.skin)[3];
     var parts = [];
     var C = state.char;
@@ -961,6 +995,21 @@
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
   function planSteps() {
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
+    if (state.view === "cam" && !state.with) {   // Viewer angle: the shot from the 3D viewer's camera
+      var CV = camShot();
+      if (C) {
+        if (hairRef() && isFluxEdit()) steps.push({ label: "dressing " + whoName(C), who: true, inputs: ["face", "hairref"], multi: true, prompt: "Picture 1 is the photo to edit." + hairRefNote(2) + " " + buildCharEdit() });
+        else steps.push({ label: "dressing " + whoName(C), who: true, inputs: ["face"], prompt: buildCharEdit() });
+        steps.push({ label: "matching your camera", who: true, inputs: ["cam", "prev"], multi: true, w: CV.w, h: CV.h, prompt: camPrompt(), post: bodyEdit() });
+      } else {
+        steps.push({ label: "", inputs: [], w: CV.w, h: CV.h, prompt: buildPrompt(), post: camLock() ? "" : bodyEdit() });
+        if (hairRef()) steps.push({ label: "styling the hair", inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt(false) });
+        if (camLock()) steps.push({ label: "matching your camera", inputs: ["cam", "prev"], multi: true, w: CV.w, h: CV.h, prompt: camPrompt(), post: bodyEdit() });
+      }
+      if (gunRef()) steps.push({ label: "fixing the weapon", who: !!C, inputs: ["prev", "gunref"], multi: true, prompt: gunFixPrompt(false) });
+      steps[steps.length - 1].batch = state.batch;
+      return steps;
+    }
     if (C) {
       if (hairRef() && isFluxEdit()) steps.push({ label: "dressing " + whoName(C), who: true, inputs: ["face", "hairref"], multi: true, prompt: "Picture 1 is the photo to edit." + hairRefNote(2) + " " + buildCharEdit() });
       else steps.push({ label: "dressing " + whoName(C), who: true, inputs: ["face"], prompt: buildCharEdit() });
@@ -1052,14 +1101,19 @@
       if (!blobs.gunref && plan.some(function (st) { return st.label === "fixing the weapon"; })) {   // reference unavailable: skip that step
         var b0 = plan[plan.length - 1].batch; plan = plan.filter(function (st) { return st.label !== "fixing the weapon"; }); plan[plan.length - 1].batch = b0;
       }
-      if (poseMatch()) {
+      if (plan.some(function (st) { return st.inputs.indexOf("cam") >= 0; })) {
+        if (!window.BADDIES_CAMERA_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the camera angle can't be captured. Wait a moment and try again.");
+        var cv = camShot(), cb = await window.BADDIES_CAMERA_SNAPSHOT(cv.w, cv.h); if (!cb) throw new Error("Couldn't capture the camera view.");
+        blobs.cam = new File([cb], "camera-view.png", { type: "image/png" });
+      }
+      if (poseMatch() && state.view !== "cam") {
         if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
         var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
         blobs.pose = new File([pb], "pose.png", { type: "image/png" });
         if (state.char && window.BADDIES_POSE_SKELETON) { var sk = await window.BADDIES_POSE_SKELETON(); if (sk) blobs.skel = new File([sk], "skeleton.png", { type: "image/png" }); }
       }
     } catch (e) { hint(e.message, true); $("bdGo").disabled = false; return; }
-    var last = VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
+    var last = state.view === "cam" && !state.with ? camShot() : VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
     var settings = snapshot(), model = plan[0].inputs.length ? editModel() : state.engine;
     settings.models = plan.map(function (st) { return st.inputs.length ? editModel() : state.engine; }).concat(plan.some(function (st) { return st.post; }) ? ["qwen_edit2509"] : [])
       .filter(function (m, i, a) { return a.indexOf(m) === i; });
@@ -1270,14 +1324,14 @@
   // ------------------------------------------------------------ settings in/out
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
-      weapon: state.weapon, hold: state.hold, view: state.view, style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
+      weapon: state.weapon, hold: state.hold, view: state.view, camlock: state.camlock || "on", style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
       hairTouched: !!state.hairTouched, pose: clone(state.pose || DEFAULTS.pose), duo: state.duo || "side",
       "with": state["with"] ? { key: state["with"].key, name: state["with"].name, handle: state["with"].handle, kind: state["with"].kind, thumb: state["with"].thumb, url: state["with"].url } : null,
       char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
     if (!s) return;
-    ["skin", "height", "exag", "weapon", "hold", "view", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
+    ["skin", "height", "exag", "weapon", "hold", "view", "camlock", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
     if (!VIEWS[state.view]) state.view = "sheet";
     if (s.shape) state.shape = Object.assign(clone(DEFAULTS.shape), s.shape);
     if (s.pick) state.pick = Object.assign(clone(DEFAULTS.pick), clone(s.pick));

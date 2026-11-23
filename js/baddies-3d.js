@@ -13,6 +13,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { GroundedSkybox } from "three/addons/objects/GroundedSkybox.js";
 
 const box = document.getElementById("bdPreview");
 const canvasWrap = document.getElementById("bdPreviewCanvas");
@@ -63,6 +64,46 @@ function init() {
   const bgTex = {}; let bgOn = false, bgWant = "";
   const ground = new THREE.Mesh(new THREE.CircleGeometry(0.6, 48), new THREE.MeshBasicMaterial({ map: radialTex(), transparent: true, depthWrite: false }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = 0.001; scene.add(ground); scene.add(backdrop);
+  // Under a flat backdrop photo: a wide floor tiled from the photo's own bottom strip, drawn behind the photo,
+  // so looking down from above never shows empty space below the picture.
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false, toneMapped: false, fog: false }));
+  floor.rotation.x = -Math.PI / 2; floor.renderOrder = -20; floor.visible = false; scene.add(floor);
+  // and above it a sky dome in the photo's own top colour (looking up from low never shows empty space either)
+  const skyFill = new THREE.Mesh(new THREE.SphereGeometry(39, 32, 16), new THREE.MeshBasicMaterial({ color: 0x888888, side: THREE.BackSide, depthWrite: false, toneMapped: false, fog: false }));
+  skyFill.renderOrder = -30; skyFill.visible = false; scene.add(skyFill);
+  const floorTex = {};
+  function floorFrom(id, img) {
+    if (floorTex[id]) return floorTex[id];
+    const c = document.createElement("canvas"), w = 512, hh = 512, g = c.getContext("2d"); c.width = w; c.height = hh;
+    const sh = Math.round(img.height * 0.22);
+    g.filter = "blur(3px)"; g.drawImage(img, 0, img.height - sh, img.width, sh, -8, -8, w + 16, hh + 16); g.filter = "none";
+    // soften the tile edges into the average colour so the repeat doesn't read as a pattern
+    const d = g.getImageData(0, 0, w, hh).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; } const n = d.length / 4;
+    const avg = "rgb(" + Math.round(r / n) + "," + Math.round(gg / n) + "," + Math.round(b / n) + ")";
+    const gr = g.createRadialGradient(w / 2, hh / 2, w * 0.2, w / 2, hh / 2, w * 0.72); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, avg);
+    g.globalAlpha = 0.85; g.fillStyle = gr; g.fillRect(0, 0, w, hh); g.globalAlpha = 1;
+    const top = document.createElement("canvas"); top.width = 8; top.height = 2; const tg = top.getContext("2d"); tg.drawImage(img, 0, 0, img.width, Math.max(2, img.height * 0.04), 0, 0, 8, 2);
+    const td = tg.getImageData(0, 0, 8, 2).data; let tr = 0, tgg = 0, tb = 0; for (let i = 0; i < td.length; i += 4) { tr += td[i]; tgg += td[i + 1]; tb += td[i + 2]; }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping; t.repeat.set(7, 7); t.anisotropy = 8;
+    t.userData.sky = new THREE.Color(tr / 16 / 255, tgg / 16 / 255, tb / 16 / 255).convertSRGBToLinear();
+    return (floorTex[id] = t);
+  }
+  // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
+  // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
+  const PANO_H = 1.6, PANO_R = 38;
+  const PANOS = {};   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
+  function loadPano(id, cb) {
+    if (panoTex[id]) return cb(panoTex[id]); if (panoMiss[id] || !PANOS[id]) return cb(null);
+    new THREE.TextureLoader().load(new URL("img/baddies/pano/" + id + ".webp?v=" + PANOS[id], document.baseURI).href, (t) => {
+      t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; panoTex[id] = t; cb(t);
+    }, undefined, () => { panoMiss[id] = true; cb(null); });
+  }
+  function showPano(t) {
+    if (!sky) { sky = new GroundedSkybox(t, PANO_H, PANO_R, 96); sky.position.y = PANO_H - 0.005; sky.material.toneMapped = false; sky.renderOrder = -20; scene.add(sky); }
+    else if (sky.material.map !== t) { sky.material.map = t; sky.material.needsUpdate = true; }
+    sky.visible = true; panoOn = true; backdrop.visible = false; floor.visible = false; skyFill.visible = false;
+  }
 
   const ruler = new THREE.Group(); scene.add(ruler);
   const holder = new THREE.Group(); scene.add(holder);      // scaled by height
@@ -2115,23 +2156,30 @@ function init() {
     const was = bgOn; bgOn = !!want; bgWant = want;
     if (want) {
       canvasWrap.style.background = "#0c0d10";
-      if (bgTex[want]) backdrop.material.map = bgTex[want];
-      else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=2", document.baseURI).href, (t) => {
-        t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; bgTex[want] = t;
-        if (bgWant === want) { backdrop.material.map = t; backdrop.material.needsUpdate = true; }
-      });
-      backdrop.material.needsUpdate = true; backdrop.visible = true; ground.visible = false;
-      controls.maxDistance = 7; controls.minPolarAngle = 1.2; controls.maxPolarAngle = Math.PI / 2 + 0.06;
+      const flat = () => {
+        if (sky) sky.visible = false; panoOn = false;
+        const useT = (t) => { backdrop.material.map = t; backdrop.material.needsUpdate = true; const ft = floorFrom(want, t.image); floor.material.map = ft; floor.material.needsUpdate = true; floor.visible = true; skyFill.material.color.copy(ft.userData.sky); skyFill.visible = true; };
+        if (bgTex[want]) useT(bgTex[want]);
+        else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=2", document.baseURI).href, (t) => {
+          t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; bgTex[want] = t;
+          if (bgWant === want && !panoOn) useT(t);
+        });
+        backdrop.visible = true;
+      };
+      if (panoTex[want]) showPano(panoTex[want]);
+      else { flat(); loadPano(want, (t) => { if (t && bgWant === want && bgOn) showPano(t); }); }
+      ground.visible = true;
+      controls.maxDistance = 7; controls.minPolarAngle = 0.35; controls.maxPolarAngle = Math.PI / 2 + 0.3;
       if (!was) frameForBackdrop();
     } else if (plain && (!curBg || curBg === "white")) {   // white studio: light seamless sweep with her shadow on the floor
-      backdrop.visible = false;
+      backdrop.visible = false; floor.visible = false; skyFill.visible = false; if (sky) sky.visible = false; panoOn = false;
       canvasWrap.style.background = "radial-gradient(120% 85% at 50% 35%, #ffffff 0%, #f1f1f2 45%, #dcdcde 100%)";
       controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       ground.visible = true;
       if (was) unframeBackdrop();
     } else {
       if (was) unframeBackdrop();
-      backdrop.visible = false; canvasWrap.style.background = lookBg;
+      backdrop.visible = false; floor.visible = false; skyFill.visible = false; if (sky) sky.visible = false; panoOn = false; canvasWrap.style.background = lookBg;
       controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       if (curLook && !curLook.holo && !curLook.grid && !curLook.shadows) ground.visible = true;
     }
@@ -2146,6 +2194,9 @@ function init() {
     off.setLength(3.9); controls.target.set(0, lastTy, 0); camera.position.set(off.x, lastTy + 0.18, off.z); controls.update();
   }
   function placeBackdrop() {
+    if (bgOn && camera.position.y < 0.06) { camera.position.y = 0.06; }   // never under the ground
+    if (floor.visible) floor.position.set(camera.position.x, 0, camera.position.z);
+    if (skyFill.visible) skyFill.position.copy(camera.position);
     if (!backdrop.visible) return;
     const dir = controls.target.clone().sub(camera.position); dir.y = 0; if (dir.lengthSq() < 1e-6) return; dir.normalize();
     const flat = camera.position.clone().sub(controls.target); flat.y = 0;
@@ -2403,6 +2454,44 @@ function init() {
     }
   };
 
+  // ---- the viewer's camera, for "Viewer angle" renders: where it is relative to her, and a picture from exactly there
+  function camInfo() {
+    holder.updateMatrixWorld(true); camera.updateMatrixWorld();
+    const toW = (v) => holder.localToWorld(v.clone());
+    const head = B.head ? toW(bonePos("head")) : v3(0, 1.5, 0), top = head.clone().add(v3(0, 0.13 * holder.scale.y, 0));
+    const pel = B.pelvis ? toW(bonePos("pelvis")) : v3(0, 0.9, 0), knee = B.calf_l ? toW(bonePos("calf_l")).lerp(toW(bonePos("calf_r")), 0.5) : v3(0, 0.48, 0);
+    const chest = B.spine_03 ? toW(bonePos("spine_03")).add(v3(0, 0.1 * holder.scale.y, 0)) : v3(0, 1.2, 0);
+    const feet = v3(pel.x, 0.02, pel.z), hgt = Math.max(0.5, top.y);
+    const inView = (p) => { const q = p.clone().project(camera); return q.z < 1 && Math.abs(q.x) <= 1.02 && Math.abs(q.y) <= 1.02; };
+    // vertical framing: lowest body landmark still in frame
+    const frame = inView(feet) ? "full" : inView(knee) ? "knees" : inView(pel) ? "waist" : inView(chest) ? "chest" : "face";
+    // camera height vs her and how steeply it looks
+    const camH = camera.position.y / hgt, look = camera.getWorldDirection(new THREE.Vector3()), pitch = Math.asin(Math.max(-1, Math.min(1, look.y))) * 180 / Math.PI;
+    // which side of her it sees: her facing is +z turned by the body turn and torso twist
+    const across = B.upperarm_l && B.upperarm_r ? toW(bonePos("upperarm_l")).sub(toW(bonePos("upperarm_r"))) : new THREE.Vector3(1, 0, 0).applyQuaternion(holder.quaternion);
+    const facing = new THREE.Vector3().crossVectors(across, new THREE.Vector3(0, 1, 0)); facing.y = 0; facing.normalize();
+    const toCam = camera.position.clone().sub(pel); toCam.y = 0; toCam.normalize();
+    let az = Math.atan2(new THREE.Vector3().crossVectors(facing, toCam).y, facing.dot(toCam)) * 180 / Math.PI;   // 0 = front, +90 = her left
+    const dist = camera.position.distanceTo(chest) / holder.scale.y;
+    return { frame, camH: +camH.toFixed(2), pitch: Math.round(pitch), az: Math.round(az), dist: +dist.toFixed(2), aspect: +(canvasWrap.clientWidth / Math.max(1, canvasWrap.clientHeight)).toFixed(3), fov: camera.fov, bg: bgOn, pano: panoOn };
+  }
+  window.BADDIES_CAMERA = camInfo;
+  // the current view, as seen in the viewer (background on), without the height ruler and pose handles
+  window.BADDIES_CAMERA_SNAPSHOT = async function (W, H) {
+    const vis = [ruler.visible, handleGroup.visible], ar = controls.autoRotate, pr = renderer.getPixelRatio();
+    try {
+      ruler.visible = false; handleGroup.visible = false; controls.autoRotate = false;
+      renderer.setPixelRatio(1); renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+      if (!bgOn) renderer.setClearColor(0xf0f0f0, 1);
+      placeBackdrop();
+      if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
+      return await new Promise((res) => dom.toBlob(res, "image/png"));
+    } finally {
+      renderer.setClearColor(0x000000, 0); ruler.visible = vis[0]; handleGroup.visible = vis[1]; controls.autoRotate = ar;
+      renderer.setPixelRatio(pr); resize(); controls.update();
+    }
+  };
+
   let queued = null;
   function queue(st) { queued = st; requestAnimationFrame(() => { if (queued) { build(queued); queued = null; } }); }
   window.addEventListener("baddies:change", (ev) => queue(ev.detail));
@@ -2412,12 +2501,23 @@ function init() {
     controls.autoRotate = false; syncSpin();
     camera.position.set(Math.sin(az) * d, controls.target.y + 0.15, Math.cos(az) * d); controls.update();
   }
+  // one-tap camera angles: from above, from the ground, and a close-up (keeps the current side)
+  function camPreset(v) {
+    controls.autoRotate = false; syncSpin();
+    const sc = holder.scale.y, off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1); off.normalize();
+    const hgt = 1.6 * sc;
+    if (v === "high") { controls.target.set(0, hgt * 0.45, 0); camera.position.set(off.x * 2.6 * sc, hgt * 1.75, off.z * 2.6 * sc); }
+    else if (v === "low") { controls.target.set(0, hgt * 0.6, 0); camera.position.set(off.x * 2.6 * sc, 0.22, off.z * 2.6 * sc); }
+    else { controls.target.set(0, hgt * 0.86, 0); camera.position.set(off.x * 1.05 * sc, hgt * 0.9, off.z * 1.05 * sc); }
+    controls.update();
+  }
   function syncSpin() { const b = document.getElementById("bdSpin"); if (b) { b.classList.toggle("is-on", controls.autoRotate); b.setAttribute("aria-pressed", controls.autoRotate); } }
   box.addEventListener("click", (ev) => {
     const b = ev.target.closest("[data-pv]"); if (!b) return;
     const v = b.getAttribute("data-pv");
     if (v === "spin") { controls.autoRotate = !controls.autoRotate; syncSpin(); }
     else if (v === "front") setView(0); else if (v === "side") setView(Math.PI / 2); else if (v === "back") setView(Math.PI);
+    else if (v === "high" || v === "low" || v === "close") camPreset(v);
   });
   renderer.domElement.addEventListener("pointerdown", () => { if (controls.autoRotate) { controls.autoRotate = false; syncSpin(); } });
   syncSpin();
