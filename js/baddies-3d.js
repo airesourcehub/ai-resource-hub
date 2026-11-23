@@ -141,6 +141,62 @@ function init() {
   const BOOTS = { white: "#efefea", black: "#18181b", tan: "#b08a5a", sneakers: "#f2f2f2" };
   const EYES = { brown: "#3d2414", hazel: "#6b4f24", green: "#3f7a4a", grey: "#7d8a92", blue: "#3d7cc9" };
 
+  // ------------------------------------------------------------ garment masks (shared by the painted body and the 3D garment shells)
+  // Everything is decided per pixel in rest space (vRest) plus smooth bone-region weights (vR1/vR2), so hems,
+  // necklines and cuffs are clean lines instead of the old triangle-stepped edges.
+  //   vR1 = head, upper arm, forearm, hand      vR2 = thigh, calf, foot, torso (incl. neck)
+  const GAR_GLSL = `
+    uniform vec4 uTopA, uTopB, uBotA, uGearA, uGearB, uTopCol, uBotCol;
+    uniform vec3 uPadCol;
+    varying vec4 vR1, vR2;
+    float gArm() { return vR1.y + vR1.z + vR1.w; }
+    float gLeg() { return vR2.x + vR2.y + vR2.z; }
+    // uTopA: hem y, sleeves (0 none, 1 cap, 2 long), neck (0 crew, 1 tank scoop, 2 high collar), open-front half width
+    float garTop(vec3 p) {
+      if (uTopB.x < 0.5 || vR1.x > 0.5 || gLeg() > 0.5) return 0.0;
+      float ax = abs(p.x);
+      if (gArm() > 0.5) {
+        if (uTopA.y < 0.5) return 0.0;
+        if (uTopA.y < 1.5) return step(ax, 0.212);
+        return step(vR1.w, 0.42);
+      }
+      if (p.y < uTopA.x) return 0.0;
+      float fr = smoothstep(-0.015, 0.03, p.z);
+      float ny;
+      if (uTopA.z > 1.5) ny = 1.405 - 0.01 * fr;
+      else if (uTopA.z > 0.5) {
+        ny = mix(1.33 - 0.03 * (1.0 - smoothstep(0.0, 0.06, ax)), 1.345 - 0.105 * (1.0 - smoothstep(0.02, 0.075, ax)), fr);
+        if (ax > uTopB.y + 0.11 * smoothstep(1.285, 1.15, p.y)) return 0.0;               // tank: bare shoulders beside the straps
+      } else ny = 1.352 - 0.016 * fr;
+      if (p.y > ny) return 0.0;
+      if (uTopA.w > 0.0 && p.z > 0.02 && ax < uTopA.w * (0.3 + 0.9 * smoothstep(1.05, 1.34, p.y))) return 0.0;
+      return 1.0;
+    }
+    // uBotA: kind (0 none, 1 bodysuit, 2 shorts / pants), waist y, leg hem y (0 = down to the ankle), front dip
+    float garBot(vec3 p) {
+      if (uBotA.x < 0.5 || vR1.x > 0.5 || gArm() > 0.5 || vR2.z > 0.5) return 0.0;
+      float ax = abs(p.x);
+      if (uBotA.x < 1.5) {
+        float fr = smoothstep(-0.015, 0.03, p.z);
+        float ny = mix(1.322 - 0.035 * (1.0 - smoothstep(0.0, 0.06, ax)), 1.335 - 0.115 * (1.0 - smoothstep(0.02, 0.08, ax)), fr);
+        if (p.y > ny || ax > uTopB.y - 0.006 + 0.11 * smoothstep(1.285, 1.15, p.y)) return 0.0;
+        float cut = mix(0.752, 0.9, smoothstep(0.028, 0.16, ax));
+        return step(cut, p.y) * step(gLeg(), 0.9);
+      }
+      float w = uBotA.y - uBotA.w * smoothstep(-0.02, 0.07, p.z);
+      if (p.y > w) return 0.0;
+      if (gLeg() > 0.5 && p.y < uBotA.z) return 0.0;
+      return 1.0;
+    }
+    // uGearA: gloves, knee pads, boot top y   uGearB: knee centre (x, y, z)
+    float garBoot(vec3 p) { return max(step(0.5, vR2.z), step(0.5, vR2.y) * step(p.y, uGearA.z)); }
+    float garGlove() { return uGearA.x * step(0.5, vR1.w); }
+    float garPad(vec3 p) {
+      if (uGearA.y < 0.5 || gLeg() < 0.5) return 0.0;
+      vec2 d = (vec2(abs(p.x), p.y) - uGearB.xy) / vec2(0.05, 0.066);
+      return step(length(d), 1.0) * step(uGearB.z - 0.035, p.z);
+    }
+  `;
   // ------------------------------------------------------------ body material (painted outfit)
   const U = {
     uSkin: { value: new THREE.Color(SKIN.caramel) }, uBoot: { value: new THREE.Color("#efefea") },
@@ -149,21 +205,40 @@ function init() {
     uSkinTex: { value: null }, uHasSkin: { value: 0 },
     // makeup, painted in rest (bind) space so it rides along with expressions
     uEyeL: { value: new THREE.Vector3(0.032, 1.5, 0.08) }, uEyeR: { value: new THREE.Vector3(-0.032, 1.5, 0.08) }, uMouth: { value: new THREE.Vector3(0, 1.44, 0.09) },
-    uLip: { value: new THREE.Color("#a5555a") }, uLipAmt: { value: 0.3 }, uLiner: { value: 0 }, uShadowC: { value: new THREE.Color("#5a3a30") }, uShadowAmt: { value: 0 }
+    uLip: { value: new THREE.Color("#a5555a") }, uLipAmt: { value: 0.3 }, uLiner: { value: 0 }, uShadowC: { value: new THREE.Color("#5a3a30") }, uShadowAmt: { value: 0 },
+    uTopA: { value: new THREE.Vector4(1.085, 2, 2, 0) }, uTopB: { value: new THREE.Vector4(1, 0.096, 0, 0) }, uBotA: { value: new THREE.Vector4(1, 0, 0, 0) },
+    uGearA: { value: new THREE.Vector4(0, 0, 0.28, 0) }, uGearB: { value: new THREE.Vector4(0.132, 0.48, 0.07, 0) },
+    uTopCol: { value: new THREE.Vector4(1, 1, 1, 0) }, uBotCol: { value: new THREE.Vector4(0.2, 0.2, 0.2, 0) }, uPadCol: { value: new THREE.Color(0x2b2d31) }, uGarOn: { value: 0 }
   };
   const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0, sheen: 0.45, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xffd2b8), clearcoat: 0.06, clearcoatRoughness: 0.45 });
   bodyMat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute float aCls;\nattribute float aInk;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;\nvarying vec3 vRest;")
-      .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCls = aCls; vInk = aInk; vUv2 = uv; vRest = position;");
+      .replace("#include <common>", "#include <common>\nattribute float aCls;\nattribute float aInk;\nattribute vec4 aR1;\nattribute vec4 aR2;\nvarying vec4 vR1;\nvarying vec4 vR2;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;\nvarying vec3 vRest;")
+      .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCls = aCls; vInk = aInk; vUv2 = uv; vRest = position; vR1 = aR1; vR2 = aR2;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk, uSkinTex;\nuniform float uHasSkin;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;\nvarying vec3 vRest;\nuniform vec3 uEyeL, uEyeR, uMouth, uLip, uShadowC;\nuniform float uLipAmt, uLiner, uShadowAmt;")
+      .replace("#include <common>", "#include <common>\nuniform vec3 uSkin, uBoot, uDark, uBlack;\nuniform sampler2D uCamo, uInk, uSkinTex;\nuniform float uHasSkin;\nvarying float vCls;\nvarying float vInk;\nvarying vec2 vUv2;\nvarying vec3 vRest;\nuniform vec3 uEyeL, uEyeR, uMouth, uLip, uShadowC;\nuniform float uLipAmt, uLiner, uShadowAmt, uGarOn;\nfloat garK = 0.0;\n" + GAR_GLSL)
       .replace("#include <color_fragment>", `#include <color_fragment>
-        float cls = floor(vCls + 0.5);
-        lkCloth = cls > 0.5 ? 1.0 : 0.0;
+        float gB = garBot(vRest), gT = garTop(vRest), gG = garGlove(), gK = garBoot(vRest), gP = garPad(vRest);
+        if (uGarOn > 0.5 && max(max(gB, gT), gG) > 0.5) {   // the fitted garment shell is drawn here instead (6 mm in from its edges)
+          float e = 0.006, deep = 1.0;
+          for (int k = 0; k < 4; k++) {
+            vec3 o = k == 0 ? vec3(0.0, e, 0.0) : k == 1 ? vec3(0.0, -e, 0.0) : k == 2 ? vec3(e, 0.0, 0.0) : vec3(-e, 0.0, 0.0);
+            vec3 q = vRest + o;
+            deep = min(deep, gT > 0.5 ? garTop(q) : gB > 0.5 ? garBot(q) : 1.0);
+          }
+          if (deep > 0.5) discard;
+        }
+        vec3 camoC = texture2D(uCamo, vUv2 * 3.0).rgb;
         vec3 col = uSkin;
-        if (uHasSkin > 0.5) { vec3 st = texture2D(uSkinTex, vUv2).rgb; float sl = dot(st, vec3(0.299, 0.587, 0.114)); col = uSkin * clamp(sl / 0.6, 0.55, 1.35); }
+        if (gB > 0.5) { col = uBotCol.w > 0.5 ? camoC : uBotCol.rgb; garK = 1.0; }
+        if (gT > 0.5) { col = uTopCol.w > 0.5 ? camoC : uTopCol.rgb; garK = 1.0; }
+        if (gP > 0.5) { col = uPadCol; garK = 3.0; }
+        if (gG > 0.5) { col = uBlack; garK = 4.0; }
+        if (gK > 0.5) { col = uBoot; garK = 2.0; }
+        lkCloth = garK > 0.5 ? 1.0 : 0.0;
+        float cls = garK;
+        if (garK < 0.5 && uHasSkin > 0.5) { vec3 st = texture2D(uSkinTex, vUv2).rgb; float sl = dot(st, vec3(0.299, 0.587, 0.114)); col = uSkin * clamp(sl / 0.6, 0.55, 1.35); }
         if (cls < 0.5) {
           if (vInk > 0.5) {
             // ink sits under the skin: multiply blend (white paper = untouched skin), a touch of healed fade
@@ -187,12 +262,9 @@ function init() {
               col = mix(col, vec3(0.03), liner * uLiner * step(uEyeL.z - 0.03, vRest.z));
             }
           }
-        } else if (cls < 1.5) col = texture2D(uCamo, vUv2 * 3.0).rgb;
-        else if (cls < 2.5) col = uBoot;
-        else if (cls < 3.5) col = uDark;
-        else col = uBlack;
+        }
         diffuseColor.rgb = col;`)
-      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nfloat clsR = floor(vCls + 0.5);\nif (clsR > 0.5) roughnessFactor = clsR < 1.5 ? 0.85 : (clsR < 2.5 ? 0.45 : 0.7);");
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nfloat clsR = garK;\nif (clsR > 0.5) roughnessFactor = clsR < 1.5 ? 0.85 : (clsR < 2.5 ? 0.45 : 0.7);");
   };
 
   // ------------------------------------------------------------ load model
@@ -313,6 +385,16 @@ function init() {
     }
     g.setAttribute("aCls", new THREE.BufferAttribute(new Float32Array(n), 1));
     g.setAttribute("aInk", new THREE.BufferAttribute(new Float32Array(n), 1));
+    // smooth region weights for the garment masks: (head, upper arm, forearm, hand), (thigh, calf, foot, torso)
+    const r1 = new Float32Array(n * 4), r2 = new Float32Array(n * 4);
+    const cat = names.map((nm) => /^head|^FACIAL|eye|jaw|tongue|teeth/i.test(nm) ? 0 : /^upperarm/.test(nm) ? 1 : /^lowerarm/.test(nm) ? 2 : /^(hand|thumb|index|middle|ring|pinky)/.test(nm) ? 3
+      : /^thigh/.test(nm) ? 4 : /^calf/.test(nm) ? 5 : /^(foot|ball)/.test(nm) ? 6 : 7);
+    for (let i = 0; i < n; i++) for (let k = 0; k < 4; k++) {
+      const w = W.getComponent(i, k); if (!w) continue; const c = cat[J.getComponent(i, k)];
+      if (c < 4) r1[i * 4 + c] += w; else r2[i * 4 + c - 4] += w;
+    }
+    g.setAttribute("aR1", new THREE.BufferAttribute(r1, 4)); g.setAttribute("aR2", new THREE.BufferAttribute(r2, 4));
+    try { garPrep(); } catch (e) { console.warn("garments", e); G = null; }
   }
 
   // Materials for the real asset meshes: hair, brows and lashes are alpha cards tinted by colour;
@@ -405,28 +487,9 @@ function init() {
     const cls = body.geometry.attributes.aCls.array, ink = body.geometry.attributes.aInk.array;
     // heights on the rest mesh (model is 1.60 m)
     const bootTop = M.cl_boots ? (sneakers || bottom === "leggings" || bottom === "pants" ? 0 : 0.28) : (sneakers ? 0.13 : 0.3), shortsLow = bottom === "cargo" ? 0.62 : 0.68, kneeY = 0.46;
-    for (let i = 0; i < part.length; i++) {
-      const p = part[i], y = rest.getY(i), x = Math.abs(rest.getX(i)), z = rest.getZ(i);
-      let c = 0, inked = 0;
-      if (p === 2) c = vest ? 3 : 1;                                             // chest: every top covers it
-      else if (p === 3) c = vest && y > 1.08 ? 3 : (top === "crop" || top === "tank" ? (bottom === "bodysuit" ? 1 : 0) : (top === "puffer" || top === "jacket" ? (y > 1.12 ? 1 : (bottom === "bodysuit" ? 1 : 0)) : 1));
-      else if (p === 4) c = bottom === "bodysuit" || bottom === "pants" || bottom === "leggings" ? 1 : (y < 0.98 ? 1 : 0);
-      else if (p === 5) c = 1;
-      else if (p === 6) {
-        if (bottom === "leggings" || bottom === "pants") c = 1;
-        else if ((bottom === "shorts" || bottom === "cargo") && y > shortsLow) c = 1;
-        else if (bottom === "bodysuit" && y > 0.8 && x < 0.085 && Math.abs(z) < 0.11) c = 1;   // high-cut leg line
-        if (pads && Math.abs(y - kneeY) < 0.045 && z > 0) c = 3;
-        if (!c && legInk) inked = 1;
-      } else if (p === 7) {
-        c = y < bootTop ? 2 : (bottom === "leggings" || bottom === "pants" ? 1 : 0);
-        if (pads && Math.abs(y - kneeY) < 0.045 && z > 0) c = 3;
-        if (!c && legInk) inked = 1;
-      } else if (p === 8) c = 2;
-      else if (p === 9) { c = sleeves ? 1 : (top === "crop" && y > 1.3 ? 1 : 0); if (!c && armInk) inked = 1; }
-      else if (p === 10) { c = sleeves ? 1 : 0; if (!c && armInk) inked = 1; }
-      else if (p === 11) c = gloves ? 4 : 0;
-      cls[i] = c; ink[i] = inked;
+    for (let i = 0; i < part.length; i++) {   // garments are masked per pixel now (garTop / garBot); here only where ink may show
+      const p = part[i];
+      cls[i] = 0; ink[i] = (p === 6 || p === 7) ? (legInk ? 1 : 0) : (p === 9 || p === 10) ? (armInk ? 1 : 0) : 0;
     }
     body.geometry.attributes.aCls.needsUpdate = true; body.geometry.attributes.aInk.needsUpdate = true;
 
@@ -950,6 +1013,653 @@ function init() {
     return G;
   }
 
+  // ================================================================== FITTED GARMENTS + GEAR
+  // Clothes are "shells" grown from the body's own surface: a smoothed copy of the skin pushed out along the
+  // normals by the fabric thickness, skinned to the same skeleton, so they follow every curve slider and pose.
+  // Rigid gear (plate carrier, rigs, holster, pockets, jewellery) is modelled in rest space against the current
+  // body shape and riding one bone.
+  let G = null;
+  const SOLID = {   // per colourway: main solid (puffer) and dark accent (crop, biker shorts, gear)
+    snow: ["#eef0f3", "#34373c"], desert: ["#d8c29b", "#5d4a31"], woodland: ["#4f5c33", "#262a19"], urban: ["#202125", "#0f1012"],
+    navy: ["#24345c", "#111a2e"], pink: ["#f4b0c9", "#26222a"], red: ["#151518", "#a51d27"]
+  };
+  function garPrep() {
+    const g = body.geometry, P = g.attributes.position, N = g.attributes.normal, n = P.count, idx = g.index.array;
+    const wid = new Int32Array(n), km = new Map(); let nw = 0;
+    for (let i = 0; i < n; i++) {
+      const k = Math.round(P.getX(i) * 2e4) + "," + Math.round(P.getY(i) * 2e4) + "," + Math.round(P.getZ(i) * 2e4);
+      let id = km.get(k); if (id === undefined) { id = nw++; km.set(k, id); } wid[i] = id;
+    }
+    const wp = new Float32Array(nw * 3), wn = new Float32Array(nw * 3);
+    for (let i = 0; i < n; i++) { const w = wid[i] * 3; wp[w] = P.getX(i); wp[w + 1] = P.getY(i); wp[w + 2] = P.getZ(i); wn[w] += N.getX(i); wn[w + 1] += N.getY(i); wn[w + 2] += N.getZ(i); }
+    for (let w = 0; w < nw; w++) { const l = Math.hypot(wn[w * 3], wn[w * 3 + 1], wn[w * 3 + 2]) || 1; wn[w * 3] /= l; wn[w * 3 + 1] /= l; wn[w * 3 + 2] /= l; }
+    const nb = Array.from({ length: nw }, () => new Set());
+    for (let t = 0; t < idx.length; t += 3) {
+      const a = wid[idx[t]], b = wid[idx[t + 1]], c = wid[idx[t + 2]];
+      nb[a].add(b); nb[a].add(c); nb[b].add(a); nb[b].add(c); nb[c].add(a); nb[c].add(b);
+    }
+    const adj = nb.map((s) => Int32Array.from(s));
+    const a = null;
+    const repI = new Int32Array(nw); for (let i = n - 1; i >= 0; i--) repI[wid[i]] = i;
+    G = { wid, nw, repI, smooth: a, wn, adj, n, R1: g.attributes.aR1.array, R2: g.attributes.aR2.array, rest: P.array.slice() };
+    // knee pad centre (rest): front of the knee at the calf joint
+    let kz = 0.08;
+    for (let i = 0; i < n; i++) { const x = Math.abs(P.getX(i)), y = P.getY(i); if (Math.abs(x - 0.132) < 0.022 && Math.abs(y - 0.48) < 0.02 && gLegJ(i) > 0.5) kz = Math.max(kz, P.getZ(i)); }
+    G.knee = new THREE.Vector4(0.132, 0.48, kz - 0.01, 0);
+    // skull centre: between the ears, a little above the eyes
+    let zl = 9, zh = -9, ey = 1.5;
+    if (eyeInfo) ey = (eyeInfo.l.y + eyeInfo.r.y) / 2;
+    for (let i = 0; i < n; i++) { if (G.R1[i * 4] < 0.5) continue; const y = P.getY(i); if (Math.abs(y - (ey + 0.03)) < 0.01) { zl = Math.min(zl, P.getZ(i)); zh = Math.max(zh, P.getZ(i)); } }
+    G.headC = zl < 9 ? new THREE.Vector3(eyeInfo ? (eyeInfo.l.x + eyeInfo.r.x) / 2 : 0, ey + 0.02, (zl + zh) / 2) : null;
+  }
+  // current (morphed) rest-space positions: raw skin and the smoothed fabric base
+  function garCurrent() {
+    const g = body.geometry, n = G.n, cur = G.rest.slice(), curS = new Float32Array(n * 3), inf = body.morphTargetInfluences || [], MP = g.morphAttributes.position || [];
+    for (let k = 0; k < MP.length; k++) {
+      const f = inf[k]; if (!f) continue; const d = MP[k].array;
+      for (let j = 0; j < n * 3; j++) cur[j] += d[j] * f;
+    }
+    // Taubin-smooth the welded current surface (no shrinking): irons out navel, ribs and nipples under fabric
+    const nw = G.nw, adj = G.adj; let a = new Float32Array(nw * 3), b = new Float32Array(nw * 3);
+    for (let i = 0; i < n; i++) { const w = G.wid[i] * 3; a[w] = cur[i * 3]; a[w + 1] = cur[i * 3 + 1]; a[w + 2] = cur[i * 3 + 2]; }
+    for (let it = 0; it < 16; it++) for (const lam of [0.55, -0.58]) {
+      for (let w = 0; w < nw; w++) {
+        const ns = adj[w], w3 = w * 3; if (!ns.length) { b[w3] = a[w3]; b[w3 + 1] = a[w3 + 1]; b[w3 + 2] = a[w3 + 2]; continue; }
+        let x = 0, y = 0, z = 0; for (let q = 0; q < ns.length; q++) { const o = ns[q] * 3; x += a[o]; y += a[o + 1]; z += a[o + 2]; }
+        const m = 1 / ns.length; b[w3] = a[w3] + lam * (x * m - a[w3]); b[w3 + 1] = a[w3 + 1] + lam * (y * m - a[w3 + 1]); b[w3 + 2] = a[w3 + 2] + lam * (z * m - a[w3 + 2]);
+      }
+      const t = a; a = b; b = t;
+    }
+    // bust: spatial low-pass (topology-free, the nipples are separate patches in the mesh), then put back the lost volume
+    if (!G.chest) {
+      const ws = new Set(); for (let i = 0; i < n; i++) { const y = G.rest[i * 3 + 1]; if (y > 1.05 && y < 1.28 && G.rest[i * 3 + 2] > 0.03 && gArmJ(i) < 0.3 && G.R1[i * 4] < 0.3) ws.add(G.wid[i]); }
+      G.chest = Int32Array.from(ws); G.chestM = new Uint8Array(nw); for (const w of G.chest) G.chestM[w] = 1;
+    }
+    {
+      const C = G.chest, R = 0.022, R2 = R * R, src = new Float32Array(C.length * 3);
+      C.forEach((w, k) => { src[k * 3] = a[w * 3]; src[k * 3 + 1] = a[w * 3 + 1]; src[k * 3 + 2] = a[w * 3 + 2]; });
+      for (let pass = 0; pass < 2; pass++) {
+        const out = new Float32Array(src.length);
+        for (let k = 0; k < C.length; k++) {
+          const x = src[k * 3], y = src[k * 3 + 1], z = src[k * 3 + 2]; let sx = 0, sy = 0, sz = 0, sw = 0;
+          for (let j = 0; j < C.length; j++) { const dx = src[j * 3] - x, dy = src[j * 3 + 1] - y, dz = src[j * 3 + 2] - z, d2 = dx * dx + dy * dy + dz * dz; if (d2 > R2) continue; const wgt = 1 - d2 / R2; sx += src[j * 3] * wgt; sy += src[j * 3 + 1] * wgt; sz += src[j * 3 + 2] * wgt; sw += wgt; }
+          out[k * 3] = sx / sw; out[k * 3 + 1] = sy / sw; out[k * 3 + 2] = sz / sw;
+        }
+        src.set(out);
+      }
+      // blend in from the edge of the region and push back out ~2 mm (what the low-pass shaved off the curve)
+      C.forEach((w, k) => {
+        const y = a[w * 3 + 1], f = Math.min(1, (y - 1.05) / 0.03, (1.28 - y) / 0.03), n3 = G.wn, nx = n3[w * 3], ny = n3[w * 3 + 1], nz = n3[w * 3 + 2];
+        for (let c = 0; c < 3; c++) a[w * 3 + c] += f * (src[k * 3 + c] + [nx, ny, nz][c] * 0.002 - a[w * 3 + c]);
+      });
+    }
+    for (let i = 0; i < n; i++) { const w = G.wid[i] * 3; curS[i * 3] = a[w]; curS[i * 3 + 1] = a[w + 1]; curS[i * 3 + 2] = a[w + 2]; }
+    return { cur, curS };
+  }
+  // JS mirrors of the GLSL masks (per vertex) to pick which triangles a shell needs
+  const gArmJ = (i) => G.R1[i * 4 + 1] + G.R1[i * 4 + 2] + G.R1[i * 4 + 3], gLegJ = (i) => G.R2[i * 4] + G.R2[i * 4 + 1] + G.R2[i * 4 + 2];
+  const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  function topJ(i) {
+    const A = U.uTopA.value, B2 = U.uTopB.value, x = G.rest[i * 3], y = G.rest[i * 3 + 1], z = G.rest[i * 3 + 2], ax = Math.abs(x);
+    if (B2.x < 0.5 || G.R1[i * 4] > 0.5 || gLegJ(i) > 0.5) return false;
+    if (gArmJ(i) > 0.5) return A.y < 0.5 ? false : A.y < 1.5 ? ax <= 0.212 : G.R1[i * 4 + 3] <= 0.42;
+    if (y < A.x) return false;
+    const fr = sstep(-0.015, 0.03, z); let ny;
+    if (A.z > 1.5) ny = 1.405 - 0.01 * fr;
+    else if (A.z > 0.5) { ny = (1.33 - 0.03 * (1 - sstep(0, 0.06, ax))) * (1 - fr) + (1.345 - 0.105 * (1 - sstep(0.02, 0.075, ax))) * fr; if (ax > B2.y + 0.11 * sstep(1.285, 1.15, y)) return false; }
+    else ny = 1.352 - 0.016 * fr;
+    if (y > ny) return false;
+    if (A.w > 0 && z > 0.02 && ax < A.w * (0.3 + 0.9 * sstep(1.05, 1.34, y))) return false;
+    return true;
+  }
+  function botJ(i) {
+    const A = U.uBotA.value, x = G.rest[i * 3], y = G.rest[i * 3 + 1], z = G.rest[i * 3 + 2], ax = Math.abs(x);
+    if (A.x < 0.5 || G.R1[i * 4] > 0.5 || gArmJ(i) > 0.5 || G.R2[i * 4 + 2] > 0.5) return false;
+    if (A.x < 1.5) { const fr = sstep(-0.015, 0.03, z), ny = (1.322 - 0.035 * (1 - sstep(0, 0.06, ax))) * (1 - fr) + (1.335 - 0.115 * (1 - sstep(0.02, 0.08, ax))) * fr; if (y > ny || ax > U.uTopB.value.y - 0.006 + 0.11 * sstep(1.285, 1.15, y)) return false; const cut = 0.752 + (0.9 - 0.752) * sstep(0.028, 0.16, ax); return y >= cut && gLegJ(i) <= 0.9; }
+    if (y > A.y - A.w * sstep(-0.02, 0.07, z)) return false;
+    if (gLegJ(i) > 0.5 && y < A.z) return false;
+    return true;
+  }
+  function padJ(i) {
+    const B2 = U.uGearB.value, x = G.rest[i * 3], y = G.rest[i * 3 + 1], z = G.rest[i * 3 + 2];
+    if (U.uGearA.value.y < 0.5 || gLegJ(i) < 0.5) return false;
+    return Math.hypot((Math.abs(x) - B2.x) / 0.05, (y - B2.y) / 0.066) <= 1 && z >= B2.z - 0.035;
+  }
+  const gloveJ = (i) => U.uGearA.value.x > 0.5 && G.R1[i * 4 + 3] >= 0.5;
+  function bandJ(i, bd) {
+    const x = G.rest[i * 3], y = G.rest[i * 3 + 1];
+    if (y < bd.x || y > bd.y || gArmJ(i) > 0.5 || G.R1[i * 4] > 0.5) return false;
+    if (bd.z && x * bd.z < 0) return false;
+    if (bd.w > 1.5) return Math.abs(x) > 0.07 && gLegJ(i) < 0.5;
+    if (bd.w > 0.5) return gLegJ(i) > 0.5;
+    return gLegJ(i) < 0.5;
+  }
+  const SHELL_GLSL_V = "attribute vec3 aRest;\nattribute vec4 aR1;\nattribute vec4 aR2;\nvarying vec3 vRest;\nvarying vec4 vR1;\nvarying vec4 vR2;\nvarying vec2 vGUv;";
+  const shellMats = {};   // reused across rebuilds so slider drags don't recompile shaders
+  function shellMat(o) {
+    const key = o.name + "|" + o.which;
+    let m = shellMats[key];
+    if (m) {
+      const SU = m.userData.SU; SU.uWhich.value = o.which; SU.uBand.value = o.band || new THREE.Vector4(); SU.uShellCol.value = o.col; SU.uKnit.value = o.knit || 0; SU.uQuilt.value = o.quilt || 0;
+      m.roughness = o.rough ?? 0.85; m.sheen = o.sheen ?? 0.6;
+      const cc = o.clearcoat ?? 0; if ((cc > 0) !== (m.clearcoat > 0)) m.needsUpdate = true; m.clearcoat = cc;
+      return m;
+    }
+    m = shellMats[key] = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: o.rough ?? 0.85, metalness: 0, side: THREE.DoubleSide,
+      sheen: o.sheen ?? 0.6, sheenRoughness: 0.7, sheenColor: new THREE.Color(o.sheenColor ?? 0x8c8c8c), clearcoat: o.clearcoat ?? 0, clearcoatRoughness: 0.35 });
+    m.userData.cloth = true; m.userData.keep = true;
+    const SU = m.userData.SU = { uWhich: { value: o.which }, uBand: { value: o.band || new THREE.Vector4() }, uShellCol: { value: o.col }, uKnit: { value: o.knit || 0 }, uQuilt: { value: o.quilt || 0 } };
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, U, SU);
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + SHELL_GLSL_V)
+        .replace("#include <uv_vertex>", "#include <uv_vertex>\nvRest = aRest; vR1 = aR1; vR2 = aR2; vGUv = uv;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vRest;\nvarying vec2 vGUv;\nuniform sampler2D uCamo;\nuniform float uWhich, uKnit, uQuilt;\nuniform vec4 uBand, uShellCol;\n" + GAR_GLSL + `
+          float garBand(vec3 p) {
+            if (p.y < uBand.x || p.y > uBand.y || gArm() > 0.5 || vR1.x > 0.5) return 0.0;
+            if (uBand.z != 0.0 && p.x * uBand.z < 0.0) return 0.0;
+            if (uBand.w > 1.5) return step(0.07, abs(p.x)) * step(gLeg(), 0.5);
+            if (uBand.w > 0.5) return step(0.5, gLeg());
+            return step(gLeg(), 0.5);
+          }`)
+        .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+          float gm = uWhich < 0.5 ? garTop(vRest) : uWhich < 1.5 ? garBot(vRest) : uWhich < 2.5 ? garGlove() : uWhich < 3.5 ? garPad(vRest) : garBand(vRest);
+          if (gm < 0.5) discard;`)
+        .replace("#include <color_fragment>", `#include <color_fragment>
+          vec3 gc = uShellCol.w > 0.5 ? texture2D(uCamo, vGUv * 3.0).rgb : uShellCol.rgb;
+          if (uKnit > 0.0) gc *= 1.0 - uKnit * (0.5 + 0.5 * sin(atan(vRest.x, vRest.z + 0.02) * 260.0 + vRest.y * 6.0));
+          if (uQuilt > 0.0) gc *= 1.0 - uQuilt * step(gArm(), 0.5) * smoothstep(0.82, 1.0, abs(cos(((vRest.y - 1.0) / 0.052) * 3.14159)));
+          diffuseColor.rgb = gc;`);
+    };
+    patchLook(m);
+    return m;
+  }
+  let shells = [];
+  function clearShells() { for (const s of shells) { s.parent && s.parent.remove(s); s.geometry.dispose(); } shells = []; }
+  function makeShell(o, CS) {
+    const g = body.geometry, n = G.n, idx = g.index.array, ok = new Uint8Array(n);
+    let any = false; for (let i = 0; i < n; i++) if (o.mask(i)) { ok[i] = 1; any = true; }
+    if (!any) return null;
+    // grow the selection by one ring so no partly-covered triangle is missing (the shader trims the exact edge)
+    const wok = new Uint8Array(G.nw); for (let i = 0; i < n; i++) if (ok[i]) wok[G.wid[i]] = 1;
+    const grow = new Uint8Array(G.nw); for (let t = 0; t < idx.length; t += 3) { const a = G.wid[idx[t]], b = G.wid[idx[t + 1]], c = G.wid[idx[t + 2]]; if (wok[a] || wok[b] || wok[c]) grow[a] = grow[b] = grow[c] = 1; }
+    const keep = []; for (let t = 0; t < idx.length; t += 3) if (grow[G.wid[idx[t]]] || grow[G.wid[idx[t + 1]]] || grow[G.wid[idx[t + 2]]]) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+    const pos = new Float32Array(n * 3), minT = o.min ?? -0.0012;
+    for (let i = 0; i < n; i++) {
+      const w = G.wid[i] * 3, nx = G.wn[w], ny = G.wn[w + 1], nz = G.wn[w + 2], t = o.thick(i);
+      let x = CS.curS[i * 3] + nx * t, y = CS.curS[i * 3 + 1] + ny * t, z = CS.curS[i * 3 + 2] + nz * t;
+      const d = (x - CS.cur[i * 3]) * nx + (y - CS.cur[i * 3 + 1]) * ny + (z - CS.cur[i * 3 + 2]) * nz;   // never inside the skin
+      if (d < (G.chestM && G.chestM[G.wid[i]] ? Math.min(minT, -0.012) : minT)) { const k = (G.chestM && G.chestM[G.wid[i]] ? Math.min(minT, -0.012) : minT) - d; x += nx * k; y += ny * k; z += nz * k; }
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    for (const k of ["uv", "skinIndex", "skinWeight", "aR1", "aR2"]) geo.setAttribute(k, g.attributes[k].clone());
+    geo.setAttribute("aRest", new THREE.BufferAttribute(G.rest.slice(), 3));
+    geo.setIndex(keep); geo.computeVertexNormals();
+    const NN = geo.attributes.normal, acc = new Float32Array(G.nw * 3);
+    for (let i = 0; i < n; i++) { const w = G.wid[i] * 3; acc[w] += NN.getX(i); acc[w + 1] += NN.getY(i); acc[w + 2] += NN.getZ(i); }
+    if (G.chest) {   // the flattened nipple patches leave tiny folded triangles: low-pass the normals over the bust
+      const C = G.chest, R2 = 0.02 * 0.02, cp = new Float32Array(C.length * 3), cn = new Float32Array(C.length * 3);
+      C.forEach((w, k) => { const i = G.repI[w]; cp[k * 3] = pos[i * 3]; cp[k * 3 + 1] = pos[i * 3 + 1]; cp[k * 3 + 2] = pos[i * 3 + 2]; const l = Math.hypot(acc[w * 3], acc[w * 3 + 1], acc[w * 3 + 2]) || 1; cn[k * 3] = acc[w * 3] / l; cn[k * 3 + 1] = acc[w * 3 + 1] / l; cn[k * 3 + 2] = acc[w * 3 + 2] / l; });
+      C.forEach((w, k) => {
+        let x = 0, y = 0, z = 0;
+        for (let j = 0; j < C.length; j++) { const dx = cp[j * 3] - cp[k * 3], dy = cp[j * 3 + 1] - cp[k * 3 + 1], dz = cp[j * 3 + 2] - cp[k * 3 + 2], d2 = dx * dx + dy * dy + dz * dz; if (d2 > R2) continue; const g = 1 - d2 / R2; x += cn[j * 3] * g; y += cn[j * 3 + 1] * g; z += cn[j * 3 + 2] * g; }
+        acc[w * 3] = x; acc[w * 3 + 1] = y; acc[w * 3 + 2] = z;
+      });
+    }
+    for (let i = 0; i < n; i++) { const w = G.wid[i] * 3, l = Math.hypot(acc[w], acc[w + 1], acc[w + 2]) || 1; NN.setXYZ(i, acc[w] / l, acc[w + 1] / l, acc[w + 2] / l); }
+    const mesh = new THREE.SkinnedMesh(geo, shellMat(o));
+    mesh.position.copy(body.position); mesh.quaternion.copy(body.quaternion); mesh.scale.copy(body.scale);
+    body.parent.add(mesh); mesh.bind(skel, body.bindMatrix);
+    mesh.frustumCulled = false; mesh.castShadow = body.castShadow; mesh.receiveShadow = body.receiveShadow;
+    mesh.userData.garment = o.name;
+    shells.push(mesh);
+    return mesh;
+  }
+  // rest space -> holder space through one bone's current pose
+  function restToHolder(name) {
+    const i = skel.bones.findIndex((b) => b.name === name);
+    holder.updateMatrixWorld(true);
+    return new THREE.Matrix4().copy(holder.matrixWorld).invert().multiply(skel.bones[i].matrixWorld).multiply(skel.boneInverses[i]).multiply(body.bindMatrix);
+  }
+  function ride(group, bone) { group.matrixAutoUpdate = false; group.matrix.copy(restToHolder(bone)); extras.add(group); return group; }
+  // the outermost body point in a box (current shape): which = "front" (max z), "back" (min z), "left"/"right" (x)
+  function extent(CS, box, which, legOnly) {
+    let best = which === "back" || which === "right" ? 9 : -9, n = G.n;
+    for (let i = 0; i < n; i++) {
+      const rx = G.rest[i * 3], ry = G.rest[i * 3 + 1];
+      if (rx < box[0] || rx > box[1] || ry < box[2] || ry > box[3]) continue;
+      if (gArmJ(i) > 0.5 || G.R1[i * 4] > 0.5) continue;
+      if (legOnly === true && gLegJ(i) < 0.5) continue;
+      if (legOnly === false && gLegJ(i) > 0.5) continue;
+      const x = CS.cur[i * 3], z = CS.cur[i * 3 + 2];
+      if (which === "front") best = Math.max(best, z); else if (which === "back") best = Math.min(best, z);
+      else if (which === "left") best = Math.max(best, x); else best = Math.min(best, x);
+    }
+    return best;
+  }
+  function centreZ(CS, box) {   // average z of leg vertices in a box (thigh centre for straps / pockets)
+    let s = 0, c = 0;
+    for (let i = 0; i < G.n; i++) { const rx = G.rest[i * 3], ry = G.rest[i * 3 + 1]; if (rx < box[0] || rx > box[1] || ry < box[2] || ry > box[3] || gLegJ(i) < 0.5) continue; s += CS.cur[i * 3 + 2]; c++; }
+    return c ? s / c : 0.03;
+  }
+  // a ring around the neck / chest at back height yb dropping to yf in front, lying on the surface
+  function neckRing(CS, yb, yf, off, N = 72, zc = 0.012) {
+    const cand = [];
+    const y0 = Math.min(yb, yf) - 0.04, y1 = Math.max(yb, yf) + 0.03;
+    for (let i = 0; i < G.n; i++) {
+      const y = CS.cur[i * 3 + 1]; if (y < y0 || y > y1 || gArmJ(i) > 0.4 || G.R1[i * 4] > 0.5) continue;
+      const x = CS.cur[i * 3], z = CS.cur[i * 3 + 2] - zc; cand.push(Math.atan2(x, z), Math.hypot(x, z), y);
+    }
+    const rs = [], ys = [];
+    for (let k = 0; k < N; k++) {
+      const th = k / N * Math.PI * 2, y = yb + (yf - yb) * Math.pow(0.5 + 0.5 * Math.cos(th), 2.2);
+      let r = 0.05;
+      for (let j = 0; j < cand.length; j += 3) {
+        let da = Math.abs(cand[j] - (th > Math.PI ? th - Math.PI * 2 : th)); if (da > Math.PI) da = Math.PI * 2 - da;
+        if (da < 0.16 && Math.abs(cand[j + 2] - y) < 0.014) r = Math.max(r, cand[j + 1]);
+      }
+      rs.push(r); ys.push(y);
+    }
+    for (let p = 0; p < 3; p++) { const c = rs.slice(); for (let k = 0; k < N; k++) rs[k] = Math.max(c[k], (c[(k + N - 1) % N] + c[k] * 2 + c[(k + 1) % N]) / 4); }
+    return rs.map((r, k) => { const th = k / N * Math.PI * 2; return v3(Math.sin(th) * (r + off), ys[k], zc + Math.cos(th) * (r + off)); });
+  }
+  // sweep a circle (or a flat strap) along points
+  function sweep(pts, radius, mat, o = {}) {
+    const curve = new THREE.CatmullRomCurve3(pts, !!o.closed, "centripetal");
+    if (!o.flat) return new THREE.Mesh(new THREE.TubeGeometry(curve, o.seg || pts.length * 4, radius, o.radial || 10, !!o.closed), mat);
+    const S = o.seg || 48, wv = o.flat[0], hv = o.flat[1], side = o.side || v3(1, 0, 0), P = [], I = [];
+    for (let k = 0; k <= S; k++) {
+      const t = k / S, p = curve.getPointAt(t), T = curve.getTangentAt(t), Nn = new THREE.Vector3().crossVectors(T, side).normalize(), Sd = new THREE.Vector3().crossVectors(Nn, T).normalize();
+      for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const q = p.clone().addScaledVector(Sd, a * wv / 2).addScaledVector(Nn, b * hv / 2); P.push(q.x, q.y, q.z); }
+      if (k) for (let f = 0; f < 4; f++) { const a0 = (k - 1) * 4 + f, a1 = (k - 1) * 4 + (f + 1) % 4, b0 = a0 + 4, b1 = a1 + 4; I.push(a0, a1, b1, a0, b1, b0); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I); g.computeVertexNormals();
+    return new THREE.Mesh(g, mat);
+  }
+  function rbox(w, h, d, r, mat) {   // rounded box (extruded rounded rectangle with a bevel)
+    const S = new THREE.Shape(), x = w / 2 - r, y = h / 2 - r;
+    S.moveTo(-x, -h / 2); S.lineTo(x, -h / 2); S.quadraticCurveTo(w / 2, -h / 2, w / 2, -y); S.lineTo(w / 2, y); S.quadraticCurveTo(w / 2, h / 2, x, h / 2);
+    S.lineTo(-x, h / 2); S.quadraticCurveTo(-w / 2, h / 2, -w / 2, y); S.lineTo(-w / 2, -y); S.quadraticCurveTo(-w / 2, -h / 2, -x, -h / 2);
+    const bv = Math.min(r * 0.6, d * 0.3);
+    const g = new THREE.ExtrudeGeometry(S, { depth: d - bv * 2, bevelEnabled: true, bevelThickness: bv, bevelSize: bv, bevelSegments: 3, curveSegments: 6 });
+    g.translate(0, 0, -(d - bv * 2) / 2);
+    return new THREE.Mesh(g, mat);
+  }
+  function plateShape(w, h) {   // plate with shooter's cuts at the top corners
+    const S = new THREE.Shape(), r = 0.012, c = 0.045;
+    S.moveTo(-w / 2 + r, -h / 2); S.lineTo(w / 2 - r, -h / 2); S.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+    S.lineTo(w / 2, h / 2 - c); S.quadraticCurveTo(w / 2 - c * 0.2, h / 2 - c * 0.2, w / 2 - c, h / 2); S.lineTo(-w / 2 + c, h / 2);
+    S.quadraticCurveTo(-w / 2 + c * 0.2, h / 2 - c * 0.2, -w / 2, h / 2 - c); S.lineTo(-w / 2, -h / 2 + r); S.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+    return S;
+  }
+  function plateMesh(w, h, d, mat) {
+    const bv = 0.008, g = new THREE.ExtrudeGeometry(plateShape(w, h), { depth: d - bv * 2, bevelEnabled: true, bevelThickness: bv, bevelSize: bv * 0.8, bevelSegments: 4, curveSegments: 8 });
+    g.translate(0, 0, -(d - bv * 2) / 2); return new THREE.Mesh(g, mat);
+  }
+  function webbingTex(base) {   // MOLLE webbing rows
+    return canvasTex("molle-" + base, 256, 256, (g, w, h) => {
+      g.fillStyle = base; g.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y += 32) { g.fillStyle = "rgba(0,0,0,0.28)"; g.fillRect(0, y + 10, w, 2); g.fillRect(0, y + 22, w, 2); g.fillStyle = "rgba(255,255,255,0.05)"; g.fillRect(0, y + 12, w, 10);
+        for (let x = 0; x < w; x += 32) { g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x + 15, y + 10, 2, 14); } }
+      for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? "0,0,0" : "255,255,255"},0.05)`; g.fillRect(Math.random() * w, Math.random() * h, 1, 1); }
+    });
+  }
+  function getEnv() { if (!envTex) envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; return envTex; }
+  function brilliant(r) {   // a round brilliant: crown + pavilion
+    const g = new THREE.CylinderGeometry(r * 0.55, r, r * 0.35, 8, 1); g.translate(0, r * 0.175, 0);
+    const p = new THREE.ConeGeometry(r, r * 0.85, 8, 1); p.rotateX(Math.PI); p.translate(0, -r * 0.425, 0);
+    const m = mergeGeos([g.toNonIndexed(), p.toNonIndexed()]); m.computeVertexNormals(); return m;
+  }
+  function mergeGeos(list) {
+    let n = 0; for (const g of list) n += g.attributes.position.count;
+    const P = new Float32Array(n * 3); let o = 0;
+    for (const g of list) { P.set(g.attributes.position.array, o); o += g.attributes.position.array.length; }
+    const out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.BufferAttribute(P, 3)); return out;
+  }
+  function instAlong(geo, mat, frames) {   // instanced copies placed by an array of Matrix4
+    const im = new THREE.InstancedMesh(geo, mat, frames.length);
+    frames.forEach((m, k) => im.setMatrixAt(k, m)); im.instanceMatrix.needsUpdate = true; return im;
+  }
+  // frames along a closed ring of points lying on the body: x = tangent, y = outward (from the neck axis), z = cross
+  function ringFrames(pts, step, closed = true) {
+    const c = new THREE.CatmullRomCurve3(pts, closed, "centripetal"), L = c.getLength(), n = Math.max(4, Math.round(L / step)), out = [];
+    for (let k = 0; k < n; k++) {
+      const t = k / n, p = c.getPointAt(t), T = c.getTangentAt(t), outw = v3(p.x, 0, p.z - 0.012).normalize();
+      const Z = new THREE.Vector3().crossVectors(T, outw).normalize(), Y = new THREE.Vector3().crossVectors(Z, T).normalize();
+      out.push({ p, m: new THREE.Matrix4().makeBasis(T, Y, Z).setPosition(p), T, Y, Z });
+    }
+    return out;
+  }
+  const TOPS = {
+    puffer: { hem: 1.085, sleeves: 2, neck: 2, open: 0, col: "main", thick: 0.02, rough: 0.3, clearcoat: 0.6, sheen: 0.15, quilt: 0.28 },
+    crop:   { hem: 1.1, sleeves: 1, neck: 0, open: 0, col: "dark", thick: 0.0028, rough: 0.78, sheen: 0.5 },
+    jacket: { hem: 1.055, sleeves: 2, neck: 2, open: 0.036, col: "camo", thick: 0.0065, rough: 0.92, sheen: 0.4 },
+    hoodie: { hem: 1.06, sleeves: 2, neck: 0, open: 0, col: "camo", thick: 0.0078, rough: 0.97, sheen: 0.9 },
+    tank:   { hem: 0.995, sleeves: 0, neck: 1, open: 0, col: "dark", thick: 0.0024, rough: 0.8, sheen: 0.5, knit: 0.1, strap: 0.096 }
+  };
+  const BOTS = {
+    bodysuit: { kind: 1, waist: 0, hem: 0, dip: 0, col: "dark", thick: 0.0014, rough: 0.55, sheen: 0.7 },
+    shorts:   { kind: 2, waist: 0.985, hem: 0.6, dip: 0.012, col: "dark", thick: 0.0022, rough: 0.6, sheen: 0.6 },
+    cargo:    { kind: 2, waist: 0.955, hem: 0.668, dip: 0, col: "camo", thick: 0.0085, flare: 0.007, pockets: 0.722, belt: true, rough: 0.95 },
+    leggings: { kind: 2, waist: 0.99, hem: 0, dip: 0.012, col: "camo", thick: 0.0019, rough: 0.7, sheen: 0.5 },
+    pants:    { kind: 2, waist: 0.935, hem: 0, dip: 0, col: "camo", thick: 0.0095, loose: 0.005, pockets: 0.6, belt: true, rough: 0.95 }
+  };
+  const domeCache = {};
+  let headMesh = null;
+  function headRay() {
+    if (!G) return null;
+    if (!headMesh) {   // the skull: body triangles owned by the head bone, in rest space
+      const idx = body.geometry.index.array, keep = [];
+      for (let t = 0; t < idx.length; t += 3) if (G.R1[idx[t] * 4] > 0.5 && G.R1[idx[t + 1] * 4] > 0.5 && G.R1[idx[t + 2] * 4] > 0.5) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(G.rest, 3)); g.setIndex(keep); g.computeBoundingSphere();
+      headMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })); headMesh.updateMatrixWorld(true);
+    }
+    const mesh = headMesh;
+    const rc = new THREE.Raycaster();
+    return (C, dir) => { rc.set(C.clone().addScaledVector(dir, 0.35), dir.clone().negate()); const h = rc.intersectObject(mesh, false)[0]; return h ? h.point : null; };
+  }
+  // a fitted dome over the head (beanie / cap crown): rest-space rows from the crown down to a rim line
+  function headDome(kind, yFront, yBack, off, fold) {
+    const key = kind + yFront.toFixed(3) + yBack.toFixed(3) + off;
+    if (domeCache[key]) return domeCache[key];
+    const ray = headRay(); if (!ray || !G.headC) return null;
+    const C = G.headC.clone(), cols = 36, rows = 14, P = [], UV = [], I = [];
+    const dirOf = (th, ph) => v3(Math.sin(th) * Math.sin(ph), Math.cos(th), Math.sin(th) * Math.cos(ph));
+    const hit = (th, ph) => ray(C, dirOf(th, ph));
+    for (let c = 0; c <= cols; c++) {
+      const ph = c / cols * Math.PI * 2, yr = yFront + (yBack - yFront) * (1 - Math.cos(ph)) / 2;
+      let lo = 0, hi = 0.1, h;
+      while (hi < 2.4) { h = hit(hi, ph); if (!h || h.y < yr) break; lo = hi; hi += 0.09; }
+      for (let b = 0; b < 7; b++) { const m = (lo + hi) / 2; h = hit(m, ph); if (h && h.y >= yr) lo = m; else hi = m; }
+      for (let r = 0; r <= rows; r++) {
+        const t = r / rows, th = Math.max(0.001, lo * t), d = dirOf(th, ph), p = hit(th, ph) || C.clone().addScaledVector(d, 0.1);
+        const o = off + (fold && t > 1 - fold ? 0.005 : 0);
+        p.addScaledVector(d, o); P.push(p.x, p.y, p.z); UV.push(c / cols, t);
+      }
+    }
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) { const a = c * (rows + 1) + r, b = a + rows + 1; I.push(a, b, a + 1, a + 1, b, b + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(UV, 2)); g.setIndex(I); g.computeVertexNormals();
+    const rim = []; for (let c = 0; c <= cols; c++) { const k = (c * (rows + 1) + rows) * 3; rim.push(v3(P[k], P[k + 1], P[k + 2])); }
+    return (domeCache[key] = { g, rim, cols, C });
+  }
+  function headArc(off, tilt = 0, a0 = -1.42, a1 = 1.42, n = 40) {   // ear-to-ear arc over the crown
+    const ray = headRay(); if (!ray || !G.headC) return null;
+    const C = G.headC, pts = [];
+    for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * k / n, d = v3(Math.sin(a), Math.cos(a) * Math.cos(tilt), Math.cos(a) * Math.sin(tilt)).normalize(), h = ray(C, d); if (h) pts.push(h.addScaledVector(d, off)); }
+    return pts;
+  }
+  function knitTex() {
+    return canvasTex("knit", 256, 64, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 8) { g.fillStyle = "rgba(0,0,0,0.22)"; g.fillRect(x, 0, 3, h); g.fillStyle = "rgba(255,255,255,0.4)"; g.fillRect(x + 4, 0, 2, h); } });
+  }
+  function seamTex() {
+    return canvasTex("capseams", 512, 64, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); for (let k = 0; k < 6; k++) { const x = (k + 0.5) / 6 * w; g.fillStyle = "rgba(0,0,0,0.28)"; g.fillRect(x - 1.5, 0, 3, h); g.fillStyle = "rgba(0,0,0,0.12)"; g.fillRect(x - 6, 0, 1, h); g.fillRect(x + 5, 0, 1, h); } });
+  }
+  function fuzzyRing(pts, rad, mat, closed = true, rough = 0.18) {   // fur hood / bunched hood: a tube with varying radius and a lumpy surface
+    const curve = new THREE.CatmullRomCurve3(pts, closed, "centripetal"), TS = pts.length * 3, RS = 14;
+    const g = new THREE.TubeGeometry(curve, TS, 1, RS, closed), P = g.attributes.position, rr = rnd(77);
+    for (let i = 0; i <= TS; i++) {
+      const t = i / TS, c = curve.getPointAt(Math.min(t, 1)), r = rad(t);
+      for (let j = 0; j <= RS; j++) { const k = i * (RS + 1) + j, v = v3(P.getX(k), P.getY(k), P.getZ(k)).sub(c); v.multiplyScalar(r * (1 + rough * (rr() - 0.5))); P.setXYZ(k, c.x + v.x, c.y + v.y, c.z + v.z); }
+    }
+    g.computeVertexNormals(); return new THREE.Mesh(g, mat);
+  }
+
+  let garCS = null, garCSKey = "", garShellKey = "";
+  function garments(s, one, has, H) {
+    U.uGarOn.value = 0;
+    if (!G) { clearShells(); return; }
+    // the shells are skinned, so a new pose doesn't need new ones: rebuild only when the shape or outfit changes
+    const infKey = Array.from(body.morphTargetInfluences || [], (v) => v.toFixed(3)).join(",");
+    if (infKey !== garCSKey || !garCS) { garCS = garCurrent(); garCSKey = infKey; }
+    const CS = garCS;
+    const shellKey = infKey + "|" + ["camo", "top", "bottom", "gear", "boots"].map((k) => (s.pick && s.pick[k] || []).join("+")).join("|");
+    const reuse = shellKey === garShellKey && shells.length > 0;
+    if (!reuse) { clearShells(); garShellKey = shellKey; }
+    const mk = (o) => reuse ? null : makeShell(o, CS);
+    const camo = one("camo") || "snow", SC = SOLID[camo] || SOLID.snow, CP = CAMO[camo] || CAMO.snow;
+    const top = one("top") || "puffer", bottom = one("bottom") || "bodysuit";
+    const T = TOPS[top] || TOPS.puffer, Bt = BOTS[bottom] || BOTS.bodysuit;
+    const colOf = (k) => k === "camo" ? new THREE.Vector4(1, 1, 1, 1) : (() => { const c = new THREE.Color(k === "main" ? SC[0] : SC[1]); return new THREE.Vector4(c.r, c.g, c.b, 0); })();
+    // ---- the painted under-layer and the shells read the same uniforms
+    U.uTopA.value.set(T.hem, T.sleeves, T.neck, T.open); U.uTopB.value.set(1, T.strap || 0.096, 0, 0); U.uTopCol.value.copy(colOf(T.col));
+    U.uBotA.value.set(Bt.kind, Bt.waist, Bt.hem, Bt.dip); U.uBotCol.value.copy(colOf(Bt.col));
+    const sneakers = one("boots") === "sneakers";
+    U.uGearA.value.set(has("gear", "gloves") ? 1 : 0, has("gear", "pads") ? 1 : 0, M.cl_boots ? (sneakers || bottom === "leggings" || bottom === "pants" ? 0 : 0.28) : (sneakers ? 0.13 : 0.3), 0);
+    U.uGearB.value.copy(G.knee); U.uPadCol.value.set(CP[3] === "#ffffff" ? "#2b2d31" : SC[1]);
+    for (const k of ["cl_leggings", "cl_jeans", "cl_shorts"]) if (M[k]) M[k].visible = false;
+    U.uGarOn.value = 1;
+
+    const yOf = (i) => G.rest[i * 3 + 1], axOf = (i) => Math.abs(G.rest[i * 3]);
+    const topT = (i) => {
+      if (top !== "puffer") return T.thick + (T.neck === 2 && yOf(i) > 1.33 ? 0.003 : 0);
+      const y = yOf(i), x = axOf(i);
+      if (gArmJ(i) > 0.5) { const d = Math.hypot(x - 0.155, y - 1.263), w = 0.01 + 0.012 * Math.pow(Math.abs(Math.sin(d / 0.05 * Math.PI)), 0.55); return G.R1[i * 4 + 3] > 0.15 ? w * 0.45 : w; }
+      if (y > 1.335) return 0.012;
+      return (0.011 + 0.013 * Math.pow(Math.abs(Math.sin((y - 1.0) / 0.052 * Math.PI)), 0.55)) * (0.5 + 0.5 * sstep(T.hem, T.hem + 0.03, y));
+    };
+    const botT = (i) => {
+      let t = Bt.thick;
+      if (gLegJ(i) > 0.5) { const y = yOf(i); if (Bt.flare) t += Bt.flare * sstep(Bt.hem + 0.13, Bt.hem, y); if (Bt.loose) t += Bt.loose * sstep(0.82, 0.55, y) * sstep(0.1, 0.25, y); }
+      return t;
+    };
+    const tc = colOf(T.col), bc = colOf(Bt.col);
+    if (Bt.kind) mk({ name: "bottom", which: 1, mask: botJ, thick: botT, col: bc, rough: Bt.rough, sheen: Bt.sheen ?? 0.4 });
+    mk({ name: "top", which: 0, mask: topJ, thick: topT, col: tc, rough: T.rough, sheen: T.sheen, clearcoat: T.clearcoat, knit: T.knit, quilt: T.quilt, min: top === "puffer" ? 0.004 : -0.0012 });
+    if (U.uGearA.value.x) mk({ name: "gloves", which: 2, mask: gloveJ, thick: () => 0.0016, col: new THREE.Vector4(0.06, 0.06, 0.065, 0), rough: 0.55, sheen: 0.3, min: 0.001 });
+    if (U.uGearA.value.y) mk({ name: "pads", which: 3, mask: padJ, col: new THREE.Vector4(...new THREE.Color(U.uPadCol.value).toArray(), 0), rough: 0.5, sheen: 0.2,
+      thick: (i) => { const B2 = G.knee, d = Math.hypot((axOf(i) - B2.x) / 0.05, (yOf(i) - B2.y) / 0.066); return (bottom === "pants" || bottom === "leggings" ? botT(i) : 0) + 0.004 + 0.014 * Math.max(0, 1 - d * d); } });
+    const band = (name, bd, thick, col, o = {}) => mk(Object.assign({ name, which: 4, band: bd, mask: (i) => bandJ(i, bd), thick, col, rough: 0.6, sheen: 0.2 }, o));
+    const leather = new THREE.Vector4(0.07, 0.065, 0.06, 0);
+    const mBlack = std({ color: 0x141416, roughness: 0.45, metalness: 0.4 }), metal = new THREE.MeshPhysicalMaterial({ color: 0x9a9da2, metalness: 1, roughness: 0.28, envMap: getEnv(), envMapIntensity: 1.2 });
+    const tMax = top === "puffer" ? 0.026 : T.thick + 0.002;
+
+    // ---- belt + buckle
+    if (Bt.belt) {
+      const y0 = Bt.waist - 0.034, y1 = Bt.waist - 0.004;
+      band("belt", new THREE.Vector4(y0, y1, 0, 0), (i) => botT(i) + 0.004, leather, { min: 0.002 });
+      const zf = extent(CS, [-0.03, 0.03, y0, y1], "front", false), bk = new THREE.Group();
+      const b = rbox(0.052, 0.034, 0.008, 0.005, metal); b.position.set(0, (y0 + y1) / 2, zf + Bt.thick + 0.009); bk.add(b);
+      ride(bk, "pelvis");
+    }
+    // ---- cargo pockets on the outer thighs
+    if (Bt.pockets) {
+      const cm = std({ color: 0xffffff, roughness: 0.95 }); const ct = camoTex(camo).clone(); ct.wrapS = ct.wrapT = THREE.RepeatWrapping; ct.repeat.set(5, 5); ct.needsUpdate = true; cm.map = ct; cm.userData.cloth = true;
+      for (const sd of [1, -1]) {
+        const y0 = Bt.pockets, bx = sd > 0 ? [0.05, 0.32, y0 - 0.012, y0 + 0.012] : [-0.32, -0.05, y0 - 0.012, y0 + 0.012];
+        const xo = extent(CS, bx, sd > 0 ? "left" : "right", true), zc = centreZ(CS, [bx[0], bx[1], y0 - 0.03, y0 + 0.03]), g = new THREE.Group();
+        const px = xo + sd * (Bt.thick + (Bt.flare || Bt.loose || 0) * 0.6 + 0.013);
+        const p = rbox(0.13, 0.135, 0.026, 0.01, cm); p.rotation.y = Math.PI / 2; p.position.set(px, y0 - 0.01, zc + 0.008); g.add(p);
+        const f = rbox(0.135, 0.04, 0.03, 0.008, cm); f.rotation.y = Math.PI / 2; f.position.set(px + sd * 0.003, y0 + 0.052, zc + 0.008); g.add(f);
+        ride(g, sd > 0 ? "thigh_l" : "thigh_r");
+      }
+    }
+    // ---- plate carrier
+    if (has("gear", "vest")) {
+      const g = new THREE.Group(), base = CP[1], wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
+      const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
+      const pm = std({ color: new THREE.Color(base).multiplyScalar(0.92), roughness: 0.92 }); pm.userData.cloth = true;
+      const zf = extent(CS, [-0.12, 0.12, 1.03, 1.29], "front", false) + tMax, zb = extent(CS, [-0.12, 0.12, 1.03, 1.29], "back", false) - tMax;
+      const fp = plateMesh(0.27, 0.3, 0.045, vm); fp.position.set(0, 1.165, zf + 0.026); g.add(fp);
+      const bp = plateMesh(0.28, 0.31, 0.04, vm); bp.position.set(0, 1.17, zb - 0.024); g.add(bp);
+      for (const x of [-0.072, 0, 0.072]) {
+        const p = rbox(0.064, 0.1, 0.036, 0.009, pm); p.position.set(x, 1.07, zf + 0.066); g.add(p);
+        const f = rbox(0.066, 0.032, 0.04, 0.008, pm); f.position.set(x, 1.122, zf + 0.067); g.add(f);
+      }
+      const ad = rbox(0.15, 0.07, 0.022, 0.01, pm); ad.position.set(0, 1.215, zf + 0.06); g.add(ad);
+      for (const sd of [-1, 1]) {
+        let ys = 0, zs = 0, c = 0;
+        for (let i = 0; i < G.n; i++) { const x = G.rest[i * 3]; if (Math.abs(x - sd * 0.1) > 0.012 || gArmJ(i) > 0.5 || G.R1[i * 4] > 0.5 || G.rest[i * 3 + 1] < 1.2) continue; if (CS.cur[i * 3 + 1] > ys) { ys = CS.cur[i * 3 + 1]; zs = CS.cur[i * 3 + 2]; } c++; }
+        if (!c) continue;
+        const st = sweep([v3(sd * 0.098, 1.3, zf + 0.012), v3(sd * 0.1, ys + tMax * 0.7 + 0.004, zs + 0.03), v3(sd * 0.1, ys + tMax * 0.7 + 0.006, zs - 0.03), v3(sd * 0.098, 1.31, zb - 0.012)], 0, vm, { flat: [0.048, 0.014], side: v3(1, 0, 0), seg: 40 });
+        g.add(st);
+      }
+      band("cummerbund", new THREE.Vector4(1.03, 1.13, 0, 2), (i) => (topJ(i) ? topT(i) : 0) + 0.014, new THREE.Vector4(...new THREE.Color(base).toArray(), 0), { rough: 0.92, min: 0.004 });
+      ride(g, "spine_03");
+    }
+    // ---- chest rig
+    if (has("gear", "chest")) {
+      const g = new THREE.Group(), base = CP[1], wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
+      const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
+      const pm = std({ color: new THREE.Color(base).multiplyScalar(0.9), roughness: 0.92 }); pm.userData.cloth = true;
+      const zf = extent(CS, [-0.13, 0.13, 0.97, 1.06], "front", false) + (top === "puffer" ? 0 : T.thick), zb = extent(CS, [-0.1, 0.1, 1.0, 1.2], "back", false) - (T.hem < 1.0 ? T.thick : tMax);
+      const pn = rbox(0.27, 0.11, 0.014, 0.012, vm); pn.position.set(0, 1.02, zf + 0.009); g.add(pn);
+      for (const x of [-0.096, -0.032, 0.032, 0.096]) {
+        const p = rbox(0.056, 0.115, 0.036, 0.009, pm); p.position.set(x, 1.0, zf + 0.034); g.add(p);
+        const f = rbox(0.058, 0.03, 0.04, 0.008, pm); f.position.set(x, 1.055, zf + 0.035); g.add(f);
+      }
+      for (const sd of [-1, 1]) {
+        const fz = extent(CS, [sd * 0.13 - 0.014, sd * 0.13 + 0.014, 1.17, 1.21], "front", false) + tMax;
+        let ys = 0, zs = 0;
+        for (let i = 0; i < G.n; i++) { const x = G.rest[i * 3]; if (Math.abs(x - sd * 0.095) > 0.012 || gArmJ(i) > 0.5 || G.R1[i * 4] > 0.5 || G.rest[i * 3 + 1] < 1.2) continue; if (CS.cur[i * 3 + 1] > ys) { ys = CS.cur[i * 3 + 1]; zs = CS.cur[i * 3 + 2]; } }
+        g.add(sweep([v3(sd * 0.11, 1.075, zf + 0.012), v3(sd * 0.135, 1.19, fz + 0.006), v3(sd * 0.1, ys + tMax * 0.7 + 0.005, zs + 0.02), v3(sd * 0.085, ys + tMax * 0.7 + 0.004, zs - 0.035),
+          v3(sd * 0.04, 1.17, zb - 0.008), v3(-sd * 0.06, 1.04, zb - 0.006)], 0, vm, { flat: [0.032, 0.008], side: v3(1, 0, 0), seg: 56 }));
+      }
+      ride(g, "spine_02");
+    }
+    // ---- drop-leg holster on the right thigh (right = -x)
+    if (has("gear", "holster")) {
+      const y0 = 0.69, bx = [-0.32, -0.04, y0 - 0.012, y0 + 0.012], legT = (bottom === "pants" || bottom === "leggings") ? Bt.thick + (Bt.loose || 0) * 0.5 : (bottom === "cargo" || bottom === "shorts") && y0 > Bt.hem ? Bt.thick + (Bt.flare || 0) * 0.5 : 0;
+      const xo = extent(CS, bx, "right", true) - legT, zc = centreZ(CS, [-0.32, -0.04, y0 - 0.03, y0 + 0.03]), g = new THREE.Group();
+      const pl = rbox(0.085, 0.2, 0.012, 0.012, mBlack); pl.rotation.y = Math.PI / 2; pl.position.set(xo - 0.011, y0, zc); g.add(pl);
+      const hb = rbox(0.064, 0.17, 0.036, 0.014, mBlack); hb.rotation.y = Math.PI / 2; hb.position.set(xo - 0.034, y0 - 0.012, zc + 0.006); g.add(hb);
+      const gr = rbox(0.032, 0.08, 0.026, 0.008, std({ color: 0x1b1c1f, roughness: 0.6 })); gr.rotation.set(0, Math.PI / 2, -0.12); gr.position.set(xo - 0.036, y0 + 0.11, zc - 0.012); g.add(gr);
+      const sl = rbox(0.12, 0.028, 0.024, 0.005, std({ color: 0x232428, roughness: 0.35, metalness: 0.5 })); sl.rotation.y = Math.PI / 2; sl.position.set(xo - 0.036, y0 + 0.07, zc + 0.02); g.add(sl);
+      ride(g, "thigh_r");
+      for (const [a, b2] of [[0.6, 0.628], [0.735, 0.763]]) band("strap" + a, new THREE.Vector4(a, b2, -1, 1), (i) => botT(i) * (botJ(i) ? 1 : 0) + 0.0042, new THREE.Vector4(0.05, 0.05, 0.055, 0), { min: 0.002 });
+    }
+    // ---- puffer fur hood / hoodie hood + drawstrings
+    if (top === "puffer") {
+      const pts = neckRing(CS, 1.385, 1.33, 0.012, 48);
+      const fur = new THREE.MeshStandardMaterial({ color: new THREE.Color(camo === "snow" ? "#ebe6de" : "#e4ddd2"), roughness: 1 }); fur.userData.cloth = true;
+      const g = new THREE.Group(); g.add(fuzzyRing(pts, (t) => { const f = Math.cos(t * Math.PI * 2); return 0.03 + 0.024 * Math.pow((1 - f) / 2, 1.5); }, fur, true, 0.35));
+      ride(g, "spine_03");
+    } else if (top === "hoodie") {
+      const ring = neckRing(CS, 1.37, 1.335, T.thick + 0.004, 48), back = ring.filter((p, k) => { const th = k / 48 * Math.PI * 2; return th > Math.PI * 0.55 && th < Math.PI * 1.45; });
+      const hm = std({ color: 0xffffff, map: camoTex(camo), roughness: 0.97 }); hm.userData.cloth = true;
+      const g = new THREE.Group(); g.add(fuzzyRing(back, (t) => 0.018 + 0.03 * Math.sin(t * Math.PI), hm, false, 0.08));
+      const cord = std({ color: 0xf2f2f2, roughness: 0.6 });
+      for (const sd of [-1, 1]) {
+        const pts = [];
+        for (const y of [1.335, 1.3, 1.26, 1.22]) pts.push(v3(sd * 0.032, y, extent(CS, [sd * 0.032 - 0.012, sd * 0.032 + 0.012, y - 0.012, y + 0.012], "front", false) + T.thick + 0.004));
+        g.add(sweep(pts, 0.0024, cord, { radial: 6 }));
+        const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.0032, 0.0032, 0.014, 8), mBlack); tip.position.copy(pts[pts.length - 1]).add(v3(0, -0.006, 0)); g.add(tip);
+      }
+      ride(g, "spine_03");
+    }
+
+    // ---- necklaces (lie on the skin or over the top's collar)
+    const jOff = 0.0032 + (T.neck === 1 ? 0 : (top === "puffer" ? 0.012 : T.thick));
+    if (has("jewelry", "chain")) {
+      const pts = neckRing(CS, 1.372, 1.3, jOff + 0.002, 72), fr = ringFrames(pts, 0.0066);
+      const lg = new THREE.TorusGeometry(0.0041, 0.0016, 8, 18); lg.rotateX(Math.PI / 2); lg.scale(1.32, 1, 1);
+      const gm = new THREE.MeshPhysicalMaterial({ color: 0xe8c36a, metalness: 1, roughness: 0.14, envMap: getEnv(), envMapIntensity: 1.7, clearcoat: 0.6 });
+      const g = new THREE.Group(); g.add(instAlong(lg, gm, fr.map((f, k) => f.m.clone().multiply(new THREE.Matrix4().makeRotationX(k % 2 ? 0.55 : -0.55)))));
+      ride(g, "spine_03");
+    }
+    if (has("jewelry", "tennis")) {
+      const pts = neckRing(CS, 1.366, 1.312, jOff + 0.0018, 72), fr = ringFrames(pts, 0.0047);
+      const dm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0, ior: 2.4, specularIntensity: 1, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4, emissive: 0x15161a });
+      const wg = new THREE.MeshPhysicalMaterial({ color: 0xd9dce0, metalness: 1, roughness: 0.2, envMap: getEnv(), envMapIntensity: 1.4 });
+      const cup = new THREE.CylinderGeometry(0.0027, 0.0021, 0.0022, 10);
+      const g = new THREE.Group(); g.add(instAlong(brilliant(0.0022), dm, fr.map((f) => f.m.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0.0012, 0)))));
+      g.add(instAlong(cup, wg, fr.map((f) => f.m)));
+      ride(g, "spine_03");
+    }
+    if (has("jewelry", "dogtags")) {
+      const pts = neckRing(CS, 1.374, 1.2, jOff + 0.0045, 80), fr = ringFrames(pts, 0.0034);
+      const sm = new THREE.MeshPhysicalMaterial({ color: 0xc9ccd1, metalness: 1, roughness: 0.25, envMap: getEnv(), envMapIntensity: 1.4 });
+      const g = new THREE.Group(); g.add(instAlong(new THREE.SphereGeometry(0.0013, 8, 6), sm, fr.map((f) => f.m)));
+      let lo = fr[0]; for (const f of fr) if (f.p.y < lo.p.y) lo = f;
+      const n = v3(lo.p.x, 0, lo.p.z - 0.012).normalize(), up = v3(0, 1, 0).addScaledVector(n, -n.y).normalize(), side = new THREE.Vector3().crossVectors(up, n).normalize();
+      for (let k = 0; k < 2; k++) {
+        const t = rbox(0.029, 0.05, 0.0013, 0.007, sm), m = new THREE.Matrix4().makeBasis(side, up, n);
+        t.quaternion.setFromRotationMatrix(m); t.rotateZ(k ? 0.16 : -0.05);
+        t.position.copy(lo.p).addScaledVector(up, -0.027 - k * 0.004).addScaledVector(n, 0.004 + k * 0.0016).addScaledVector(side, k * 0.006);
+        g.add(t);
+      }
+      ride(g, "spine_03");
+    }
+
+    // ---- head pieces (rest space, carried by the head frame H)
+    if (!H || !G.headC) return;
+    const HG = new THREE.Group(); HG.position.copy(H.position).negate(); H.add(HG);
+    const eyeY = eyeInfo ? eyeInfo.l.y : 1.5;
+    const goldP = new THREE.MeshPhysicalMaterial({ color: 0xe8c36a, metalness: 1, roughness: 0.12, envMap: getEnv(), envMapIntensity: 1.8, clearcoat: 0.7 });
+    const lobes = faceFit && faceFit.lobe ? faceFit.lobe : null;
+    if (lobes && has("jewelry", "hoops")) for (let k = 0; k < 2; k++) {
+      const L = lobes[k], sd = Math.sign(L.x) || 1, h = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.0022, 12, 56), goldP);
+      h.position.set(L.x + sd * 0.004, L.y - 0.02, L.z + 0.002); h.rotation.set(0, Math.PI / 2, sd * 0.08); HG.add(h);
+    }
+    if (lobes && has("jewelry", "studs")) for (let k = 0; k < 2; k++) {
+      const L = lobes[k], sd = Math.sign(L.x) || 1, dm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, ior: 2.4, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4, emissive: 0x15161a });
+      const st = new THREE.Mesh(brilliant(0.0032), dm); st.position.set(L.x + sd * 0.0035, L.y - 0.001, L.z + 0.001); st.rotation.z = -sd * Math.PI / 2; HG.add(st);
+    }
+    const hairOff = (one("hair") === "pixie" || one("hair") === "buzz") ? 0.004 : 0.008;
+    if (has("jewelry", "crystalband")) {
+      const pts = headArc(hairOff + 0.004, 0.42, -1.3, 1.3, 34);
+      if (pts && pts.length > 4) {
+        const fr = []; const c = new THREE.CatmullRomCurve3(pts), L = c.getLength(), n = Math.round(L / 0.0095);
+        for (let k = 0; k <= n; k++) { const p = c.getPointAt(k / n), d = p.clone().sub(G.headC).normalize(), T2 = c.getTangentAt(k / n), Z = new THREE.Vector3().crossVectors(T2, d).normalize(); fr.push(new THREE.Matrix4().makeBasis(T2, d, Z).setPosition(p)); }
+        const dm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, ior: 2.4, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4.5, emissive: 0x1a1b22 });
+        HG.add(instAlong(brilliant(0.0046), dm, fr));
+        HG.add(sweep(pts, 0.0018, new THREE.MeshPhysicalMaterial({ color: 0xdfe2e6, metalness: 1, roughness: 0.2, envMap: getEnv() }), { radial: 6 }));
+      }
+    }
+    if (has("gear", "beanie")) {
+      const d = headDome("beanie", eyeY + 0.045, eyeY - 0.012, hairOff + 0.008, 0.26);
+      if (d) {
+        const kt = knitTex().clone(); kt.wrapS = kt.wrapT = THREE.RepeatWrapping; kt.repeat.set(1, 1); kt.needsUpdate = true;
+        const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(camo === "snow" ? "#26272b" : SC[1]), map: kt, roughness: 1, side: THREE.DoubleSide }); m.userData.cloth = true;
+        HG.add(new THREE.Mesh(d.g, m));
+        HG.add(sweep(d.rim, 0.004, m, { closed: true, radial: 8 }));
+      }
+    }
+    if (has("gear", "cap")) {
+      const d = headDome("cap", eyeY + 0.052, eyeY + 0.008, hairOff + 0.006, 0);
+      if (d) {
+        const st = seamTex().clone(); st.needsUpdate = true;
+        const cc = new THREE.Color(CP[1]);
+        const m = new THREE.MeshStandardMaterial({ color: cc, map: st, roughness: 0.9, side: THREE.DoubleSide }); m.userData.cloth = true;
+        HG.add(new THREE.Mesh(d.g, m));
+        // brim: from the front rim forward, curved down at the sides
+        const P = [], I = [], cols = d.cols, segs = [];
+        for (let c = 0; c <= cols; c++) { let ph = c / cols * Math.PI * 2; if (ph > Math.PI) ph -= Math.PI * 2; if (Math.abs(ph) < 1.15) segs.push([ph, d.rim[c]]); }
+        segs.sort((a, b) => a[0] - b[0]);
+        segs.forEach(([ph, p], k) => {
+          const out = v3(Math.sin(ph), 0, Math.cos(ph)), len = 0.072 * Math.pow(Math.cos(ph * 1.25), 0.7);
+          const q = p.clone().addScaledVector(out, len).add(v3(0, -0.012 - 0.01 * Math.abs(ph), 0));
+          const mid = p.clone().addScaledVector(out, len * 0.5).add(v3(0, -0.003, 0));
+          for (const v of [p, mid, q]) P.push(v.x, v.y, v.z);
+          for (const v of [p, mid, q]) P.push(v.x, v.y - 0.004, v.z);
+          if (k) { const a = (k - 1) * 6, b = k * 6; for (const o of [0, 3]) { I.push(a + o, b + o, a + o + 1, a + o + 1, b + o, b + o + 1, a + o + 1, b + o + 1, a + o + 2, a + o + 2, b + o + 1, b + o + 2); } I.push(a + 2, b + 2, a + 5, a + 5, b + 2, b + 5); }
+        });
+        const bg = new THREE.BufferGeometry(); bg.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); bg.setIndex(I); bg.computeVertexNormals();
+        const bm = new THREE.MeshStandardMaterial({ color: cc.clone().multiplyScalar(0.92), roughness: 0.85, side: THREE.DoubleSide }); bm.userData.cloth = true;
+        HG.add(new THREE.Mesh(bg, bm));
+        const top0 = new THREE.Vector3(d.g.attributes.position.getX(0), d.g.attributes.position.getY(0), d.g.attributes.position.getZ(0));
+        const btn = new THREE.Mesh(new THREE.SphereGeometry(0.007, 16, 10), bm); btn.scale.set(1, 0.45, 1); btn.position.copy(top0).add(v3(0, 0.002, 0)); HG.add(btn);
+      }
+    }
+    if (has("gear", "headset") && faceFit && faceFit.ear) {
+      const arc = headArc(hairOff + (has("gear", "beanie") ? 0.018 : has("gear", "cap") ? 0.014 : 0.006), -0.12, -1.25, 1.25, 30);
+      const hm = std({ color: 0x1a1b1e, roughness: 0.55, metalness: 0.2 }), pad = std({ color: 0x2a2c30, roughness: 0.9 }), olive = std({ color: new THREE.Color(SC[1]), roughness: 0.7 });
+      if (arc && arc.length > 4) HG.add(sweep(arc, 0, hm, { flat: [0.026, 0.008], side: v3(0, 0, 1), seg: 48 }));
+      for (const E of faceFit.ear) {
+        const sd = Math.sign(E.x) || 1, c = E.clone().add(v3(sd * 0.026, 0.004, -0.004));
+        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.032, 40), olive); cup.rotation.z = Math.PI / 2; cup.position.copy(c); HG.add(cup);
+        const cush = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.008, 10, 36), pad); cush.rotation.y = Math.PI / 2; cush.position.copy(c).add(v3(-sd * 0.018, 0, 0)); HG.add(cush);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.008, 28), hm); cap.rotation.z = Math.PI / 2; cap.position.copy(c).add(v3(sd * 0.018, 0, 0)); HG.add(cap);
+        if (arc && arc.length) { const end = sd > 0 ? arc[arc.length - 1] : arc[0]; HG.add(sweep([end, end.clone().lerp(c, 0.5).add(v3(sd * 0.012, 0, 0)), c.clone().add(v3(sd * 0.012, 0.03, 0))], 0.006, hm, { radial: 8 })); }
+        if (sd < 0) {
+          const mo = U.uMouth.value, m0 = c.clone().add(v3(sd * 0.004, -0.012, 0.03));
+          HG.add(sweep([m0, m0.clone().add(v3(-sd * 0.012, -0.03, 0.05)), v3(mo.x + sd * 0.03, mo.y - 0.006, mo.z + 0.012)], 0.0028, hm, { radial: 8 }));
+          const mic = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 14, 10), std({ color: 0x0c0c0d, roughness: 1 })); mic.position.set(mo.x + sd * 0.028, mo.y - 0.006, mo.z + 0.014); HG.add(mic);
+        }
+      }
+    }
+  }
+
   function buildExtras(s, one, has, armed, pistol, w, hold) {
     const sRef = s;
     holder.remove(extras); extras.traverse((o) => { o.geometry && o.geometry.dispose(); o.material && o.material.dispose && o.material.dispose(); });
@@ -1089,32 +1799,7 @@ function init() {
         extras.add(limb(tip.toArray(), tip.clone().add(dir.clone().multiplyScalar(0.016)).toArray(), 0.0045, 0.0028, nailM));
       }
     }
-    if (has("gear", "beanie")) H.add(sphere(R * 1.08, std({ color: 0x2a2b2e, roughness: 1 }), 0, 0.03, -0.01, 0.97, 0.92, 1.05));
-    if (has("gear", "cap")) { H.add(sphere(R * 1.06, dark, 0, 0.03, -0.01, 0.97, 0.82, 1.05)); H.add(boxM(0.13, 0.012, 0.09, dark, 0, 0.04, 0.1)); }
-    if (has("gear", "headset")) {
-      const hb = new THREE.Mesh(new THREE.TorusGeometry(R * 1.08, 0.009, 8, 32, Math.PI), black); hb.position.set(0, 0.0, -0.005); H.add(hb);
-      for (const sd of [-1, 1]) H.add(sphere(0.028, black, sd * R * 1.04, 0, 0, 0.6, 1, 1));
-    }
     const lobeAt = (sd) => { const L = faceFit && faceFit.lobe && faceFit.lobe[sd > 0 ? 0 : 1]; return L ? L.clone().sub(H.position) : new THREE.Vector3(sd * 0.073, -0.03, 0.005); };
-    if (has("jewelry", "hoops")) for (const sd of [-1, 1]) { const L = lobeAt(sd), h = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.0024, 8, 32), gold); h.position.set(L.x + sd * 0.002, L.y - 0.015, L.z); h.rotation.y = Math.PI / 2; H.add(h); }
-    if (has("jewelry", "crystalband")) {   // rhinestone band over the crown, ear to ear
-      const ice = std({ color: 0xffffff, metalness: 0.7, roughness: 0.05, emissive: 0x333344 });
-      for (let i = 0; i <= 14; i++) { const a = -1.25 + i * (2.5 / 14); H.add(sphere(0.0065, ice, Math.sin(a) * R * 1.12, -0.035 + Math.cos(a) * R * 1.12, 0.012 + Math.cos(a) * 0.012, 1, 1, 0.6)); }
-    }
-    if (has("jewelry", "studs")) for (const sd of [-1, 1]) { const L = lobeAt(sd); H.add(sphere(0.0032, new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.02, clearcoat: 1, envMap: envTex || null, envMapIntensity: 2.5 }), L.x + sd * 0.0015, L.y - 0.002, L.z)); }
-
-    // fur hood / chains at the neck
-    const nk = neck.clone().add(v3(0, 0.02, -0.01));
-    if ((one("top") || "puffer") === "puffer") {
-      const hood = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.036, 16, 40), std({ color: 0xdad7d1, roughness: 1 }));
-      hood.position.copy(nk).add(v3(0, -0.01, -0.015)); hood.rotation.x = Math.PI / 2 - 0.3; extras.add(hood);
-    }
-    if (has("jewelry", "chain") || has("jewelry", "tennis") || has("jewelry", "dogtags")) {
-      const c = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.005, 8, 40), has("jewelry", "dogtags") ? std({ color: 0xbfc4c9, metalness: 0.9, roughness: 0.3 }) : gold);
-      c.position.copy(nk).add(v3(0, -0.04, 0.035)); c.rotation.x = Math.PI / 2 + 0.55; extras.add(c);
-    }
-    if (has("gear", "holster")) { const t = bonePos("thigh_r"); extras.add(boxM(0.055, 0.16, 0.05, dark, t.x - 0.1, t.y - 0.14, t.z)); }
-    if (has("gear", "chest")) { const sp = bonePos("spine_02"); extras.add(boxM(0.22, 0.09, 0.04, dark, sp.x, sp.y + 0.03, sp.z + 0.13)); }
 
     // shoes and bottoms: real fitted meshes when the model has them
     const sneaker = one("boots") === "sneakers";
@@ -1122,12 +1807,7 @@ function init() {
       const bt = new THREE.Color(BOOTS[one("boots")] || BOOTS.white);
       M.cl_boots.visible = !sneaker; M.cl_sneakers.visible = sneaker;
       M.cl_boots.material.userData.uTint.value.copy(bt);
-      const bottom = one("bottom") || "bodysuit";
-      M.cl_leggings.visible = bottom === "leggings";
-      M.cl_jeans.visible = bottom === "pants";
-      M.cl_shorts.visible = bottom === "shorts" || bottom === "cargo";
-      const cm = camoTex(one("camo") || "snow");
-      for (const k of ["cl_leggings", "cl_jeans", "cl_shorts"]) { M[k].material.map = cm; M[k].material.needsUpdate = true; }
+      for (const k of ["cl_leggings", "cl_jeans", "cl_shorts"]) if (M[k]) M[k].visible = false;   // replaced by fitted shells
     }
     const bootM = std({ color: BOOTS[one("boots")] || BOOTS.white, roughness: 0.45 });
     if (!M.cl_boots) {
@@ -1141,6 +1821,7 @@ function init() {
       extras.add(boxM(0.078, 0.012, toe.z - heel.z + 0.07, std({ color: 0x1a1a1c, roughness: 0.8 }), (heel.x + toe.x) / 2, 0.006, (heel.z + toe.z) / 2));
     }
     }
+    try { garments(s, one, has, H); } catch (e) { console.warn("garments", e); U.uGarOn.value = 0; }
     followHead();
     // the seat she sits on
     if (curSeat && curSeat.type !== "floor") {
@@ -1740,5 +2421,5 @@ function init() {
   });
   renderer.domElement.addEventListener("pointerdown", () => { if (controls.autoRotate) { controls.autoRotate = false; syncSpin(); } });
   syncSpin();
-  window.BADDIES_3D = { build, scene, camera, controls, bones: B, get body() { return body; }, get faceIdx() { return faceIdx; }, faceFrame: () => faceFrame(), get faceRestF() { return faceRestF; }, get dbg() { return { eyeInfo, headInfo, faceFit, extras, holder, eyeRestF, eyeNow: eyeFrame(), faceNow: faceFrame(), faceRestF, eyesSkinned: !!(eyes && eyes.isSkinnedMesh), eyesName: eyes && eyes.name }; } };
+  window.BADDIES_3D = { build, scene, camera, controls, bones: B, get body() { return body; }, get faceIdx() { return faceIdx; }, faceFrame: () => faceFrame(), get faceRestF() { return faceRestF; }, get gar() { return { G, shells, hairCap, headDome, headArc, headRay }; }, get dbg() { return { eyeInfo, headInfo, faceFit, extras, holder, eyeRestF, eyeNow: eyeFrame(), faceNow: faceFrame(), faceRestF, eyesSkinned: !!(eyes && eyes.isSkinnedMesh), eyesName: eyes && eyes.name }; } };
 }
