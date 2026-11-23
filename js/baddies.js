@@ -241,6 +241,24 @@
   }
   function poseId() { return (state.pose && state.pose.preset) || "hold"; }
   function handsBusy() { var p = poseId(); return p !== "hold" && p !== "kneel" && p !== "custom"; }
+  // Exactly how she carries the gun, in words the image models follow (grip, which hand, muzzle and magazine direction).
+  function holdExact(w) {
+    w = w || fromList(WEAPONS, state.weapon);
+    var pistol = w[3] === "pistol", h = state.hold;
+    if (handsBusy()) return pistol
+      ? "with the pistol holstered in a black thigh holster on her right thigh, grip up, and both of her hands free and not touching any gun"
+      : "with the long gun slung on a tactical sling diagonally across her back, its stock behind one shoulder and its muzzle pointing down behind her opposite hip, both of her hands free and not holding any gun";
+    if (pistol) {
+      if (h === "shoulder") return "aiming the pistol forward at eye level in a firm two-handed grip: right hand wrapped high on the grip, left hand cupping it, both arms extended, index finger straight along the frame above the trigger guard, slide on top, muzzle pointing forward";
+      if (h === "sling") return "with the pistol holstered in a black thigh holster on her right thigh, grip up";
+      if (h === "side") return "holding the pistol in her right hand down along her right thigh, arm relaxed, muzzle pointing at the ground, index finger straight along the frame off the trigger";
+      return "holding the pistol in both hands at a low ready in front of her waist: right hand on the grip, left hand supporting, muzzle angled down at the ground, index finger straight along the frame off the trigger";
+    }
+    if (h === "shoulder") return "aiming it: buttstock pressed into the pocket of her right shoulder, cheek resting on the stock, right hand on the pistol grip, left hand forward on the handguard, index finger straight along the side above the trigger guard, the gun right side up with the magazine pointing down, muzzle pointing forward";
+    if (h === "sling") return "with the long gun slung on a tactical sling diagonally across her back, its stock behind one shoulder and its muzzle pointing down behind her opposite hip, both of her hands free";
+    if (h === "side") return "carrying it at her right side: right hand wrapped around the pistol grip, arm relaxed, the gun hanging straight down along her right leg, stock up near her hip and muzzle pointing at the ground, right side up with the magazine facing forward, index finger straight off the trigger";
+    return "holding it at low ready diagonally across the front of her body with both hands: right hand on the pistol grip, left hand on the handguard, buttstock tucked against her right hip, muzzle angled down toward the ground to her front left, the gun right side up with the magazine pointing down, index finger straight along the side off the trigger";
+  }
   function poseWords() {
     var pid = poseId(), base = fromList(POSES, pid)[2], seat = seatId();
     if (seat !== "none") base = fromList(SEATS, seat)[2] + (pid === "sit" ? (seat === "stool" ? ", knees bent" : seat === "floor" ? "" : ", knees bent, feet on the ground") : "");
@@ -292,7 +310,7 @@
   ];
 
   var NEGATIVE = "child, minor, teen, young-looking, childlike body, nude, nudity, topless, nipples, genitals, nsfw, explicit, " +
-    "white ink tattoo, white tattoos, fake gun, toy gun, made-up gun, deformed gun, extra barrels, mangled weapon, " +
+    "white ink tattoo, white tattoos, fake gun, toy gun, made-up gun, deformed gun, extra barrels, mangled weapon, gun held upside down, backwards gun, magazine on top, finger on the trigger, two guns, gun fused with body, " +
     "extra limbs, extra fingers, deformed hands, bad anatomy, blurry, watermark, text, logo, cropped head, cropped feet";
 
   var DEFAULTS = {
@@ -666,11 +684,7 @@
     var mk = [opt("makeup"), opt("expr")].filter(Boolean); if (mk.length) ch.push("give her " + mk.join(" and "));
     var w = fromList(WEAPONS, state.weapon);
     if (w[0] !== "none") {
-      var hold = fromList(HOLDS, state.hold)[2];
-      if (w[3] === "pistol" && state.hold === "sling") hold = "with it holstered on her thigh";
-      if (w[3] === "pistol" && state.hold === "shoulder") hold = "aiming it with both hands at eye level in a two-handed grip";
-      if (w[3] === "pistol" && state.hold === "low") hold = "holding it in both hands, pointed down at a low ready";
-      if (handsBusy()) hold = w[3] === "pistol" ? "with it holstered on her thigh" : "with it slung across her back on a tactical sling";
+      var hold = holdExact(w);
       ch.push("she is armed with " + w[2] + ", " + hold + ", an accurate, true-to-life model of the real firearm");
     }
     if (poseWords()) ch.push("pose her " + poseWords());
@@ -725,11 +739,7 @@
     var jew = opts("jewelry"); if (jew.length) parts.push("accessorized with " + jew.join(", "));
     var w = fromList(WEAPONS, state.weapon);
     if (w[0] !== "none") {
-      var hold = fromList(HOLDS, state.hold)[2];
-      if (w[3] === "pistol" && state.hold === "sling") hold = "with it holstered on her thigh";
-      if (w[3] === "pistol" && state.hold === "shoulder") hold = "aiming it with both hands at eye level in a two-handed grip";
-      if (w[3] === "pistol" && state.hold === "low") hold = "holding it in both hands, pointed down at a low ready";
-      if (handsBusy()) hold = w[3] === "pistol" ? "with it holstered on her thigh" : "with it slung across her back on a tactical sling";
+      var hold = holdExact(w);
       parts.push("armed with " + w[2] + ", " + hold + ", an accurate, true-to-life model of the real firearm with correct details and proportions");
     }
     if (poseWords()) parts.push("POSE: " + poseWords());
@@ -871,6 +881,36 @@
   function whoName(c) { return c ? (c.handle ? "@" + c.handle : c.name) : ""; }
   // Hairstyles too unusual for words alone ride along as a reference picture (our own render, hair only, no face)
   var HAIR_REFS = { spike: "img/baddies/hair-spike.jpg" };
+  // Product photos of each real weapon (left side, muzzle right). A last edit step matches the gun to its photo.
+  // Real photos on Wikimedia Commons (free licences), looked up when she's generated and flattened onto white.
+  var GUN_REFS = { ak47: "AK-47 type II noBG.png", akm: "AK-103.JPG", m4a1: "PEO M4 Carbine RAS M68 CCO.png", hk416: "HK416N.png",
+    scar: "FN SCAR-L noBG.png", mp5: "Heckler & Koch MP5-1.jpg", uzi: "Uzi of the israeli armed forces.jpg", remington: "Remington 870 Wmaster.jpg",
+    barrett: "Barrett-M82A1-Independence-Day-2017-IZE-048-white.jpg", glock: "Glock 19 (9mm), Generation 3.jpg", deagle: "Desert Eagle Chrome (cropped).JPG" };
+  function gunRef() { return state.weapon && state.weapon !== "none" && GUN_REFS[state.weapon] ? GUN_REFS[state.weapon] : null; }
+  async function gunRefBlob(title) {
+    var api = "https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=url&iiurlwidth=1024&titles=" + encodeURIComponent("File:" + title);
+    var j = await (await fetch(api)).json(), pg = j.query && j.query.pages ? Object.values(j.query.pages)[0] : null;
+    var u = pg && pg.imageinfo && (pg.imageinfo[0].thumburl || pg.imageinfo[0].url); if (!u) throw new Error("no ref");
+    var bm = await createImageBitmap(await (await fetch(u, { mode: "cors" })).blob());
+    var pad = Math.round(bm.width * 0.04), c = document.createElement("canvas"); c.width = bm.width + pad * 2; c.height = bm.height + pad * 2;
+    var g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bm, pad, pad);
+    var b = await new Promise(function (res) { c.toBlob(res, "image/jpeg", 0.92); });
+    return new File([b], "weapon-reference.jpg", { type: "image/jpeg" });
+  }
+  function gunFixPrompt(sheet) {
+    var w = fromList(WEAPONS, state.weapon), name = w[1], pistol = w[3] === "pistol";
+    var stowed = handsBusy() || state.hold === "sling";
+    if (stowed) {   // an edit can't move a gun out of her hands unless it's told to remove it first
+      var hands = handsBusy() ? (poseWords() || "her hands in the same pose as now") : "her arms relaxed at her sides";
+      return "Picture 1 is the photo to edit. Picture 2 is a reference photo of the exact real " + name + ". " + (sheet ? "In each of the three views: r" : "R") + "emove any gun from her hands completely, so her hands are empty: " + hands + ". Then " +
+        (pistol ? "put the exact " + name + " from Picture 2 (same shape, color, slide, grip and proportions) in a black tactical thigh holster on her right thigh, grip up."
+                : "put the exact " + name + " from Picture 2 (same shape, color, stock, rail, magazine and barrel) on a black tactical sling across her back: only its stock shows above and behind one shoulder and its barrel tip behind the opposite hip, the sling strap runs diagonally across her chest.") +
+        " Nothing in her hands. Keep everything else in Picture 1 exactly the same: the same person, face, hair, body, outfit, tattoos, jewelry, background, lighting and framing.";
+    }
+    return "Picture 1 is the photo to edit. Picture 2 is a reference photo of the exact real " + name + " she carries: make her gun exactly this weapon, copying its true shape, proportions, color, stock, receiver, rails, sights, grip, magazine and barrel from Picture 2, at real-world size relative to her body. Copy nothing else from Picture 2 (no white background, no extra gun). " +
+      (sheet ? "In each of the three views, she" : "She") + " carries it " + holdExact(w) + ". The gun is one solid piece, not bent, not fused with her body or clothes, no duplicate guns; her fingers wrap naturally around the grip with five fingers per hand. " +
+      "Keep everything else in Picture 1 exactly the same: the same person, face, hair, body, outfit, tattoos, jewelry, pose, background, lighting and framing.";
+  }
   function hairRef() { var h = (state.pick.hair || [])[0]; return (!state.char || h !== "own") && HAIR_REFS[h] ? HAIR_REFS[h] : null; }
   function hairRefNote(n) {
     return " Picture " + n + " is only a hairstyle reference: copy that exact hairstyle from it (the same shape, the bun, and the long rigid tube of hair sticking out diagonally up and backward, not hanging down), in her chosen hair color; do not copy anything else from Picture " + n + ".";
@@ -916,6 +956,7 @@
       steps.push({ label: "", inputs: [], w: VIEWS[pv].w, h: VIEWS[pv].h, prompt: single ? promptAs("full") : buildPrompt(), post: single ? bodyEdit() : postEdit() });
     }
     if (!C && hairRef()) steps.push({ label: "styling the hair", inputs: ["prev", "hairref"], multi: true, prompt: hairRefPrompt(!single && state.view === "sheet") });
+    if (gunRef()) steps.push({ label: "fixing the weapon", who: !!C, inputs: ["prev", "gunref"], multi: true, prompt: gunFixPrompt(!C && !single && state.view === "sheet" || !!C && !single && !poseMatch() && state.view === "sheet") });
     if (state.with) steps.push({ label: "adding " + whoName(state.with), inputs: ["prev", "with"], w: 1216, h: 832, prompt: duoPrompt() });
     if (C && !steps.some(function (x) { return x.post; }) && (steps.length === 1 || steps[1].label === "styling the hair" && steps.length === 2)) steps[0].post = bodyEdit();
     steps[steps.length - 1].batch = state.batch;
@@ -927,9 +968,8 @@
     var onGun = w[0] !== "none" && (pid === "hold" || pid === "kneel");   // hands are on the gun: describe the gun hold instead
     var d = window.BADDIES_POSE_DESC ? window.BADDIES_POSE_DESC({ hands: !onGun }) : "";
     if (w[0] !== "none") {
-      if (handsBusy()) gun = w[3] === "pistol" ? "the pistol holstered on her thigh" : "the gun slung across her back";
-      else if (pid === "custom") gun = "holding " + w[2].replace(/^a real /, "the ") + " in her right hand";
-      else gun = "holding " + w[2].replace(/^a real /, "the ") + " " + fromList(HOLDS, state.hold)[2].replace(/^holding it /, "");
+      if (pid === "custom") gun = "holding " + w[2].replace(/^a real /, "the ") + " in her right hand by its grip, right side up, finger off the trigger";
+      else gun = w[2].replace(/^a real /, "the ") + " " + holdExact(w);
     }
     var seat = seatId(), lw = lookWords();
     if (/leaning back/.test(d)) lw = lw.replace(/,? ?leaning back/, "");
@@ -987,6 +1027,10 @@
       if (state.char) blobs.face = await charBlob(state.char);
       if (state.with) blobs["with"] = await charBlob(state.with);
       if (hairRef()) blobs.hairref = await urlBlob(new URL(hairRef(), location.href).href, "hair-reference.jpg");
+      if (gunRef()) { try { blobs.gunref = await gunRefBlob(gunRef()); } catch (e) { blobs.gunref = null; } }
+      if (!blobs.gunref && plan.some(function (st) { return st.label === "fixing the weapon"; })) {   // reference unavailable: skip that step
+        var b0 = plan[plan.length - 1].batch; plan = plan.filter(function (st) { return st.label !== "fixing the weapon"; }); plan[plan.length - 1].batch = b0;
+      }
       if (poseMatch()) {
         if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
         var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
@@ -996,6 +1040,8 @@
     } catch (e) { hint(e.message, true); $("bdGo").disabled = false; return; }
     var last = VIEWS[singleShot() ? (state.with ? "sheet" : "full") : state.view];
     var settings = snapshot(), model = plan[0].inputs.length ? editModel() : state.engine;
+    settings.models = plan.map(function (st) { return st.inputs.length ? editModel() : state.engine; }).concat(plan.some(function (st) { return st.post; }) ? ["qwen_edit2509"] : [])
+      .filter(function (m, i, a) { return a.indexOf(m) === i; });
     var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: plan.map(function (x) { return x.prompt; }).join("\n\n"),
       created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
       plan: plan, si: -1, blobs: blobs, editModel: editModel(), wearing: wearingLine(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
@@ -1150,7 +1196,7 @@
     $("bdViewerImg").src = abs; $("bdViewerImg").alt = c.name || "Baddie";
     $("bdViewerName").textContent = c.name || "Baddie";
     $("bdViewerWhen").textContent = when(c.created_at) + " · " + ((VIEWS[c.view] || {}).label || "") + " · " + (c.model === "flux2" ? "Best" : "Fast");
-    $("bdViewerSpecs").innerHTML = specs(c.settings || {}).map(function (s) { return "<li><span>" + esc(s[0]) + "</span><b>" + esc(s[1]) + "</b></li>"; }).join("");
+    $("bdViewerSpecs").innerHTML = specs(c.settings || {}).concat([["Model", modelsLabel(c)]]).map(function (s) { return "<li><span>" + esc(s[0]) + "</span><b>" + esc(s[1]) + "</b></li>"; }).join("");
     var q = encodeURIComponent(abs);
     document.querySelector('[data-va="spin"]').href = "spin-360.html?image=" + q;
     document.querySelector('[data-va="motion"]').href = "motion-transfer.html?ref=" + q;
@@ -1165,6 +1211,11 @@
     else if (act === "dl") downloadImg(absUrl(vUrl), vCard.name);
     else if (act === "del") delCard(vCard);
   });
+  var MODEL_NAMES = { zimage: "Z-Image Turbo", flux2: "FLUX.2 Dev", klein9b_edit: "FLUX.2 Klein 9B (edit)", flux2_edit: "FLUX.2 Dev (edit)", qwen_edit2509: "Qwen Image Edit 2509" };
+  function modelsLabel(c) {
+    var s = c.settings || {}, list = s.models && s.models.length ? s.models : [c.model || "zimage"];
+    return list.map(function (m) { return MODEL_NAMES[m] || m; }).join(" + ");
+  }
   function specs(s) {
     if (!s || !s.shape) return [];
     var out = [];
@@ -1176,6 +1227,10 @@
     if (hh) out.push(["Hair", hh + (hcol && s.pick.haircolor[0] !== "own" ? " · " + hcol : "")]);
     SHAPE.forEach(function (x) { out.push([x.label, (s.shape[x.id] != null ? s.shape[x.id] : "–") + "/10"]); });
     out.push(["Weapon", fromList(WEAPONS, s.weapon)[1]]);
+    if (s.weapon && s.weapon !== "none") {
+      var busy = s.pose && s.pose.preset && ["hold", "kneel", "custom"].indexOf(s.pose.preset) < 0, pst = fromList(WEAPONS, s.weapon)[3] === "pistol";
+      out.push(["Carried", busy || s.hold === "sling" ? (pst ? "Thigh holster" : "Slung on her back") : fromList(HOLDS, s.hold)[1]]);
+    }
     return out;
   }
   async function delCard(c) {
