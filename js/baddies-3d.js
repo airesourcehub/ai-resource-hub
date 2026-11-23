@@ -520,7 +520,10 @@ function init() {
     // facial expression (shape keys on the body, brows and lashes)
     const EXPRS = ["confident", "smirk", "fierce", "smile", "pout", "surprised", "sultry", "wink"], ex = one("expr") || "confident";
     const EXW = { confident: 1.5, smile: 1.5, smirk: 1.2, sultry: 1.4, pout: 0.65 };
-    for (const x of EXPRS) set("ex_" + x, x === ex ? (EXW[x] || 1) : 0);
+    // newer expressions are mixes of the face's shape keys (+ a tongue for the tongue-out ones)
+    const EXMIX = { tongue: { surprised: 0.75, smile: 0.9 }, tonguewink: { wink: 1, surprised: 0.6 }, laugh: { smile: 1.8, surprised: 0.65 }, angry: { fierce: 2.0 },
+      kiss: { pout: 1.05 }, bite: { smirk: 1.0, pout: 0.2 }, stern: { fierce: 0.8 }, shout: { surprised: 1.25, fierce: 1.1 } };
+    for (const x of EXPRS) set("ex_" + x, EXMIX[ex] ? (EXMIX[ex][x] || 0) : x === ex ? (EXW[x] || 1) : 0);
 
     // ---- paint the outfit
     U.uSkin.value.set(SKIN[s.skin] || SKIN.caramel);
@@ -1712,6 +1715,64 @@ function init() {
     }
   }
 
+  // ---- short / shaved hairstyles: a dome fitted to the skull with a hair texture, plus mohawk crests, a high-top block or a top knot
+  const SHORT_STYLES = { buzz: 1, fade: 1, waves: 1, cornrows: 1, hightop: 1, mohawk_low: 1, mohawk_tall: 1, manbun: 1 };
+  function hairTex(kind, col) {
+    return canvasTex("hair-" + kind + "-" + col, 256, 256, (g, w, h) => {
+      g.clearRect(0, 0, w, h);
+      const c = new THREE.Color(col), rgb = (k) => `rgba(${Math.round(c.r * 255 * k)},${Math.round(c.g * 255 * k)},${Math.round(c.b * 255 * k)},`;
+      const r = rnd(kind.length * 31 + 7);
+      for (let y = 0; y < h; y++) {
+        const v = y / h;   // 0 = crown, 1 = hairline
+        let a = kind === "buzz" ? 0.8 : kind === "fade" || kind === "hightop" || kind === "mohawk" ? 0.92 * (1 - Math.min(1, Math.max(0, (v - 0.42) / 0.45))) + 0.06 : 0.97;
+        if (kind === "mohawk") a = 0.22 * (1 - Math.max(0, (v - 0.6) / 0.4)) + 0.04;   // shaved sides
+        a *= 1 - Math.max(0, (v - 0.94) / 0.06);    // soft hairline
+        for (let x = 0; x < w; x += 2) {
+          let k = 0.75 + r() * 0.5;
+          if (kind === "waves") k *= 0.72 + 0.4 * (0.5 + 0.5 * Math.sin(v * 70 + Math.sin(x / w * Math.PI * 2 * 3) * 1.2));
+          if (kind === "cornrows") { const s2 = Math.abs(Math.sin(x / w * Math.PI * 22)); k *= s2 < 0.18 ? 0.35 : 0.8 + 0.35 * s2 * (0.6 + 0.4 * Math.abs(Math.sin(v * 60 + x))); }
+          g.fillStyle = rgb(Math.min(1.4, k)) + (a * (0.7 + r() * 0.3)).toFixed(3) + ")"; g.fillRect(x, y, 2, 1);
+        }
+      }
+    });
+  }
+  function shortHair(style, H, hairM, capped) {
+    if (!SHORT_STYLES[style] || capped || !eyeInfo || typeof headDome !== "function") return;
+    const ey = (eyeInfo.l.y + eyeInfo.r.y) / 2, col = "#" + hairM.color.getHexString();
+    const d = headDome("hair", ey + 0.064, ey - 0.07, style === "buzz" ? 0.003 : 0.0042, 0); if (!d) return;
+    const HG = new THREE.Group(); HG.position.copy(H.position).negate(); H.add(HG);
+    const kind = style === "mohawk_low" || style === "mohawk_tall" ? "mohawk" : style === "manbun" ? "fade" : style;
+    const tx = hairTex(kind, col); if (tx.flipY) { tx.flipY = false; tx.needsUpdate = true; }
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tx, transparent: true, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+    m.userData.outlineParameters = { visible: false };
+    const dm = new THREE.Mesh(d.g, m); dm.renderOrder = 2; HG.add(dm);
+    const P = d.g.attributes.position, rows = 15, C = G && G.headC ? G.headC : new THREE.Vector3(0, ey + 0.02, 0.04);
+    const col0 = (c) => { const out = []; for (let r = 0; r < rows; r++) { const k = c * rows + r; out.push(new THREE.Vector3(P.getX(k), P.getY(k), P.getZ(k))); } return out; };
+    const hm = hairM.clone(); hm.roughness = 0.85;
+    if (style === "mohawk_low" || style === "mohawk_tall") {   // crest along the midline, hairline to nape
+      const front = col0(0).reverse(), back = col0(d.cols / 2), path = front.concat(back.slice(1));
+      const tall = style === "mohawk_tall", n = tall ? 15 : 22;
+      for (let i = 0; i < n; i++) {
+        const t = i / (n - 1), p = path[Math.min(path.length - 1, Math.round(t * (path.length - 1)))], out = p.clone().sub(C).normalize();
+        const hgt = tall ? 0.05 + 0.07 * Math.sin(Math.PI * Math.min(1, t * 1.15)) : 0.022 + 0.012 * Math.sin(Math.PI * t);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(tall ? 0.014 : 0.018, hgt, 10), hm);
+        cone.position.copy(p).addScaledVector(out, hgt / 2 - 0.004);
+        cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), out.clone().add(new THREE.Vector3(0, 0, tall ? -0.15 : -0.5)).normalize());
+        if (!tall) cone.scale.set(1, 1, 0.55);
+        HG.add(cone);
+      }
+    } else if (style === "hightop") {   // a tall flat-topped block on the crown
+      const top = new THREE.Vector3(P.getX(0), P.getY(0), P.getZ(0));
+      const kt = hairTex("waves", col); const bm = hm.clone(); bm.map = kt; bm.roughness = 1; bm.color.multiplyScalar(1.6);
+      const blk = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.084, 0.085, 40, 3), bm);
+      blk.scale.set(1.04, 1, 1.16); blk.position.copy(top).add(new THREE.Vector3(0, 0.008, -0.008)); HG.add(blk);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.074, 0.076, 0.008, 40), bm); cap.scale.set(1, 1, 1.12); cap.position.copy(blk.position).add(new THREE.Vector3(0, 0.046, 0)); HG.add(cap);
+    } else if (style === "manbun") {
+      const top = new THREE.Vector3(P.getX(0), P.getY(0), P.getZ(0));
+      HG.add(sphere(0.034, hm, top.x, top.y + 0.02, top.z - 0.02, 1, 0.85, 1));
+    }
+  }
+
   function buildExtras(s, one, has, armed, pistol, w, hold) {
     const sRef = s;
     holder.remove(extras); extras.traverse((o) => { o.geometry && o.geometry.dispose(); o.material && o.material.dispose && o.material.dispose(); });
@@ -1758,11 +1819,12 @@ function init() {
     // hair
     const style = one("hair") || "straight";
     const capped = has("gear", "beanie") || has("gear", "cap");
-    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", spike: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long" };
+    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", spike: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long",
+      afro: "hair_afro", locs: "hair_pixie", manbun: "hair_pixie", cornrows: "", waves: "", hightop: "", mohawk_low: "", mohawk_tall: "", fade: "", buzz: "", bald: "" };
     const realHair = !!M.hair_long;
     if (realHair) {
-      const want = HAIRMAP[style] || "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
-      const braided = style === "knotless" || style === "butterfly" || style === "curly";
+      const want = HAIRMAP[style] ?? "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
+      const braided = style === "knotless" || style === "butterfly" || style === "curly" || style === "locs";
       for (const k in M) if (/^hair_/.test(k)) { M[k].visible = !(braided && k === "hair_pixie") && !(style === "curly" && k === "hair_afro") && k === want && !(capped && (k === "hair_afro" || k === "hair_bob" || k === "hair_pixie")); M[k].material.userData.uTint.value.copy(tint); }
       if (M.brows) M.brows.material.userData.uTint.value.copy(tint).multiplyScalar(0.7);
       if (M.hair_long) M.hair_long.material.userData.uWave.value = style === "wave" ? 1 : 0;
@@ -1778,7 +1840,7 @@ function init() {
       // the cap runs down to the nape; use its top half for the dome
       scalp = { c: new THREE.Vector3(0, c.y + hs.y - hs.x * 1.05, c.z), r: new THREE.Vector3(hs.x * 0.96, hs.x * 1.05, hs.z * 0.96) }; }
     const scalpTop = M.hair_pixie ? (M.hair_pixie.geometry.boundingBox || (M.hair_pixie.geometry.computeBoundingBox(), M.hair_pixie.geometry.boundingBox)).max.y - H.position.y : R;
-    if (realHair && scalp && (style === "knotless" || style === "butterfly" || style === "curly")) {   // tight scalp cap under the braids / curls
+    if (realHair && scalp && (style === "knotless" || style === "butterfly" || style === "curly" || style === "locs")) {   // tight scalp cap under the braids / curls
       // matte cap with braid partings (scalp lines between sections) so it reads as hair, not a helmet
       const capM = std({ color: HAIR[one("haircolor")] || HAIR.black, roughness: 0.85, map: canvasTex("parts", 512, 256, (g, w, h) => {
         g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#5a4636"; g.globalAlpha = 0.85;
@@ -1796,6 +1858,7 @@ function init() {
         const tw = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 8, 28), hairM); tw.position.set(sd * 0.05, scalpTop - 0.034, zc - 0.004); tw.rotation.set(Math.PI / 2 - 0.2, 0, sd * 0.4); H.add(tw);
       }
     }
+    else if (realHair && style === "locs") H.add(braidHair("knotless", R, 0.27, hairM, scalp));
     else if (realHair && !(style === "knotless" || style === "butterfly" || style === "spike")) { /* nothing extra */ }
     else if (style === "straight" || style === "wave") {
       const panel = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, backLen, 8, 24), hairM);
@@ -1823,6 +1886,12 @@ function init() {
       const bob = new THREE.Mesh(new THREE.SphereGeometry(R * 1.2, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.66), hairM);
       bob.position.set(0, 0.0, -0.02); bob.rotation.x = -0.2; H.add(bob);
     } else if (style === "pixie") { /* the cap is enough */ }
+    shortHair(style, H, hairM, capped);
+    // tongue out: a tongue resting on the lower lip
+    if ((one("expr") === "tongue" || one("expr") === "tonguewink") && U.uMouth) {
+      const mo = U.uMouth.value.clone().sub(H.position), tg = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshPhysicalMaterial({ color: 0xd4606f, roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.3 }));
+      tg.scale.set(0.0125, 0.0045, 0.019); tg.position.set(mo.x, mo.y - 0.011, mo.z - 0.002); tg.rotation.x = 0.55; H.add(tg);
+    }
     // hair details
     if (has("hairx", "eye")) {   // side-swept fringe from her right temple down over her left eye
       const ex = eyeInfo ? eyeInfo.l.x - H.position.x : 0.032;

@@ -111,6 +111,17 @@
       ["spike", "Bun + spike ponytail", "slicked-back hair in a sleek round low bun, with one long, thick, rigid, glossy tube of hair jutting out of the back of her head diagonally up and backward like a horn, not hanging down, edges slicked down"],
       ["bob", "Sleek bob", "a sleek chin-length bob"],
       ["pixie", "Pixie cut", "a short pixie cut"],
+      ["afro", "Afro", "a big round natural afro"],
+      ["locs", "Short locs", "shoulder-length dreadlocks (locs)"],
+      ["manbun", "Top knot", "hair pulled up into a high top-knot bun with short sides"],
+      ["cornrows", "Cornrows", "neat straight-back cornrows braided close to the scalp"],
+      ["waves", "360 waves", "a short 360 waves haircut with deep spinning waves and a sharp line-up"],
+      ["hightop", "High-top fade", "a tall flat-top high-top fade, the sides faded down to the skin"],
+      ["mohawk_low", "Low mohawk", "a short low mohawk (faux hawk): a short strip of hair down the middle, the sides shaved"],
+      ["mohawk_tall", "Tall mohawk", "a tall spiked punk mohawk standing straight up, the sides completely shaved"],
+      ["fade", "Low fade", "a short haircut with a clean low skin fade on the sides and back and a little length on top"],
+      ["buzz", "Buzz cut", "a very short buzz cut, hair clipped close to the scalp"],
+      ["bald", "Bald", "a smooth, completely bald shaved head"],
       ["own", "Their own hair", ""]] },
     { id: "haircolor", label: "Hair color", opts: [
       ["black", "Jet black", "jet black"], ["brown", "Dark brown", "dark brown"], ["honey", "Honey blonde", "honey blonde"],
@@ -128,7 +139,11 @@
     { id: "expr", label: "Expression", opts: [
       ["confident", "Confident", "a calm confident expression"], ["smirk", "Smirk", "a sly smirk"], ["fierce", "Fierce", "a fierce, focused stare"], ["smile", "Smile", "a soft smile"],
       ["pout", "Pout", "full lips in a pout"], ["surprised", "Surprised", "a surprised expression, eyebrows raised, lips slightly parted"],
-      ["sultry", "Sultry", "a sultry look with heavy-lidded eyes and slightly parted lips"], ["wink", "Wink", "winking with one eye and a playful smile"]] }
+      ["sultry", "Sultry", "a sultry look with heavy-lidded eyes and slightly parted lips"], ["wink", "Wink", "winking with one eye and a playful smile"],
+      ["tongue", "Tongue out", "a playful expression with her tongue sticking out"], ["tonguewink", "Tongue + wink", "winking with her tongue sticking out playfully"],
+      ["laugh", "Laughing", "laughing out loud, big open smile"], ["angry", "Angry", "an angry glare, brows furrowed, jaw clenched"],
+      ["kiss", "Blowing a kiss", "puckered lips blowing a kiss"], ["bite", "Biting lip", "a flirty look biting her lower lip"],
+      ["stern", "Stone cold", "a stone-cold serious expression, no smile"], ["shout", "Battle cry", "shouting a battle cry, mouth wide open, intense"]] }
   ];
 
   var GEAR = [
@@ -870,7 +885,8 @@
       var hd = hairDesc();
       parts.push(hd.own ? "HAIR: keep " + hd.text + ", identical in every view"
         : "HAIR: completely replace their original hair with " + hd.text + ", the same new hairstyle and color in the front, side and back views; none of their original hairstyle or hair color anywhere, including the back of the head");
-    } else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : "") + (opts("hairx").length ? ", with " + opts("hairx").join(" and ") : ""));
+    } else if ((state.pick.hair || [])[0] === "bald") parts.push(hair);
+    else parts.push((hair ? hair.replace(/hair/, (hc ? hc + " hair" : "hair")) : hc + " hair") + (hair && !/hair/.test(hair) && hc ? " in " + hc : "") + (opts("hairx").length ? ", with " + opts("hairx").join(" and ") : ""));
     parts.push(C || o.lora ? [opt("makeup") ? opt("makeup") + " applied to their own face" : "", opt("expr")].filter(Boolean).join(", ")
       : [opt("makeup"), opt("eyes"), opt("expr")].filter(Boolean).join(", "));
     var camo = opt("camo");
@@ -1026,6 +1042,7 @@
   }
   function hairDescBase() {
     var h = (state.pick.hair || [])[0], c = (state.pick.haircolor || [])[0];
+    if (h === "bald") return { own: false, text: "a smooth, completely bald shaved head" };
     var hs = opt("hair"), hc = opt("haircolor");
     if (h === "own" && c === "own") return { own: true, text: "their own original hairstyle and hair color exactly as in the photo" };
     if (h === "own") return { own: false, text: "their own original hairstyle, recolored " + hc };
