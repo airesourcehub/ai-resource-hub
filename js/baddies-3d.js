@@ -454,10 +454,10 @@ function init() {
       // body-wave: ripple long hair below the ears (rest-space y; eyes sit at ~1.5 m)
       sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave;")
         .replace("#include <begin_vertex>", `#include <begin_vertex>
-          float wv = smoothstep(1.47, 1.36, position.y) * uWave;
-          transformed += normal * wv * (0.55 + 0.45 * sin(position.y * 42.0 + position.x * 9.0)) * 0.032;
-          transformed.x += wv * sin(position.y * 34.0 + 1.3) * 0.011;
-          transformed.z += wv * cos(position.y * 34.0 + position.x * 12.0) * 0.008;`);
+          float wv = smoothstep(1.47, 1.36, position.y) * uWave * (1.0 + clamp((1.36 - position.y) * 2.5, 0.0, 1.0));
+          transformed += normal * wv * (0.45 + 0.55 * sin(position.y * 36.0 + position.x * 9.0)) * 0.06;
+          transformed.x += wv * (sin(position.y * 28.0 + 1.3) * 0.034 + sign(position.x) * 0.022);
+          transformed.z += wv * cos(position.y * 28.0 + position.x * 12.0) * 0.02;`);
       sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uTint;")
         .replace("#include <map_fragment>", `#include <map_fragment>
           float lum = clamp(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)) * ${gain.toFixed(2)}, 0.0, 1.0);
@@ -889,38 +889,41 @@ function init() {
   // Long braids / locs: tubes rooted all over the scalp that hug the skull, then fall behind the shoulders.
   // Knotless = alternating braid lobes; butterfly = thicker, lumpy twisted locs.
   function braidHair(style, R, len, hairM, scalp) {
-    const G = new THREE.Group(), r = rnd(style === "butterfly" ? 41 : style === "curly" ? 53 : 29), fly = style === "butterfly", curly = style === "curly";
-    const mat = hairM.clone(); mat.roughness = fly ? 0.7 : curly ? 0.62 : 0.55;
+    const G = new THREE.Group(), r = rnd(style === "butterfly" ? 41 : style === "curly" ? 53 : style === "wave" ? 61 : style === "locs" ? 67 : 29), fly = style === "butterfly", curly = style === "curly", wavy = style === "wave", locs = style === "locs";
+    const mat = hairM.clone(); mat.roughness = fly ? 0.7 : curly ? 0.6 : wavy ? 0.36 : locs ? 0.88 : 0.55;
     // scalp ellipsoid from the short-hair cap's bounds (relative to H), else a sphere guess
     const d2r = Math.PI / 180, sc = scalp || { c: new THREE.Vector3(0, 0.004, -0.008), r: new THREE.Vector3(R, R, R) }, RS = 1.0;
     const sp = (a, e, rad) => new THREE.Vector3(Math.sin(a) * Math.cos(e) * (sc.r.x * rad + (rad - 1) * 0.0), Math.sin(e) * sc.r.y * rad, -Math.cos(a) * Math.cos(e) * sc.r.z * rad).add(sc.c);
-    const n = fly ? 96 : curly ? 100 : 130, thick = fly ? 0.0082 : curly ? 0.0042 : 0.0055;
+    const n = fly ? 96 : curly ? 130 : wavy ? 80 : locs ? 70 : 130, thick = fly ? 0.0082 : curly ? 0.0042 : wavy ? 0.0085 : locs ? 0.0098 : 0.0055;
     for (let k = 0; k < n; k++) {
       // spread roots evenly over the back / sides / crown (golden-angle spiral), hairline stays off the face
       const u = (k + 0.5) / n, e = (8 + 78 * Math.sqrt(1 - u)) * d2r, a = ((k * 137.508) % 300 - 150) * d2r;
       const front = Math.abs(a) > 105 * d2r;
-      if (front && e < 45 * d2r) continue;
+      if (wavy && e > 52 * d2r) continue;   // the sleek crown is the base hair; waves start lower
+      if (front && (e < 45 * d2r || style !== "curly" && style !== "wave")) continue;
       const way = [[a, e]];
       if (front) way.push([Math.sign(a) * 100 * d2r, e * 0.75]);      // front roots sweep back over the crown
       const a1 = way[way.length - 1][0];
       const pts = way.map(([aa, ee]) => sp(aa, ee, 1.02));
-      const puff = curly ? 0.022 + r() * 0.018 : 0;   // curls stand off the scalp for volume
+      const puff = curly ? 0.03 + r() * 0.024 : wavy ? 0.003 : 0;   // curls stand off the scalp for volume
       for (let ee = way[way.length - 1][1] - 15 * d2r; ee > -50 * d2r; ee -= 15 * d2r) pts.push(sp(a1, ee, 1.04 + (puff * (1 + (e - ee)) + (ee < 0 ? -ee * (curly ? 0.04 : 0.01) : 0)) / 0.09));
       // hang: behind the shoulders, spreading a little, gentle sway
       const last = pts[pts.length - 1], drop = len * (0.82 + r() * 0.3);
-      for (let j = 1; j <= 5; j++) {
-        const t = j / 5, y = last.y - drop * t;
-        const x = THREE.MathUtils.clamp(last.x * (1 + (curly ? 0.9 : 0.35) * t), curly ? -0.21 : -0.16, curly ? 0.21 : 0.16) + Math.sin(t * 5 + k) * 0.006;
+      const J = wavy ? 14 : 5;
+      for (let j = 1; j <= J; j++) {
+        const t = j / J, y = last.y - drop * t;
+        const wide = curly ? 0.24 : wavy ? 0.2 : 0.16;
+        const x = THREE.MathUtils.clamp(last.x * (1 + (curly ? 1.1 : wavy ? 0.6 : 0.35) * t), -wide, wide) + Math.sin(t * 5 + k) * 0.006 + (wavy ? Math.sin(t * 9 + k * 0.7) * 0.022 * (0.3 + t) : 0);
         const z = Math.min(last.z, -0.06) - 0.035 * t - (y < -0.2 ? 0.03 + Math.abs(x) * 0.15 : 0) - r() * 0.012;
         pts.push(new THREE.Vector3(x, y, z));
       }
       let curve = new THREE.CatmullRomCurve3(pts);
       if (curly) {   // wind a tight spiral around the path
-        const NS = 90, sp2 = curve.getSpacedPoints(NS), fr = curve.computeFrenetFrames(NS, false), cr = 0.007 + r() * 0.004, ph0 = r() * 6.28;
-        curve = new THREE.CatmullRomCurve3(sp2.map((pp, i) => { const t = i / NS * 26 + ph0, k2 = Math.min(1, i / 6);
+        const NS = 170, sp2 = curve.getSpacedPoints(NS), fr = curve.computeFrenetFrames(NS, false), cr = 0.01 + r() * 0.005, ph0 = r() * 6.28;
+        curve = new THREE.CatmullRomCurve3(sp2.map((pp, i) => { const t = i / NS * 58 + ph0, k2 = Math.min(1, i / 6);
           return pp.clone().addScaledVector(fr.normals[i], Math.cos(t) * cr * k2).addScaledVector(fr.binormals[i], Math.sin(t) * cr * k2); }));
       }
-      const TS = curly ? 150 : 48, RAD = curly ? 5 : 6;
+      const TS = curly ? 230 : 48, RAD = curly ? 5 : 6;
       const g = new THREE.TubeGeometry(curve, TS, thick * (0.85 + r() * 0.3), RAD, false), P = g.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
       const ph = r() * 6.28;
       for (let i = 0; i <= TS; i++) {
@@ -928,7 +931,7 @@ function init() {
         const taper = i < 3 ? 0.55 + i * 0.15 : i > TS - 4 ? 0.65 + (TS - i) * 0.09 : 1;
         for (let j = 0; j <= RAD; j++) {
           const idx = i * (RAD + 1) + j, ang = (j / RAD) * Math.PI * 2;
-          const f = curly ? 1 : fly ? 1 + 0.38 * Math.max(0, Math.sin(i * 0.9 + ph + ang)) + 0.12 * Math.sin(i * 2.7 + ph)
+          const f = curly || wavy ? 1 : locs ? 1 + 0.12 * Math.sin(i * 0.8 + ph) + 0.06 * Math.sin(i * 2.3 + ang) : fly ? 1 + 0.38 * Math.max(0, Math.sin(i * 0.9 + ph + ang)) + 0.12 * Math.sin(i * 2.7 + ph)
                         : 1 + 0.3 * Math.max(0, Math.sin(i * 1.6 + (j % 2 ? Math.PI : 0) + ang * 0.5));
           v.fromBufferAttribute(P, idx).sub(c).multiplyScalar(f * taper).add(c); P.setXYZ(idx, v.x, v.y, v.z);
         }
@@ -1779,6 +1782,65 @@ function init() {
       }
     });
   }
+  // coily texture: thousands of tiny curls in lighter / darker shades of the hair colour
+  function coilTex(col) {
+    const tx = canvasTex("coil-" + col, 512, 512, (g, w, h) => {
+      const c = new THREE.Color(col), r = rnd(23), sh = (k, a) => `rgba(${Math.min(255, Math.round((c.r * 255 + 34) * k))},${Math.min(255, Math.round((c.g * 255 + 28) * k))},${Math.min(255, Math.round((c.b * 255 + 24) * k))},${a})`;
+      g.fillStyle = sh(0.8, 1); g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 9000; i++) { const x = r() * w, y = r() * h, rad = 2 + r() * 4, k = 0.5 + r() * 1.2;
+        g.strokeStyle = sh(k, 0.55); g.lineWidth = 1 + r(); g.beginPath(); g.arc(x, y, rad, r() * 6.28, r() * 6.28 + 3.5 + r() * 2); g.stroke(); }
+    });
+    tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return tx;
+  }
+  // big round natural afro: a lumpy ellipsoid around the skull with the face left open
+  function afroHair(hairM, sc, eyeY, eyeZ) {
+    const col = "#" + hairM.color.getHexString(), tx = coilTex(col); tx.repeat.set(8, 6);
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tx, bumpMap: tx, bumpScale: 3, roughness: 1, side: THREE.DoubleSide });
+    const g = new THREE.SphereGeometry(1, 128, 96), P = g.attributes.position, d = new THREE.Vector3(), q = new THREE.Vector3(), r = rnd(5);
+    const C = new THREE.Vector3(sc.c.x, sc.c.y + 0.03, sc.c.z - 0.022), Rb = sc.r.x * 1.8, hairY = eyeY + 0.068, faceZ = eyeZ - 0.075;
+    const keep = [];
+    for (let i = 0; i < P.count; i++) {
+      d.fromBufferAttribute(P, i);
+      const k = 1 + 0.035 * Math.sin(d.x * 11 + d.y * 7) * Math.cos(d.z * 9) + (r() - 0.5) * 0.02;   // lumpy round silhouette
+      q.copy(d).multiplyScalar(Rb * k).add(C);
+      // near the face the hair thins down onto the hairline and frames the face
+      const ex = q.x / 0.074, ey = (q.y - (eyeY - 0.035)) / (hairY - (eyeY - 0.035));
+      const win = ex * ex + ey * ey;                                       // < 1 inside the face oval
+      if (q.z > faceZ - 0.03 && win < 2.2) { const t = Math.min(1, (2.2 - win) / 1.2); q.z = THREE.MathUtils.lerp(q.z, Math.min(q.z, faceZ + 0.02), t); }
+      keep[i] = !(q.z > faceZ - 0.06 && win < 1) && q.y > eyeY - 0.2;
+      P.setXYZ(i, q.x, q.y, q.z);
+    }
+    const I = g.index.array, out = [];
+    for (let t = 0; t < I.length; t += 3) if (keep[I[t]] && keep[I[t + 1]] && keep[I[t + 2]]) out.push(I[t], I[t + 1], I[t + 2]);
+    g.setIndex(out); g.computeVertexNormals();
+    return new THREE.Mesh(g, m);
+  }
+  // glossy wrapped-hair material: fine lengthwise strand streaks + clearcoat shine
+  function sleekHairMat(hairM, rep = 1) {
+    const col = "#" + hairM.color.getHexString();
+    const tx = canvasTex("sleek-" + col, 64, 256, (g, w, h) => {
+      const c = new THREE.Color(col), r = rnd(11);
+      for (let x = 0; x < w; x++) { const k = 0.7 + r() * 0.6; g.fillStyle = `rgb(${Math.min(255, Math.round((c.r * 255 + 18) * k))},${Math.min(255, Math.round((c.g * 255 + 16) * k))},${Math.min(255, Math.round((c.b * 255 + 14) * k))})`; g.fillRect(x, 0, 1, h); }
+    });
+    tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(rep, 1);
+    return new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: tx, roughness: 0.28, clearcoat: 0.9, clearcoatRoughness: 0.18, sheen: 0.3, sheenColor: new THREE.Color(col).lerp(new THREE.Color(0xffffff), 0.3) });
+  }
+  function spikeHair(hairM, zc, top) {
+    const G = new THREE.Group(), m = sleekHairMat(hairM, 3);
+    const bc = new THREE.Vector3(0, top - 0.13, zc - 0.07);                       // bun on the back of the head, a little below the crown
+    const bun = new THREE.Mesh(new THREE.SphereGeometry(0.05, 40, 28), m); bun.position.copy(bc); bun.scale.set(1.1, 1, 0.85); G.add(bun);
+    const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.012, 14, 40), m); wrap.position.copy(bc).add(new THREE.Vector3(0, 0, -0.026)); wrap.scale.set(1.08, 1, 1); G.add(wrap);   // the coiled wrap around the bun
+    // the horn: a thick, almost even tube with a rounded end, slightly bowed, rooted in the top of the bun
+    const a = bc.clone().add(new THREE.Vector3(0, 0.032, -0.018));
+    const pts = [a, a.clone().add(new THREE.Vector3(0, 0.08, -0.06)), a.clone().add(new THREE.Vector3(0, 0.17, -0.14)), a.clone().add(new THREE.Vector3(0, 0.27, -0.25))];
+    const curve = new THREE.CatmullRomCurve3(pts), N = 40, R0 = 0.031;
+    const g = new THREE.TubeGeometry(curve, N, R0, 24, false), P = g.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+    for (let i = 0; i <= N; i++) { curve.getPointAt(i / N, c); const t = i / N, k = 1 - 0.22 * t + (t < 0.1 ? 0.25 * (1 - t / 0.1) : 0);   // flares into the bun, tapers a touch
+      for (let j = 0; j <= 24; j++) { const idx = i * 25 + j; v.fromBufferAttribute(P, idx).sub(c).multiplyScalar(k).add(c); P.setXYZ(idx, v.x, v.y, v.z); } }
+    g.computeVertexNormals(); G.add(new THREE.Mesh(g, m));
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(R0 * 0.78, 24, 16), m); tip.position.copy(pts[3]); G.add(tip);   // blunt rounded end
+    return G;
+  }
   function shortHair(style, H, hairM, capped) {
     if (!SHORT_STYLES[style] || capped || !eyeInfo || typeof headDome !== "function") return;
     const ey = (eyeInfo.l.y + eyeInfo.r.y) / 2, col = "#" + hairM.color.getHexString();
@@ -1804,12 +1866,20 @@ function init() {
         if (!tall) cone.scale.set(1, 1, 0.55);
         HG.add(cone);
       }
-    } else if (style === "hightop") {   // a tall flat-topped block on the crown
+    } else if (style === "hightop") {   // a tall, slightly flared coily block on the crown with a rounded top edge
       const top = new THREE.Vector3(P.getX(0), P.getY(0), P.getZ(0));
-      const kt = hairTex("waves", col); const bm = hm.clone(); bm.map = kt; bm.roughness = 1; bm.color.multiplyScalar(1.6);
-      const blk = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.084, 0.085, 40, 3), bm);
-      blk.scale.set(1.04, 1, 1.16); blk.position.copy(top).add(new THREE.Vector3(0, 0.008, -0.008)); HG.add(blk);
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.074, 0.076, 0.008, 40), bm); cap.scale.set(1, 1, 1.12); cap.position.copy(blk.position).add(new THREE.Vector3(0, 0.046, 0)); HG.add(cap);
+      const tx2 = coilTex(col); tx2.repeat.set(6, 2);
+      const bm = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tx2, bumpMap: tx2, bumpScale: 2.5, roughness: 1 });
+      const hgt = 0.054, prof = [];
+      prof.push(new THREE.Vector2(0.074, -0.075));
+      for (let i = 0; i <= 8; i++) prof.push(new THREE.Vector2(0.079 + 0.006 * (i / 8), -0.03 + (hgt + 0.03 - 0.02) * (i / 8)));   // flares a touch going up
+      for (let i = 1; i <= 8; i++) { const a2 = (i / 8) * Math.PI / 2; prof.push(new THREE.Vector2(0.065 + 0.02 * Math.cos(a2), hgt - 0.02 + 0.02 * Math.sin(a2))); }   // rounded top edge
+      prof.push(new THREE.Vector2(0.0001, hgt));
+      const lg = new THREE.LatheGeometry(prof, 120), LP = lg.attributes.position, rr = rnd(9);
+      for (let i = 0; i < LP.count; i++) { const j = 1 + (rr() - 0.5) * 0.06; LP.setXYZ(i, LP.getX(i) * j, LP.getY(i) + (rr() - 0.5) * 0.002, LP.getZ(i) * j); }
+      lg.computeVertexNormals();
+      const blk = new THREE.Mesh(lg, bm); blk.scale.set(1.0, 1, 1.18); blk.rotation.x = -0.12;
+      blk.position.copy(top).add(new THREE.Vector3(0, -0.026, -0.022)); HG.add(blk);
     } else if (style === "manbun") {
       const top = new THREE.Vector3(P.getX(0), P.getY(0), P.getZ(0));
       HG.add(sphere(0.034, hm, top.x, top.y + 0.02, top.z - 0.02, 1, 0.85, 1));
@@ -1862,12 +1932,12 @@ function init() {
     // hair
     const style = one("hair") || "straight";
     const capped = has("gear", "beanie") || has("gear", "cap");
-    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_afro", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", spike: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long",
-      afro: "hair_afro", locs: "hair_pixie", manbun: "hair_pixie", cornrows: "", waves: "", hightop: "", mohawk_low: "", mohawk_tall: "", fade: "", buzz: "", bald: "" };
+    const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_long", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", spike: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long",
+      afro: "", locs: "hair_pixie", manbun: "hair_pixie", cornrows: "", waves: "", hightop: "", mohawk_low: "", mohawk_tall: "", fade: "", buzz: "", bald: "" };
     const realHair = !!M.hair_long;
     if (realHair) {
       const want = HAIRMAP[style] ?? "hair_long", tint = new THREE.Color(HAIR[one("haircolor")] || HAIR.black);
-      const braided = style === "knotless" || style === "butterfly" || style === "curly" || style === "locs";
+      const braided = style === "knotless" || style === "butterfly" || style === "locs";
       for (const k in M) if (/^hair_/.test(k)) { M[k].visible = !(braided && k === "hair_pixie") && !(style === "curly" && k === "hair_afro") && k === want && !(capped && (k === "hair_afro" || k === "hair_bob" || k === "hair_pixie")); M[k].material.userData.uTint.value.copy(tint); }
       if (M.brows) M.brows.material.userData.uTint.value.copy(tint).multiplyScalar(0.7);
       if (M.hair_long) M.hair_long.material.userData.uWave.value = style === "wave" ? 1 : 0;
@@ -1883,17 +1953,24 @@ function init() {
       // the cap runs down to the nape; use its top half for the dome
       scalp = { c: new THREE.Vector3(0, c.y + hs.y - hs.x * 1.05, c.z), r: new THREE.Vector3(hs.x * 0.96, hs.x * 1.05, hs.z * 0.96) }; }
     const scalpTop = M.hair_pixie ? (M.hair_pixie.geometry.boundingBox || (M.hair_pixie.geometry.computeBoundingBox(), M.hair_pixie.geometry.boundingBox)).max.y - H.position.y : R;
-    if (realHair && scalp && (style === "knotless" || style === "butterfly" || style === "curly" || style === "locs")) {   // tight scalp cap under the braids / curls
+    if (realHair && scalp && (style === "knotless" || style === "butterfly" || style === "locs")) {   // tight scalp cap under the braids / curls
       // matte cap with braid partings (scalp lines between sections) so it reads as hair, not a helmet
-      const capM = std({ color: HAIR[one("haircolor")] || HAIR.black, roughness: 0.85, map: canvasTex("parts", 512, 256, (g, w, h) => {
-        g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#5a4636"; g.globalAlpha = 0.85;
-        for (let i = 0; i < 26; i++) { const x = (i + 0.5) / 26 * w; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x, h * 0.04); for (let y = 0; y <= h; y += 16) g.lineTo(x + Math.sin(y * 0.05 + i) * 3, y); g.stroke(); }
-        g.globalAlpha = 0.35; g.fillStyle = "#000"; for (let k = 0; k < 900; k++) g.fillRect((k * 97) % w, (k * 53) % h, 2, 6);   // fine strand texture
+      const capCol = "#" + new THREE.Color(HAIR[one("haircolor")] || HAIR.black).getHexString();
+      const capM = std({ color: 0xffffff, roughness: 0.85, map: canvasTex("parts-" + capCol, 512, 256, (g, w, h) => {
+        const c = new THREE.Color(capCol), r = rnd(3), sh = (k) => `rgb(${Math.min(255, Math.round((c.r * 255 + 14) * k))},${Math.min(255, Math.round((c.g * 255 + 12) * k))},${Math.min(255, Math.round((c.b * 255 + 10) * k))})`;
+        g.fillStyle = sh(1); g.fillRect(0, 0, w, h);
+        for (let k = 0; k < 2600; k++) { g.fillStyle = sh(0.6 + r() * 1.3); g.fillRect(r() * w, r() * h, 1.5, 5 + r() * 6); }   // braided strand texture
+        g.strokeStyle = "#5e4232"; g.globalAlpha = 0.85;   // scalp showing in the box parts
+        for (let i = 0; i < 26; i++) { const x = (i + 0.5) / 26 * w; g.lineWidth = 2.4; g.beginPath(); g.moveTo(x, h * 0.04); for (let y = 0; y <= h; y += 16) g.lineTo(x + Math.sin(y * 0.05 + i) * 3, y); g.stroke(); }
+        for (let j = 1; j < 7; j++) { const y = j / 7 * h; g.lineWidth = 2; g.beginPath(); for (let x = 0; x <= w; x += 8) g.lineTo(x, y + Math.sin(x * 0.04 + j) * 4); g.stroke(); }
+        g.globalAlpha = 1;
       }) });
       const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 28, 0, Math.PI * 2, 0, Math.PI * 0.6), capM);
       cap.scale.copy(scalp.r).multiplyScalar(1.005); cap.position.copy(scalp.c); cap.rotation.x = -0.62; H.add(cap);
     }
-    if (realHair && style === "curly") H.add(braidHair("curly", R, 0.26, hairM, scalp));
+    if (realHair && style === "curly") H.add(braidHair("curly", R, 0.3, hairM, scalp));
+    else if (realHair && style === "wave") H.add(braidHair("wave", R, 0.4, hairM, scalp));
+    else if (style === "afro" && scalp && !capped) H.add(afroHair(hairM, scalp, eyeY, eyeZ));
     else if (realHair && style === "pony") H.add(highPony(hairM, eyeY, eyeZ, scalpTop));
     else if (realHair && style === "buns") {
       for (const sd of [-1, 1]) {
@@ -1901,7 +1978,7 @@ function init() {
         const tw = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 8, 28), hairM); tw.position.set(sd * 0.05, scalpTop - 0.034, zc - 0.004); tw.rotation.set(Math.PI / 2 - 0.2, 0, sd * 0.4); H.add(tw);
       }
     }
-    else if (realHair && style === "locs") H.add(braidHair("knotless", R, 0.27, hairM, scalp));
+    else if (realHair && style === "locs") H.add(braidHair("locs", R, 0.2, hairM, scalp));
     else if (realHair && !(style === "knotless" || style === "butterfly" || style === "spike")) { /* nothing extra */ }
     else if (style === "straight" || style === "wave") {
       const panel = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, backLen, 8, 24), hairM);
@@ -1921,10 +1998,8 @@ function init() {
       H.add(limb([0, 0.07, -0.12], [0, -backLen, -0.17], 0.038, 0.018, hairM));
     } else if (style === "buns") {
       for (const sd of [-1, 1]) H.add(sphere(0.048, hairM, sd * 0.06, 0.1, -0.02));
-    } else if (style === "spike") {   // low bun at the nape + a stiff tapered ponytail shooting up and back like a horn
-      H.add(sphere(0.05, hairM, 0, -0.055, -0.1, 1.05, 0.95, 0.9));
-      H.add(limb([0, 0.035, -0.095], [0, 0.22, -0.38], 0.03, 0.011, hairM));
-      H.add(sphere(0.024, hairM, 0, 0.04, -0.095));
+    } else if (style === "spike") {   // sleek round bun at the back, one thick glossy blunt tube of hair jutting up and back like a horn
+      H.add(spikeHair(hairM, zc, scalpTop));
     } else if (style === "bob") {
       const bob = new THREE.Mesh(new THREE.SphereGeometry(R * 1.2, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.66), hairM);
       bob.position.set(0, 0.0, -0.02); bob.rotation.x = -0.2; H.add(bob);
