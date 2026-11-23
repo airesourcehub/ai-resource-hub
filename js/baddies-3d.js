@@ -91,12 +91,12 @@ function init() {
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
   const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
-  const PANOS = { desert: "1123", miami: "1123", snow: "1123", jungle: "1123", christmas: "1123", halloween: "1123", newyear: "1123", valentine: "1123", july4: "1123", brickellam: "1123", brickell: "1123", brickellpm: "1123", ultra: "1123" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANOS = { desert: "1123b", miami: "1123b", snow: "1123b", jungle: "1123b", christmas: "1123b", halloween: "1123b", newyear: "1123b", valentine: "1123b", july4: "1123b", brickellam: "1123b", brickell: "1123b", brickellpm: "1123b", ultra: "1123b" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
   function loadPano(id, cb) {
     if (panoTex[id]) return cb(panoTex[id]); if (panoMiss[id] || !PANOS[id]) return cb(null);
     new THREE.TextureLoader().load(new URL("img/baddies/pano/" + id + ".webp?v=" + PANOS[id], document.baseURI).href, (t) => {
-      t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; panoTex[id] = t; cb(t);
+      t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); panoTex[id] = t; cb(t);
     }, undefined, () => { panoMiss[id] = true; cb(null); });
   }
   // where each panorama's main subject sits (0..1 across the image): turned to stand behind her in the front view
