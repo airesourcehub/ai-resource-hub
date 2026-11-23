@@ -15,7 +15,7 @@
   var POLL_MS = 3000, PAGE = 24, PREFS = "airh-baddies";
 
   // ------------------------------------------------------------ admin settings
-  var CFG = { enabled: true, preview: true, heightMin: 36, heightMax: 84, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "zimage", view: "sheet" };
+  var CFG = { enabled: true, preview: true, heightMin: 36, heightMax: 84, heightDefault: 58, exagDefault: 80, maxBatch: 4, engine: "flux3", view: "sheet" };
   try { var ss = JSON.parse(localStorage.getItem("airh-site-settings") || "null"); if (ss && ss.baddies) CFG = Object.assign(CFG, ss.baddies); } catch (e) {}
 
   // ------------------------------------------------------------ catalog
@@ -330,7 +330,8 @@
   // ------------------------------------------------------------ state
   var prefs = loadPrefs();
   var state = clone(DEFAULTS);
-  state.engine = prefs.engine || CFG.engine || "zimage";
+  // 2026-11-23: FLUX 3 Klein became the default create model (it follows poses far better than Z-Image Turbo)
+  state.engine = prefs.engine && prefs.engineV === 2 ? prefs.engine : (CFG.engine && CFG.engine !== "zimage" ? CFG.engine : "flux3");
   state.editEngine = prefs.editEngine || "klein9b_edit";
   state.batch = clampN(prefs.batch || 1, 1, CFG.maxBatch || 4);
   if (prefs.last) applySettings(prefs.last, true);
@@ -1214,7 +1215,7 @@
     var abs = absUrl(url);
     $("bdViewerImg").src = abs; $("bdViewerImg").alt = c.name || "Baddie";
     $("bdViewerName").textContent = c.name || "Baddie";
-    $("bdViewerWhen").textContent = when(c.created_at) + " · " + ((VIEWS[c.view] || {}).label || "") + " · " + (c.model === "flux2" ? "FLUX.2" : c.model === "zimage" ? "Z-Image" : (MODEL_NAMES[c.model] || c.model || ""));
+    $("bdViewerWhen").textContent = when(c.created_at) + " · " + ((VIEWS[c.view] || {}).label || "") + " · " + ({ flux2: "FLUX.2", zimage: "Z-Image", flux3: "FLUX 3" }[c.model] || MODEL_NAMES[c.model] || c.model || "");
     $("bdViewerSpecs").innerHTML = specs(c.settings || {}).concat([["Model", modelsLabel(c)]]).map(function (s) { return "<li><span>" + esc(s[0]) + "</span><b>" + esc(s[1]) + "</b></li>"; }).join("");
     var q = encodeURIComponent(abs);
     document.querySelector('[data-va="spin"]').href = "spin-360.html?image=" + q;
@@ -1230,7 +1231,7 @@
     else if (act === "dl") downloadImg(absUrl(vUrl), vCard.name);
     else if (act === "del") delCard(vCard);
   });
-  var MODEL_NAMES = { zimage: "Z-Image Turbo (Fast)", flux2: "FLUX.2 Dev (Best)", klein9b_edit: "FLUX.2 Klein 9B (edit)", flux2_edit: "FLUX.2 Dev (edit)", qwen_edit2509: "Qwen Image Edit 2509" };
+  var MODEL_NAMES = { flux3: "FLUX 3 Klein", zimage: "Z-Image Turbo", flux2: "FLUX.2 Dev", klein9b_edit: "FLUX.2 Klein 9B (edit)", flux2_edit: "FLUX.2 Dev (edit)", qwen_edit2509: "Qwen Image Edit 2509" };
   function modelsLabel(c) {
     var s = c.settings || {}, list = s.models && s.models.length ? s.models : [c.model || "zimage"];
     return list.map(function (m) { return MODEL_NAMES[m] || m; }).join(" + ");
@@ -1359,7 +1360,7 @@
   }
   function realId(id) { return id && String(id).indexOf("tmp-") !== 0 ? String(id) : null; }
   function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREFS) || "{}") || {}; } catch (e) { return {}; } }
-  function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engine: state.engine, editEngine: state.editEngine, batch: state.batch, last: snapshot() })); } catch (e) {} }
+  function savePrefs() { try { localStorage.setItem(PREFS, JSON.stringify({ engineV: 2, engine: state.engine, editEngine: state.editEngine, batch: state.batch, last: snapshot() })); } catch (e) {} }
 
   // ------------------------------------------------------------ boot
   window.BADDIES_STYLES = STYLES;
