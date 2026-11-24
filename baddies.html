@@ -12,11 +12,12 @@
   // Visitors who aren't logged in get the guest view (influencer faces blurred, studios previewed).
   try {
     var signedIn = Object.keys(localStorage).some(function (k) { return /^sb-.*-auth-token$/.test(k); });
-    if (!signedIn) document.documentElement.classList.add("is-guest");
+    if (!signedIn) { document.documentElement.classList.add("is-guest"); location.replace("auth.html?next=baddies.html"); }
   } catch(e) { document.documentElement.classList.add("is-guest"); }
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
 <title>Baddies Generator — AI Resource Hub</title>
 <meta name="description" content="Design your own Baddie character on your GPU: pick skin tone, height, body shape and how exaggerated the curves are, then outfit, tattoos and a real-world weapon. Turnaround sheets in one click." />
 <link rel="stylesheet" href="css/style.css" />

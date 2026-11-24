@@ -29,7 +29,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function gate(session, statusEl) {
     if (!window.AIRH_ACCESS) { showLoggedIn(session); return; }
     window.AIRH_ACCESS.afterSignIn(client, session).then(function (ok) {
-      if (ok) { showLoggedIn(session); return; }
+      if (ok) {
+        var nx = new URLSearchParams(location.search).get("next");
+        if (nx && /^[a-z0-9-]+\.html$/i.test(nx)) { location.replace(nx); return; }
+        showLoggedIn(session); return;
+      }
       if (loggedInView) loggedInView.style.display = "none";
       if (authTabs) authTabs.style.display = "";
       if (loggedOutView) loggedOutView.style.display = "";

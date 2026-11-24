@@ -2560,3 +2560,6 @@ video.upload-preview {
 .is-guest .mega-thumb[style*="img/influencer/"], .is-guest [style*="img/influencer/"]:not(img) {
   background-image: linear-gradient(135deg, var(--color-surface-2), var(--color-accent-soft)) !important; }
 .is-guest .tile-media, .is-guest .mega-thumb { overflow: hidden; }
+
+/* Baddies Generator is for signed-in, approved members only */
+html.is-guest a[href^="baddies"], html.is-guest a[href*="/baddies"] { display: none !important; }
