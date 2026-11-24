@@ -403,14 +403,26 @@
     ["snow", "Snowy base", "a snowy mountain military base with wooden cabins and pine trees background"],
     ["jungle", "Jungle", "a dense tropical jungle clearing background"],
     ["christmas", "Christmas", "a snowy town square on Christmas Eve with a giant lit Christmas tree, garlands and string lights background"],
-    ["halloween", "Halloween", "a spooky Halloween night with glowing jack-o'-lanterns, a haunted Victorian house and a full moon background"],
+    ["halloween", "Horror Nights", "a terrifying Halloween Horror Nights style horror theme park scare zone at night, thick fog lit by blood-red and green lights, menacing haunted house facades, creepy carnival props and masked scare actors in the fog background"],
     ["newyear", "New Year's Eve", "a luxury city rooftop on New Year's Eve with gold balloons and fireworks over the skyline background"],
     ["valentine", "Valentine's Day", "a romantic Valentine's Day garden terrace with a red rose arch, rose petals and heart string lights background"],
     ["july4", "4th of July", "a Fourth of July night on a Miami beach with American flags and red, white and blue fireworks over the ocean background"],
     ["brickellam", "Brickell morning", "a selfie-style photo taken at arm's length while she walks down a palm-lined sidewalk in Brickell, Miami in the soft golden early morning, glass high-rise towers behind her"],
     ["brickell", "Brickell day", "a selfie-style photo taken at arm's length while she walks down a palm-lined sidewalk in Brickell, Miami on a bright sunny day, gleaming glass skyscrapers behind her"],
     ["brickellpm", "Brickell night", "a selfie-style photo taken at arm's length while she walks down a sidewalk in Brickell, Miami at night, glowing skyscrapers, colorful tower lights and street lamps behind her"],
-    ["ultra", "Ultra Music Festival", "Ultra Music Festival at Bayfront Park in Miami at night: a huge main stage with giant LED screens, lasers and pyrotechnics, a dancing crowd and the downtown Miami skyline behind her"]
+    ["ultra", "Ultra Music Festival", "Ultra Music Festival at Bayfront Park in Miami at night: a huge main stage with giant LED screens, lasers and pyrotechnics, a dancing crowd and the downtown Miami skyline behind her"],
+    ["timessquare", "Times Square", "Times Square in New York City at night, towering skyscrapers covered in giant glowing LED billboards, yellow taxis and city crowds background"],
+    ["pyramids", "Pyramids of Giza", "the Great Pyramids of Giza and the Sphinx in Egypt at golden hour, endless desert and warm golden light background"],
+    ["santamonica", "Santa Monica Pier", "the beach beside the Santa Monica Pier in California at sunset, the lit Ferris wheel and roller coaster over the Pacific Ocean, palm trees and the Malibu hills background"],
+    ["vegas", "Las Vegas Strip", "the Las Vegas Strip at night, huge glowing neon casino resorts, giant lit hotel towers, dancing fountains and palm trees background"],
+    ["niagara", "Niagara Falls", "the viewing deck at the edge of Niagara Falls, the massive Horseshoe Falls thundering behind her with huge clouds of mist and a rainbow background"],
+    ["burj", "Burj Khalifa", "downtown Dubai at blue hour beside the Dubai Fountain, the Burj Khalifa towering into the sky lit up, glittering skyscrapers reflected in the fountain lake background"],
+    ["eiffel", "Eiffel Tower", "the Trocadero plaza in Paris at night, the Eiffel Tower glowing golden and sparkling across the Seine, classic Parisian buildings and street lamps background"],
+    ["liberty", "Statue of Liberty", "Liberty Island in New York Harbor on a bright sunny day, the Statue of Liberty towering behind her, the Manhattan skyline across the water background"],
+    ["vizcaya", "Vizcaya Miami", "Vizcaya Museum and Gardens in Miami at golden hour, the grand Italian Renaissance villa, formal gardens, fountains, statues and stone balustrades by Biscayne Bay background"],
+    ["frenchmans", "Frenchman's Cove", "Frenchman's Cove in Portland, Jamaica on a sunny day, a secluded cove with bright turquoise water, white sand and lush green jungle cliffs background"],
+    ["bamboo", "Jamaica bamboo rafting", "standing on a long bamboo raft on the emerald Rio Grande river in Portland, Jamaica, lush tropical rainforest and bamboo groves on both banks background"],
+    ["chinasnow", "Ancient China in snow", "an ancient Chinese city on a snowy winter night, traditional buildings with snow-covered curved tiled roofs, glowing red lanterns, warm lit windows, a pagoda and gentle snowfall background"],
   ];
 
   var NEGATIVE = "child, minor, teen, young-looking, childlike body, nude, nudity, topless, nipples, genitals, nsfw, explicit, " +
