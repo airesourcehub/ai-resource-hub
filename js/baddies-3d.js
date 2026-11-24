@@ -91,7 +91,7 @@ function init() {
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
   const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
-  const PANOS = { desert: "1124a", miami: "1124a", snow: "1124a", jungle: "1124a", christmas: "1124a", halloween: "1124a", newyear: "1124a", valentine: "1124a", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124a", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124a", burj: "1124a", eiffel: "1124a", liberty: "1124a", vizcaya: "1124a", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124a" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
   // 4K loads first; on desktops whose GPU takes 8192-px textures the 8K version follows and swaps in when ready
   const PANO_8K = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && renderer.capabilities.maxTextureSize >= 8192;
@@ -112,7 +112,7 @@ function init() {
     }, undefined, () => { panoMiss[id] = true; cb(null); });
   }
   // where each panorama's main subject sits (0..1 across the image): turned to stand behind her in the front view
-  const PANO_HERO = { timessquare: 0.62, pyramids: 0.74, santamonica: 0.12, vegas: 0.55, niagara: 0.68, burj: 0.14, eiffel: 0.92, liberty: 0.5, vizcaya: 0.84, frenchmans: 0.45, bamboo: 0.5, chinasnow: 0.88, desert: 0.45, snow: 0.4, christmas: 0.55, halloween: 0.2, newyear: 0.42, valentine: 0.3, july4: 0.72, brickellpm: 0.3, miami: 0.55, ultra: 0.93 };
+  const PANO_HERO = { timessquare: 0.5, pyramids: 0.74, santamonica: 0.12, vegas: 0.55, niagara: 0.42, burj: 0.53, eiffel: 0.92, liberty: 0.57, vizcaya: 0.89, frenchmans: 0.45, bamboo: 0.5, chinasnow: 0.7, desert: 0.45, snow: 0.5, christmas: 0.46, halloween: 0.975, newyear: 0.55, valentine: 0.5, july4: 0.72, brickellpm: 0.3, miami: 0.53, ultra: 0.93, jungle: 0.5 };
   let panoId = "";
   function showPano(t) {
     if (!sky) { sky = new GroundedSkybox(t, PANO_H, PANO_R, 96); sky.position.y = PANO_H - 0.005; sky.material.toneMapped = false; sky.renderOrder = -20; scene.add(sky); }
@@ -2374,7 +2374,7 @@ function init() {
         if (sky) sky.visible = false; panoOn = false;
         const useT = (t) => { backdrop.material.map = t; backdrop.material.needsUpdate = true; const ft = floorFrom(want, t.image); floor.material.map = ft; floor.material.needsUpdate = true; floor.visible = true; skyFill.material.color.copy(ft.userData.sky); skyFill.visible = true; };
         if (bgTex[want]) useT(bgTex[want]);
-        else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=3", document.baseURI).href, (t) => {
+        else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=4", document.baseURI).href, (t) => {
           t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; bgTex[want] = t;
           if (bgWant === want && !panoOn) useT(t);
         });
