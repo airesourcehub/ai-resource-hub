@@ -145,7 +145,7 @@ function init() {
         const y0 = -0.08 - i * 3, rt = 0.32 + i * 0.07, rb = rt + 0.07;
         const seg = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, 3, 24), i % 2 ? white : red); seg.position.y = y0 - 1.5; g.add(seg);
       }
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
     } else if (kind === "wing") {
       const skin = std({ color: 0xe8ebef, roughness: 0.35, metalness: 0.35 }), grey = std({ color: 0xaeb4bb, roughness: 0.4, metalness: 0.5 });
       const sh = new THREE.Shape(); const pts = [[1.1, 0.4], [1.1, -1.5], [-15, -4.8], [-15, 8.2]];
@@ -166,7 +166,7 @@ function init() {
   function showPano(t) {
     const up = PANO_UP[panoId];
     hideSky();
-    if (up) { if (!skyU) { skyU = new GroundedSkybox(t, 1000, 45, 96); skyU.position.y = PANO_H; skyU.material.toneMapped = false; skyU.renderOrder = -20; scene.add(skyU); } sky = skyU; (props[up] ||= makeProp(up)).visible = true; }
+    if (up) { if (!skyU) { skyU = new GroundedSkybox(t, 1000, 30, 96); skyU.position.y = PANO_H; skyU.material.toneMapped = false; skyU.renderOrder = -20; scene.add(skyU); } sky = skyU; (props[up] ||= makeProp(up)).visible = true; }
     else { if (!skyG) { skyG = new GroundedSkybox(t, PANO_H, PANO_R, 96); skyG.position.y = PANO_H - 0.005; skyG.material.toneMapped = false; skyG.renderOrder = -20; scene.add(skyG); } sky = skyG; }
     if (sky.material.map !== t) { sky.material.map = t; sky.material.needsUpdate = true; }
     sky.rotation.y = PANO_BASE + ((PANO_HERO[panoId] ?? 0.5) - 0.5) * Math.PI * 2;
