@@ -117,7 +117,95 @@ function init() {
   // high-up scenes (summits, rooftops, antenna tips, a plane wing): the panorama stays a plain sphere so the drop below
   // reads as a drop (no ground flattened under her), and a small 3D platform carries her instead
   const PANO_UP = { everest: "snow", overlook: "rock", nyroof: "roof", antdubai: "mast", anttokyo: "mast", antshanghai: "mast", wing777: "wing" };
-  let skyG = null, skyU = null; const props = {};
+  let skyG = null, skyU = null; const props = {}, upEnv = {};
+  // ---- Boeing 777 (real scale, metres): she stands at the right wingtip; nose toward -z, fuselage ~30 m inboard (-x)
+  function canvasTexture(w, h, draw) {
+    const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  }
+  function make777(g, std) {
+    const TIPX = 0.9, ROOTX = -27.1, DIH = Math.tan(6 * Math.PI / 180);
+    const zLE = (t) => -16 + 15.4 * t + (t > 0.9 ? Math.pow((t - 0.9) / 0.1, 2) * 1.1 : 0);
+    const zTE = (t) => (t < 0.33 ? -2 : -2 + (t - 0.33) / 0.67 * 3.3);
+    const tr = (t) => 0.14 - 0.045 * t;
+    // wing skin: light Boeing grey, panel lines, slat / flap / aileron breaks, walkway-free outer wing
+    const wingTex = canvasTexture(2048, 512, (x, W, H) => {
+      x.fillStyle = "#c7cbd0"; x.fillRect(0, 0, W, H);
+      const r = rnd(5); for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(${r() < 0.5 ? "255,255,255" : "0,0,0"},0.035)`; x.fillRect(r() * W, r() * H, 3, 2); }
+      x.strokeStyle = "rgba(60,66,74,0.28)"; x.lineWidth = 1.1;
+      for (let s = 0; s < W; s += 46) { x.beginPath(); x.moveTo(s, H * 0.17); x.lineTo(s, H * 0.72); x.stroke(); }      // spanwise panel joints
+      for (const v of [0.17, 0.3, 0.45, 0.58, 0.72]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }
+      x.strokeStyle = "rgba(40,44,50,0.5)"; x.lineWidth = 2;
+      for (let s = 0; s < W; s += 205) { x.beginPath(); x.moveTo(s, 0); x.lineTo(s, H * 0.17); x.stroke(); }              // slat segments
+      for (const s of [0, 380, 760, 1150, 1520]) { x.beginPath(); x.moveTo(s, H * 0.72); x.lineTo(s, H); x.stroke(); }     // flap / aileron breaks
+      x.fillStyle = "rgba(30,34,40,0.18)"; x.fillRect(0, H * 0.72, W, H * 0.28);
+      x.fillStyle = "rgba(210,40,40,0.9)"; x.font = "bold 22px Arial"; for (let s = 120; s < W * 0.8; s += 420) x.fillText("NO STEP", s, H * 0.8);
+    });
+    const wingMat = std({ map: wingTex, color: 0xffffff, roughness: 0.42, metalness: 0.25, side: THREE.DoubleSide });
+    // airfoil loft (NACA-style thickness with slight camber), cosine chord spacing, raked tip
+    const NS = 44, NC = 26, pos = [], uv = [], idx = [];
+    for (let i = 0; i <= NS; i++) {
+      const t = i / NS, xs = ROOTX + (TIPX - ROOTX) * t, le = zLE(t), te = zTE(t), c = te - le, th = tr(t) * c, yb = (xs - TIPX) * DIH;
+      for (let j = 0; j < 2 * NC; j++) {
+        const up = j < NC, k = up ? NC - 1 - j : j - NC, u = 0.5 * (1 - Math.cos(Math.PI * k / (NC - 1)));
+        const yt = 5 * th * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4), cam = 0.025 * c * 4 * u * (1 - u);
+        pos.push(xs, yb + cam + (up ? yt : -yt) - 0.02, le + u * c); uv.push(t, 1 - u);
+      }
+    }
+    const R = 2 * NC;
+    for (let i = 0; i < NS; i++) for (let j = 0; j < R; j++) { const a = i * R + j, b = i * R + (j + 1) % R, c2 = a + R, d = b + R; idx.push(a, c2, b, b, c2, d); }
+    const tc = (NS + 1) * R; let sx = 0, sy = 0, sz = 0; for (let j = 0; j < R; j++) { sx += pos[(NS * R + j) * 3]; sy += pos[(NS * R + j) * 3 + 1]; sz += pos[(NS * R + j) * 3 + 2]; }
+    pos.push(sx / R, sy / R, sz / R); uv.push(1, 0.5); for (let j = 0; j < R; j++) idx.push(tc, NS * R + j, NS * R + (j + 1) % R);
+    const wg = new THREE.BufferGeometry(); wg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); wg.setIndex(idx); wg.computeVertexNormals();
+    const wing = new THREE.Mesh(wg, wingMat); g.add(wing);
+    const navG = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0x29ff6a })); navG.position.set(TIPX - 0.05, (TIPX - TIPX) * DIH + 0.02, zLE(1) + 0.15); g.add(navG);
+    const strobe = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff })); strobe.position.set(TIPX - 0.05, 0.02, zTE(1) - 0.2); g.add(strobe);
+    // GE90 engine: lathe nacelle, dark fan face with spinner, exhaust cone, pylon
+    const nacMat = std({ color: 0xdfe3e7, roughness: 0.35, metalness: 0.45, side: THREE.DoubleSide }), darkMat = std({ color: 0x1a1d22, roughness: 0.5, metalness: 0.6 }), chrome = std({ color: 0xb9bec4, roughness: 0.18, metalness: 0.95 });
+    const prof = [[1.62, 0], [1.78, 0.12], [1.86, 0.7], [1.84, 2.2], [1.66, 4.4], [1.42, 5.9], [1.18, 6.6], [1.12, 6.62]].map(([r, y]) => new THREE.Vector2(r, y));
+    const eng = new THREE.Group();
+    const nac = new THREE.Mesh(new THREE.LatheGeometry(prof, 64), nacMat); eng.add(nac);
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.4, 48, 1, true), darkMat); inner.position.y = 0.7; eng.add(inner);
+    const fan = new THREE.Mesh(new THREE.CircleGeometry(1.6, 48), darkMat); fan.rotation.x = Math.PI / 2; fan.position.y = 1.2; eng.add(fan);
+    const spin = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.1, 32), chrome); spin.rotation.x = Math.PI; spin.position.y = 0.75; eng.add(spin);
+    const plug = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.2, 32), darkMat); plug.position.y = 7.6; eng.add(plug);
+    eng.rotation.x = Math.PI / 2;                                    // lathe axis +y -> +z (intake faces the nose, -z)
+    const ex = -17.6, et = (ex - ROOTX) / (TIPX - ROOTX); eng.position.set(ex, (ex - TIPX) * DIH - 2.75, zLE(et) - 3.2); g.add(eng);
+    const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.0, 6.5), nacMat); pylon.position.set(ex, (ex - TIPX) * DIH - 0.75, zLE(et) - 0.6); g.add(pylon);
+    // fuselage: lathe with ogive nose and tail cone, white with grey belly, window row and a blue cheatline on her side
+    const FX = -29.8, FY = (ROOTX - TIPX) * DIH + 1.55, NOSE = -42, L = 63.7;
+    const fuseTex = canvasTexture(512, 4096, (x, W, H) => {
+      x.fillStyle = "#f3f4f6"; x.fillRect(0, 0, W, H);
+      const belly = x.createLinearGradient(0, 0, W, 0); belly.addColorStop(0, "#9aa2ab"); belly.addColorStop(0.12, "#c9ced4"); belly.addColorStop(0.2, "rgba(243,244,246,0)");
+      belly.addColorStop(0.8, "rgba(243,244,246,0)"); belly.addColorStop(0.88, "#c9ced4"); belly.addColorStop(1, "#9aa2ab"); x.fillStyle = belly; x.fillRect(0, 0, W, H);
+      x.fillStyle = "#1c4c9c"; x.fillRect(W * 0.262, H * 0.03, W * 0.012, H * 0.94); x.fillRect(W * 0.726, H * 0.03, W * 0.012, H * 0.94);
+      for (const cx of [0.302, 0.698]) {
+        for (let v = 0.105; v < 0.88; v += 0.0082) { if (Math.abs(v - 0.3) < 0.012 || Math.abs(v - 0.52) < 0.012) continue; x.fillStyle = "#20252c"; x.beginPath(); x.ellipse(W * cx, H * v, 5, 8, 0, 0, Math.PI * 2); x.fill(); }
+        x.strokeStyle = "#8e959d"; x.lineWidth = 2; for (const v of [0.085, 0.3, 0.52, 0.86]) x.strokeRect(W * cx - 9, H * v - 26, 18, 52);
+      }
+      x.fillStyle = "#20252c"; for (const cx of [0.36, 0.64]) { x.beginPath(); x.ellipse(W * cx, H * 0.03, 14, 18, 0, 0, Math.PI * 2); x.fill(); }   // cockpit windows
+    });
+    const even = (p, n) => { const o = []; for (let i = 0; i <= n; i++) { const y = L * i / n; let k = 1; while (k < p.length - 1 && p[k].y < y) k++; const a = p[k - 1], b = p[k], f = Math.min(1, Math.max(0, (y - a.y) / (b.y - a.y || 1))); o.push(new THREE.Vector2(a.x + (b.x - a.x) * f, y)); } return o; };
+    const fp = [[0.01, 0], [0.9, 0.45], [1.6, 1.3], [2.3, 2.6], [2.8, 4.3], [3.05, 6.4], [3.1, 8.5], [3.1, 46], [2.9, 51], [2.3, 56], [1.4, 60.5], [0.6, 63.2], [0.3, L]].map(([r, y]) => new THREE.Vector2(r, y));
+    fuseTex.flipY = false;
+    const fg = new THREE.LatheGeometry(even(fp, 160), 96); fg.rotateX(Math.PI / 2);
+    const fus = new THREE.Mesh(fg, std({ map: fuseTex, color: 0xffffff, roughness: 0.32, metalness: 0.15 })); fus.position.set(FX, FY, NOSE); g.add(fus);
+    const fair = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), std({ color: 0xd9dde2, roughness: 0.4, metalness: 0.2 })); fair.scale.set(3.4, 1.3, 10); fair.position.set(FX + 0.6, FY - 2.3, -8.5); g.add(fair);   // wing-body fairing
+    // vertical fin and stabilisers (swept, thin extrusions)
+    const plate = (pts, depth) => { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach((p) => s.lineTo(p[0], p[1])); s.closePath(); return new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 2 }); };
+    const tailMat = std({ color: 0xf3f4f6, roughness: 0.32, metalness: 0.15, side: THREE.DoubleSide });
+    const fin = new THREE.Mesh(plate([[0, 0], [7.2, 11.5], [10.6, 11.5], [12.6, 0]], 0.45), tailMat); fin.geometry.rotateY(-Math.PI / 2); fin.position.set(FX + 0.22, FY + 2.6, NOSE + 47.5); g.add(fin);
+    const finBand = new THREE.Mesh(plate([[6.1, 9.8], [7.2, 11.5], [10.6, 11.5], [10.1, 9.8]], 0.47), std({ color: 0x1c4c9c, roughness: 0.4 })); finBand.geometry.rotateY(-Math.PI / 2); finBand.position.set(FX + 0.23, FY + 2.6, NOSE + 47.5); g.add(finBand);
+    for (const sgn of [1, -1]) {
+      const st = new THREE.Mesh(plate([[0, 0], [10.5, -5.8], [10.5, -8.3], [0, -7.2]], 0.3), tailMat); st.geometry.rotateX(-Math.PI / 2);
+      st.scale.x = sgn; st.position.set(FX + sgn * 2.2, FY + 0.6, NOSE + 51); g.add(st);
+    }
+    // far (left) wing and engine, mirrored across the fuselage centre line
+    const lw = wing.clone(); lw.scale.x = -1; lw.position.x = 2 * FX; g.add(lw);
+    const le2 = eng.clone(); le2.position.x = 2 * FX - ex; g.add(le2);
+    const pl2 = pylon.clone(); pl2.position.x = 2 * FX - ex; g.add(pl2);
+    const navR = navG.clone(); navR.material = new THREE.MeshBasicMaterial({ color: 0xff2a2a }); navR.position.x = 2 * FX - navG.position.x; g.add(navR);
+  }
   function makeProp(kind) {
     const g = new THREE.Group();
     const std = (o) => new THREE.MeshStandardMaterial(o);
@@ -146,25 +234,15 @@ function init() {
         const seg = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, 3, 24), i % 2 ? white : red); seg.position.y = y0 - 1.5; g.add(seg);
       }
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
-    } else if (kind === "wing") {   // a Boeing 777 right wing at real scale: she stands at the raked tip, the fuselage ~30 m inboard
-      const skin = std({ color: 0xe8ebef, roughness: 0.35, metalness: 0.35 }), grey = std({ color: 0xaeb4bb, roughness: 0.4, metalness: 0.5 }), dark = std({ color: 0x23272d, roughness: 0.6, metalness: 0.3 });
-      const sh = new THREE.Shape(); const pts = [[1.4, 0.2], [0.6, -1.6], [-27, -3.2], [-27, 14]];
-      sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); sh.closePath();
-      const wg = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2 });
-      wg.rotateX(-Math.PI / 2); wg.translate(0, -0.33, 0);
-      const wing = new THREE.Mesh(wg, skin); wing.rotation.z = 0.1; g.add(wing);
-      const eng = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.55, 7.5, 40, 1, true), grey); eng.rotation.x = Math.PI / 2; eng.position.set(-17, -3.9, -10.5); g.add(eng);
-      const fan = new THREE.Mesh(new THREE.CircleGeometry(1.7, 40), dark); fan.position.set(-17, -3.9, -14.2); fan.rotation.y = Math.PI; g.add(fan);
-      const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 6), grey); pylon.position.set(-17, -2.6, -8.5); g.add(pylon);
-      const fus = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 62, 48), skin); fus.rotation.x = Math.PI / 2; fus.position.set(-30.2, -1.4, 2); g.add(fus);
-      const nose = new THREE.Mesh(new THREE.SphereGeometry(3.1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), skin); nose.rotation.x = -Math.PI / 2; nose.scale.set(1, 1.8, 1); nose.position.set(-30.2, -1.4, -29); g.add(nose);
-      const stripe = new THREE.Mesh(new THREE.CylinderGeometry(3.13, 3.13, 62, 48, 1, true, Math.PI / 2 - 0.22, 0.44), std({ color: 0x1d4fa0, roughness: 0.4 })); stripe.rotation.x = Math.PI / 2; stripe.position.copy(fus.position); g.add(stripe);
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 10, 7), skin); fin.position.set(-30.2, 6.5, 29); fin.rotation.x = -0.5; g.add(fin);
+    } else if (kind === "wing") {
+      make777(g, std);
     }
     g.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; o.userData.lookShadow = true; } });
     g.visible = false; scene.add(g); return g;
   }
-  function hideSky() { if (skyG) skyG.visible = false; if (skyU) skyU.visible = false; for (const k in props) props[k].visible = false; sky = null; }
+  // in high-up scenes the platform itself takes her shadow; the wide invisible shadow catcher and the soft blob would float in mid-air
+  function upShadowFix() { if (panoOn && PANO_UP[panoId] && sky && sky.visible) { shadowPlane.visible = false; ground.visible = false; } else if (curLook) shadowPlane.visible = !!curLook.shadows; }
+  function hideSky() { if (camera.far !== 50) { camera.far = 50; camera.updateProjectionMatrix(); } if (skyG) skyG.visible = false; if (skyU) skyU.visible = false; for (const k in props) props[k].visible = false; sky = null; }
   function showPano(t) {
     const up = PANO_UP[panoId];
     hideSky();
@@ -172,6 +250,11 @@ function init() {
     else { if (!skyG) { skyG = new GroundedSkybox(t, PANO_H, PANO_R, 96); skyG.position.y = PANO_H - 0.005; skyG.material.toneMapped = false; skyG.renderOrder = -20; scene.add(skyG); } sky = skyG; }
     if (sky.material.map !== t) { sky.material.map = t; sky.material.needsUpdate = true; }
     sky.rotation.y = PANO_BASE + ((PANO_HERO[panoId] ?? 0.5) - 0.5) * Math.PI * 2;
+    const far = up ? 160 : 50; if (camera.far !== far) { camera.far = far; camera.updateProjectionMatrix(); }
+    if (up) {   // the platform reflects this scene's own sky
+      const env = upEnv[panoId] || (upEnv[panoId] = pmrem.fromEquirectangular(t).texture);
+      props[up].traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) { o.material.envMap = env; o.material.envMapIntensity = 1; o.material.envMapRotation.set(0, sky.rotation.y, 0); o.material.needsUpdate = true; } });
+    }
     sky.visible = true; panoOn = true; backdrop.visible = false; floor.visible = false; skyFill.visible = false;
   }
 
@@ -2532,6 +2615,7 @@ function init() {
     ruler.rotation.y = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
     patchSceneMaterials();
     placeBackdrop();
+    upShadowFix();
     if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
   });
 
@@ -2660,7 +2744,7 @@ function init() {
   // OpenPose-style skeleton (COCO 18 keypoints) of the current 3D pose, from the same camera as the
   // snapshot. Qwen Image Edit 2509 reads keypoint maps natively, so this pins the pose exactly.
   function snapCamera(W, H) {
-    const cam = new THREE.PerspectiveCamera(camera.fov, W / H, 0.05, 50);
+    const cam = new THREE.PerspectiveCamera(camera.fov, W / H, 0.05, camera.far);
     const sc = holder.scale.y, top = ((B.head ? bonePos("head").y : 1.5) + 0.2) * sc, t14 = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const d = Math.max((top * 0.66) / t14, (0.6 * sc) / (t14 * (W / H)));
     cam.position.set(0, top * 0.52, d); cam.lookAt(0, top * 0.5, 0); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
@@ -2753,7 +2837,8 @@ function init() {
       renderer.setPixelRatio(1); renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
       if (!bgOn) renderer.setClearColor(0xf0f0f0, 1);
       placeBackdrop();
-      if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
+      upShadowFix();
+    if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
       return await new Promise((res) => dom.toBlob(res, "image/png"));
     } finally {
       renderer.setClearColor(0x000000, 0); ruler.visible = vis[0]; handleGroup.visible = vis[1]; controls.autoRotate = ar;
