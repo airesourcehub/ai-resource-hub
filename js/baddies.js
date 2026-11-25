@@ -238,6 +238,7 @@
     ["sit", "Sitting", "sitting down"],
     ["sitfloor", "Sit on floor", "sitting on the floor with her knees bent up in front of her"],
     ["sitcross", "Cross-legged", "sitting cross-legged on the floor"],
+    ["allfours", "All fours", "on all fours on her hands and knees, looking ahead"],
     ["custom", "Custom (drag)", ""]
   ];
   // What she sits on (for "Sitting" and Custom). Heights live in js/baddies-3d.js SEATS.

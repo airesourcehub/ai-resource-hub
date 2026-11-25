@@ -128,6 +128,7 @@ function init() {
     const zLE = (t) => -16 + 15.4 * t + (t > 0.9 ? Math.pow((t - 0.9) / 0.1, 2) * 1.1 : 0);
     const zTE = (t) => (t < 0.33 ? -2 : -2 + (t - 0.33) / 0.67 * 3.3);
     const tr = (t) => 0.14 - 0.045 * t;
+    const wy = (xs) => { const t = (xs - ROOTX) / (TIPX - ROOTX); return (xs - TIPX) * DIH * 0.8 - 0.9 * (1 - t * t); };   // dihedral plus the upward flex of a loaded wing in flight
     // wing skin: light Boeing grey, panel lines, slat / flap / aileron breaks, walkway-free outer wing
     const wingTex = canvasTexture(2048, 512, (x, W, H) => {
       x.fillStyle = "#c7cbd0"; x.fillRect(0, 0, W, H);
@@ -139,13 +140,14 @@ function init() {
       for (let s = 0; s < W; s += 205) { x.beginPath(); x.moveTo(s, 0); x.lineTo(s, H * 0.17); x.stroke(); }              // slat segments
       for (const s of [0, 380, 760, 1150, 1520]) { x.beginPath(); x.moveTo(s, H * 0.72); x.lineTo(s, H); x.stroke(); }     // flap / aileron breaks
       x.fillStyle = "rgba(30,34,40,0.18)"; x.fillRect(0, H * 0.72, W, H * 0.28);
+      const le = x.createLinearGradient(0, 0, 0, H * 0.07); le.addColorStop(0, "#e9ecef"); le.addColorStop(0.6, "#d4d8dd"); le.addColorStop(1, "rgba(199,203,208,0)"); x.fillStyle = le; x.fillRect(0, 0, W, H * 0.07);
       x.fillStyle = "rgba(210,40,40,0.9)"; x.font = "bold 22px Arial"; for (let s = 120; s < W * 0.8; s += 420) x.fillText("NO STEP", s, H * 0.8);
     });
     const wingMat = std({ map: wingTex, color: 0xffffff, roughness: 0.42, metalness: 0.25, side: THREE.DoubleSide });
     // airfoil loft (NACA-style thickness with slight camber), cosine chord spacing, raked tip
     const NS = 44, NC = 26, pos = [], uv = [], idx = [];
     for (let i = 0; i <= NS; i++) {
-      const t = i / NS, xs = ROOTX + (TIPX - ROOTX) * t, le = zLE(t), te = zTE(t), c = te - le, th = tr(t) * c, yb = (xs - TIPX) * DIH;
+      const t = i / NS, xs = ROOTX + (TIPX - ROOTX) * t, le = zLE(t), te = zTE(t), c = te - le, th = tr(t) * c, yb = wy(xs);
       for (let j = 0; j < 2 * NC; j++) {
         const up = j < NC, k = up ? NC - 1 - j : j - NC, u = 0.5 * (1 - Math.cos(Math.PI * k / (NC - 1)));
         const yt = 5 * th * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u ** 3 - 0.1036 * u ** 4), cam = 0.025 * c * 4 * u * (1 - u);
@@ -158,6 +160,11 @@ function init() {
     pos.push(sx / R, sy / R, sz / R); uv.push(1, 0.5); for (let j = 0; j < R; j++) idx.push(tc, NS * R + j, NS * R + (j + 1) % R);
     const wg = new THREE.BufferGeometry(); wg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); wg.setIndex(idx); wg.computeVertexNormals();
     const wing = new THREE.Mesh(wg, wingMat); g.add(wing);
+    const canoeMat = std({ color: 0xc9cdd2, roughness: 0.4, metalness: 0.3 });
+    for (const cx of [-22.5, -12.5, -7.5, -3.2]) {
+      const ct = (cx - ROOTX) / (TIPX - ROOTX), cte = zTE(ct), cl = cx > -5 ? 3 : 4.6;
+      const cn = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), canoeMat); cn.scale.set(cx > -5 ? 0.22 : 0.32, cx > -5 ? 0.26 : 0.38, cl); cn.position.set(cx, wy(cx) - 0.28, cte - cl * 0.35); g.add(cn);
+    }
     const navG = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0x29ff6a })); navG.position.set(TIPX - 0.05, (TIPX - TIPX) * DIH + 0.02, zLE(1) + 0.15); g.add(navG);
     const strobe = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff })); strobe.position.set(TIPX - 0.05, 0.02, zTE(1) - 0.2); g.add(strobe);
     // GE90 engine: lathe nacelle, dark fan face with spinner, exhaust cone, pylon
@@ -166,14 +173,17 @@ function init() {
     const eng = new THREE.Group();
     const nac = new THREE.Mesh(new THREE.LatheGeometry(prof, 64), nacMat); eng.add(nac);
     const inner = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.4, 48, 1, true), darkMat); inner.position.y = 0.7; eng.add(inner);
-    const fan = new THREE.Mesh(new THREE.CircleGeometry(1.6, 48), darkMat); fan.rotation.x = Math.PI / 2; fan.position.y = 1.2; eng.add(fan);
+    const fan = new THREE.Mesh(new THREE.CircleGeometry(1.6, 48), darkMat); fan.rotation.x = Math.PI / 2; fan.position.y = 1.35; eng.add(fan);
+    const bladeMat = std({ color: 0x5a6068, roughness: 0.35, metalness: 0.9, side: THREE.DoubleSide });
+    for (let b = 0; b < 22; b++) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 1.42), bladeMat); bl.position.set(0, 1.0, 0); bl.rotation.y = b / 22 * Math.PI * 2; bl.translateZ(0.85); bl.rotateZ(0.6); eng.add(bl); }
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.09, 12, 64), chrome); lip.rotation.x = Math.PI / 2; lip.position.y = 0.06; eng.add(lip);
     const spin = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.1, 32), chrome); spin.rotation.x = Math.PI; spin.position.y = 0.75; eng.add(spin);
     const plug = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.2, 32), darkMat); plug.position.y = 7.6; eng.add(plug);
     eng.rotation.x = Math.PI / 2;                                    // lathe axis +y -> +z (intake faces the nose, -z)
-    const ex = -17.6, et = (ex - ROOTX) / (TIPX - ROOTX); eng.position.set(ex, (ex - TIPX) * DIH - 2.75, zLE(et) - 3.2); g.add(eng);
-    const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.0, 6.5), nacMat); pylon.position.set(ex, (ex - TIPX) * DIH - 0.75, zLE(et) - 0.6); g.add(pylon);
+    const ex = -17.6, et = (ex - ROOTX) / (TIPX - ROOTX); eng.position.set(ex, wy(ex) - 2.75, zLE(et) - 3.2); g.add(eng);
+    const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 5.6, 20), nacMat); pylon.rotation.x = Math.PI / 2; pylon.scale.set(0.34, 1, 1.05); pylon.position.set(ex, wy(ex) - 0.78, zLE(et) - 1.2); g.add(pylon);
     // fuselage: lathe with ogive nose and tail cone, white with grey belly, window row and a blue cheatline on her side
-    const FX = -29.8, FY = (ROOTX - TIPX) * DIH + 1.55, NOSE = -42, L = 63.7;
+    const FX = -29.8, FY = wy(ROOTX) + 1.55, NOSE = -42, L = 63.7;
     const fuseTex = canvasTexture(512, 4096, (x, W, H) => {
       x.fillStyle = "#f3f4f6"; x.fillRect(0, 0, W, H);
       const belly = x.createLinearGradient(0, 0, W, 0); belly.addColorStop(0, "#9aa2ab"); belly.addColorStop(0.12, "#c9ced4"); belly.addColorStop(0.2, "rgba(243,244,246,0)");
@@ -183,19 +193,32 @@ function init() {
         for (let v = 0.105; v < 0.88; v += 0.0082) { if (Math.abs(v - 0.3) < 0.012 || Math.abs(v - 0.52) < 0.012) continue; x.fillStyle = "#20252c"; x.beginPath(); x.ellipse(W * cx, H * v, 5, 8, 0, 0, Math.PI * 2); x.fill(); }
         x.strokeStyle = "#8e959d"; x.lineWidth = 2; for (const v of [0.085, 0.3, 0.52, 0.86]) x.strokeRect(W * cx - 9, H * v - 26, 18, 52);
       }
-      x.fillStyle = "#20252c"; for (const cx of [0.36, 0.64]) { x.beginPath(); x.ellipse(W * cx, H * 0.03, 14, 18, 0, 0, Math.PI * 2); x.fill(); }   // cockpit windows
+      x.fillStyle = "#151a20"; for (const sd of [1, -1]) for (let k = 0; k < 3; k++) { const cx = 0.5 - sd * (0.075 + k * 0.045), v = 0.064 + k * 0.006; x.beginPath(); x.moveTo(W * (cx - 0.02), H * (v - 0.004)); x.lineTo(W * (cx + 0.02), H * (v - 0.006)); x.lineTo(W * (cx + 0.022), H * (v + 0.004)); x.lineTo(W * (cx - 0.018), H * (v + 0.005)); x.closePath(); x.fill(); }   // cockpit windows
+      x.save(); x.translate(W * 0.36, H * 0.2); x.rotate(Math.PI / 2); x.scale(-1, 1); x.textAlign = "right"; x.fillStyle = "#1c4c9c"; x.font = "bold 46px Arial"; x.fillText("AI RESOURCE HUB", 0, 0); x.restore();
+      x.save(); x.translate(W * 0.64, H * 0.48); x.rotate(-Math.PI / 2); x.scale(-1, 1); x.textAlign = "right"; x.fillStyle = "#1c4c9c"; x.font = "bold 46px Arial"; x.fillText("AI RESOURCE HUB", 0, 0); x.restore();
     });
     const even = (p, n) => { const o = []; for (let i = 0; i <= n; i++) { const y = L * i / n; let k = 1; while (k < p.length - 1 && p[k].y < y) k++; const a = p[k - 1], b = p[k], f = Math.min(1, Math.max(0, (y - a.y) / (b.y - a.y || 1))); o.push(new THREE.Vector2(a.x + (b.x - a.x) * f, y)); } return o; };
     const fp = [[0.01, 0], [0.9, 0.45], [1.6, 1.3], [2.3, 2.6], [2.8, 4.3], [3.05, 6.4], [3.1, 8.5], [3.1, 46], [2.9, 51], [2.3, 56], [1.4, 60.5], [0.6, 63.2], [0.3, L]].map(([r, y]) => new THREE.Vector2(r, y));
     fuseTex.flipY = false;
-    const fg = new THREE.LatheGeometry(even(fp, 160), 96); fg.rotateX(Math.PI / 2);
+    const fg = new THREE.LatheGeometry(even(fp, 160), 96);
+    { const pa = fg.attributes.position; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); if (y > 44) pa.setZ(i, pa.getZ(i) - 0.0055 * (y - 44) ** 2); } }   // tail cone sweeps up
+    fg.rotateX(Math.PI / 2); fg.computeVertexNormals();
     const fus = new THREE.Mesh(fg, std({ map: fuseTex, color: 0xffffff, roughness: 0.32, metalness: 0.15 })); fus.position.set(FX, FY, NOSE); g.add(fus);
+    for (const [by, bz] of [[3.12, -14], [-3.12, -10]]) { const bc = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2222 })); bc.position.set(FX, FY + by, bz); g.add(bc); }   // anti-collision beacons
     const fair = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), std({ color: 0xd9dde2, roughness: 0.4, metalness: 0.2 })); fair.scale.set(3.4, 1.3, 10); fair.position.set(FX + 0.6, FY - 2.3, -8.5); g.add(fair);   // wing-body fairing
     // vertical fin and stabilisers (swept, thin extrusions)
     const plate = (pts, depth) => { const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach((p) => s.lineTo(p[0], p[1])); s.closePath(); return new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 2 }); };
     const tailMat = std({ color: 0xf3f4f6, roughness: 0.32, metalness: 0.15, side: THREE.DoubleSide });
-    const fin = new THREE.Mesh(plate([[0, 0], [7.2, 11.5], [10.6, 11.5], [12.6, 0]], 0.45), tailMat); fin.geometry.rotateY(-Math.PI / 2); fin.position.set(FX + 0.22, FY + 2.6, NOSE + 47.5); g.add(fin);
-    const finBand = new THREE.Mesh(plate([[6.1, 9.8], [7.2, 11.5], [10.6, 11.5], [10.1, 9.8]], 0.47), std({ color: 0x1c4c9c, roughness: 0.4 })); finBand.geometry.rotateY(-Math.PI / 2); finBand.position.set(FX + 0.23, FY + 2.6, NOSE + 47.5); g.add(finBand);
+    const finTex = canvasTexture(1024, 1024, (x, W, H) => {
+      x.fillStyle = "#f3f4f6"; x.fillRect(0, 0, W, H);
+      const gr = x.createLinearGradient(0, H, W, 0); gr.addColorStop(0, "#0e2f6b"); gr.addColorStop(1, "#2a6fd6"); x.fillStyle = gr;
+      x.beginPath(); x.moveTo(0, H * 0.62); x.quadraticCurveTo(W * 0.5, H * 0.5, W, H * 0.12); x.lineTo(W, 0); x.lineTo(0, 0); x.closePath(); x.fill();
+      x.strokeStyle = "#ff7a1a"; x.lineWidth = 26; x.beginPath(); x.moveTo(0, H * 0.7); x.quadraticCurveTo(W * 0.5, H * 0.58, W, H * 0.2); x.stroke();
+      x.save(); x.translate(W * 0.6, H * 0.33); x.rotate(0.42); x.scale(-1, 1); x.fillStyle = "#ffffff"; x.font = "bold 150px Arial"; x.textAlign = "center"; x.fillText("AIRH", 0, 0); x.restore();
+    });
+    finTex.wrapS = finTex.wrapT = THREE.ClampToEdgeWrapping; finTex.repeat.set(1 / 12.6, 1 / 11.5);
+    const finMat = std({ map: finTex, color: 0xffffff, roughness: 0.32, metalness: 0.15, side: THREE.DoubleSide });
+    const fin = new THREE.Mesh(plate([[0, 0], [7.2, 11.5], [10.6, 11.5], [12.6, 0]], 0.45), finMat); fin.geometry.rotateY(-Math.PI / 2); fin.position.set(FX + 0.22, FY + 2.6, NOSE + 47.5); g.add(fin);
     for (const sgn of [1, -1]) {
       const st = new THREE.Mesh(plate([[0, 0], [10.5, -5.8], [10.5, -8.3], [0, -7.2]], 0.3), tailMat); st.geometry.rotateX(-Math.PI / 2);
       st.scale.x = sgn; st.position.set(FX + sgn * 2.2, FY + 0.6, NOSE + 51); g.add(st);
@@ -722,6 +745,12 @@ function init() {
     curSeat = seatType && SEATS[seatType] != null ? { type: seatType, h: SEATS[seatType] } : null;
     const pdy = curSeat ? (curSeat.h + 0.1 - pelvisRestY) : (cust ? (cust.pdy || 0) : (PR.pdy || 0));
     if (pdy || PR.pdx) movePelvis(v3(PR.pdx || 0, pdy, PR.pdz || 0));
+    if (PR.pitch) {   // bend forward at the hips (all fours): the pelvis tips, the spine takes the rest, the head lifts to look ahead
+      const ax = v3(1, 0, 0), a = PR.pitch * DEG;
+      rotBone("pelvis", ax, a * (PR.pelvisK ?? 0.55)); const sk = (1 - (PR.pelvisK ?? 0.55)) / 3;
+      rotBone("spine_01", ax, a * sk); rotBone("spine_02", ax, a * sk); rotBone("spine_03", ax, a * sk);
+      if (PR.headUp) { rotBone("neck_01", ax, -PR.headUp * DEG * 0.45); rotBone("head", ax, -PR.headUp * DEG * 0.55); }
+    }
     if (PR.yaw) { yawBone("spine_01", PR.yaw * 0.25); yawBone("spine_02", PR.yaw * 0.35); yawBone("spine_03", PR.yaw * 0.4); }
     if (PR.head) { yawBone("neck_01", PR.head * 0.5); yawBone("head", PR.head * 0.5); }
     // torso twist and head turn / nod / tilt from the sliders (on top of any preset)
@@ -764,6 +793,7 @@ function init() {
       ikLeg("l", fT.l, PR.knee); ikLeg("r", fT.r, PR.knee);
       setWorldQ("foot_l", footQ0.l); setWorldQ("foot_r", footQ0.r);
       if (PR.kneelR) { const fb = B.foot_r; if (fb) fb.rotateX(0.9); }
+      if (PR.footPitch) for (const fb of [B.foot_l, B.foot_r]) if (fb) fb.rotateX(PR.footPitch);
     }
     lastTargets = { hr: bonePos("hand_r").toArray(), hl: bonePos("hand_l").toArray(), fl: bonePos("foot_l").toArray(), fr: bonePos("foot_r").toArray(), pdy: pdy };
     // relax the fingers a little
@@ -944,6 +974,7 @@ function init() {
     kneel:   { pdy: -0.38, fl: [0, 0, 0.3], fr: [0, 0.02, -0.4], kneelR: true },
     sit:     { seat: "chair", fl: [0.03, 0, 0.36], fr: [-0.03, 0, 0.36], hr: [-0.15, 0.6, 0.24], hl: [0.15, 0.6, 0.24], elbow: 1.0, knee: 0.12 },
     sitfloor:{ seat: "floor", fl: [0.07, 0, 0.5], fr: [-0.07, 0, 0.52], hr: [-0.16, 0.44, 0.34], hl: [0.16, 0.44, 0.32], elbow: 0.9, knee: 0.25 },
+    allfours:{ pdy: -0.42, pitch: 88, pelvisK: 0.55, headUp: 70, hr: [-0.17, 0.03, 0.45], hl: [0.17, 0.03, 0.45], elbow: 0.3, fl: [0.03, 0, -0.38], fr: [-0.03, 0, -0.38], knee: 0.1, footPitch: 1.2 },
     sitcross:{ seat: "floor", fl: [-0.2, 0.04, 0.24], fr: [0.2, 0.05, 0.28], hr: [-0.2, 0.3, 0.3], hl: [0.2, 0.3, 0.3], elbow: 0.9, knee: 1.4 }
   };
   let lastTargets = null, curSeat = null;
@@ -2683,6 +2714,8 @@ function init() {
     const sh = { r: bonePos("upperarm_r"), l: bonePos("upperarm_l") }, hand = { r: bonePos("hand_r"), l: bonePos("hand_l") };
     const knee = { r: bonePos("calf_r"), l: bonePos("calf_l") }, foot = { r: bonePos("foot_r"), l: bonePos("foot_l") };
     const out = [], drop = pelvisRestY - P.y;
+    if (knee.r.y < 0.16 && knee.l.y < 0.16 && hand.r.y < 0.18 && hand.l.y < 0.18 && P.y < 0.75)
+      return "on all fours on her hands and knees, palms flat on the ground under her shoulders, back level, shins flat on the ground behind her, head up looking ahead";
     const kneelSide = knee.r.y < 0.14 ? "right" : knee.l.y < 0.14 ? "left" : "";
     const feetAhead = (foot.r.z + foot.l.z) / 2 - P.z;
     const seated = !!curSeat || (!kneelSide && drop > 0.2 && feetAhead > 0.15);
