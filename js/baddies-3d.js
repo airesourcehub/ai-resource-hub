@@ -128,7 +128,7 @@ function init() {
         v.multiplyScalar(n); v.y *= v.y > 0 ? 0.05 : 0.55; if (v.y > 0) v.y += (r() - 0.5) * 0.04; pos.setXYZ(i, v.x, v.y, v.z);
       }
       geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, std(kind === "rock" ? { color: 0x6f665c, roughness: 0.95, flatShading: true } : { color: 0xf4f7fb, roughness: 0.75, flatShading: false }));
+      const m = new THREE.Mesh(geo, std(kind === "rock" ? { color: 0x6f665c, roughness: 0.95, flatShading: true, side: THREE.DoubleSide } : { color: 0xf1f4f8, roughness: 0.8, side: THREE.DoubleSide }));
       m.position.y = -0.15; g.add(m);
     } else if (kind === "roof") {
       const concrete = std({ color: 0x8b8a86, roughness: 0.95 }), glass = std({ color: 0x1b2330, roughness: 0.25, metalness: 0.6 });
