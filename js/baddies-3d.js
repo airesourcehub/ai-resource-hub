@@ -146,18 +146,20 @@ function init() {
         const seg = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, 3, 24), i % 2 ? white : red); seg.position.y = y0 - 1.5; g.add(seg);
       }
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
-    } else if (kind === "wing") {
-      const skin = std({ color: 0xe8ebef, roughness: 0.35, metalness: 0.35 }), grey = std({ color: 0xaeb4bb, roughness: 0.4, metalness: 0.5 });
-      const sh = new THREE.Shape(); const pts = [[1.1, 0.4], [1.1, -1.5], [-15, -4.8], [-15, 8.2]];
+    } else if (kind === "wing") {   // a Boeing 777 right wing at real scale: she stands at the raked tip, the fuselage ~30 m inboard
+      const skin = std({ color: 0xe8ebef, roughness: 0.35, metalness: 0.35 }), grey = std({ color: 0xaeb4bb, roughness: 0.4, metalness: 0.5 }), dark = std({ color: 0x23272d, roughness: 0.6, metalness: 0.3 });
+      const sh = new THREE.Shape(); const pts = [[1.4, 0.2], [0.6, -1.6], [-27, -3.2], [-27, 14]];
       sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); sh.closePath();
-      const wg = new THREE.ExtrudeGeometry(sh, { depth: 0.28, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 });
-      wg.rotateX(-Math.PI / 2); wg.translate(0, -0.3, 0);
+      const wg = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2 });
+      wg.rotateX(-Math.PI / 2); wg.translate(0, -0.33, 0);
       const wing = new THREE.Mesh(wg, skin); wing.rotation.z = 0.1; g.add(wing);
-      const winglet = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.4, 1.4), skin); winglet.position.set(1.2, 1.1, 0.6); winglet.rotation.set(0, 0, -0.25); g.add(winglet);
-      const eng = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.4, 6, 32, 1, true), grey); eng.rotation.x = Math.PI / 2; eng.position.set(-9.5, -2.75, -2.5); g.add(eng);
-      const fus = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 64, 40), skin); fus.rotation.x = Math.PI / 2; fus.position.set(-18.2, -0.8, 6); g.add(fus);
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 9, 6), skin); fin.position.set(-18.2, 5.5, 35); fin.rotation.x = 0.45; g.add(fin);
-      const stripe = new THREE.Mesh(new THREE.CylinderGeometry(3.13, 3.13, 64, 40, 1, true, -0.25, 0.5), std({ color: 0x1d4fa0, roughness: 0.4 })); stripe.rotation.x = Math.PI / 2; stripe.rotation.y = Math.PI / 2; stripe.position.copy(fus.position); g.add(stripe);
+      const eng = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.55, 7.5, 40, 1, true), grey); eng.rotation.x = Math.PI / 2; eng.position.set(-17, -3.9, -10.5); g.add(eng);
+      const fan = new THREE.Mesh(new THREE.CircleGeometry(1.7, 40), dark); fan.position.set(-17, -3.9, -14.2); fan.rotation.y = Math.PI; g.add(fan);
+      const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 6), grey); pylon.position.set(-17, -2.6, -8.5); g.add(pylon);
+      const fus = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 62, 48), skin); fus.rotation.x = Math.PI / 2; fus.position.set(-30.2, -1.4, 2); g.add(fus);
+      const nose = new THREE.Mesh(new THREE.SphereGeometry(3.1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), skin); nose.rotation.x = -Math.PI / 2; nose.scale.set(1, 1.8, 1); nose.position.set(-30.2, -1.4, -29); g.add(nose);
+      const stripe = new THREE.Mesh(new THREE.CylinderGeometry(3.13, 3.13, 62, 48, 1, true, Math.PI / 2 - 0.22, 0.44), std({ color: 0x1d4fa0, roughness: 0.4 })); stripe.rotation.x = Math.PI / 2; stripe.position.copy(fus.position); g.add(stripe);
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 10, 7), skin); fin.position.set(-30.2, 6.5, 29); fin.rotation.x = -0.5; g.add(fin);
     }
     g.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; o.userData.lookShadow = true; } });
     g.visible = false; scene.add(g); return g;
