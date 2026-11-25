@@ -91,7 +91,7 @@ function init() {
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
   const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
-  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b", southbeach: "1125a", hawaii: "1125a", malibu: "1125a", everest: "1125a", overlook: "1125a", nyroof: "1125a", antdubai: "1125a", anttokyo: "1125a", antshanghai: "1125a", wing777: "1125a", mars: "1125a", moon: "1125a" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
   // 4K loads first; on desktops whose GPU takes 8192-px textures the 8K version follows and swaps in when ready
   const PANO_8K = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && renderer.capabilities.maxTextureSize >= 8192;
@@ -105,18 +105,70 @@ function init() {
         panoHi[id] = 1;
         new THREE.TextureLoader().load(new URL("img/baddies/pano/" + id + "-8k.webp?v=" + PANOS[id], document.baseURI).href, (h) => {
           const lo = panoTex[id]; panoTex[id] = panoTexFrom(h);
-          if (sky && sky.material.map === lo) { sky.material.map = h; sky.material.needsUpdate = true; }
+          for (const sk of [skyG, skyU]) if (sk && sk.material.map === lo) { sk.material.map = h; sk.material.needsUpdate = true; }
           lo.dispose();
         }, undefined, () => {});
       }
     }, undefined, () => { panoMiss[id] = true; cb(null); });
   }
   // where each panorama's main subject sits (0..1 across the image): turned to stand behind her in the front view
-  const PANO_HERO = { timessquare: 0.5, pyramids: 0.74, santamonica: 0.12, vegas: 0.55, niagara: 0.42, burj: 0.53, eiffel: 0.92, liberty: 0.57, vizcaya: 0.89, frenchmans: 0.45, bamboo: 0.5, chinasnow: 0.7, desert: 0.45, snow: 0.5, christmas: 0.46, halloween: 0.975, newyear: 0.55, valentine: 0.5, july4: 0.72, brickellpm: 0.3, miami: 0.53, ultra: 0.93, jungle: 0.5 };
+  const PANO_HERO = { timessquare: 0.5, pyramids: 0.74, santamonica: 0.12, vegas: 0.55, niagara: 0.42, burj: 0.53, eiffel: 0.92, liberty: 0.57, vizcaya: 0.89, frenchmans: 0.45, bamboo: 0.5, chinasnow: 0.7, desert: 0.45, snow: 0.5, christmas: 0.46, halloween: 0.975, newyear: 0.55, valentine: 0.5, july4: 0.72, brickellpm: 0.3, miami: 0.53, ultra: 0.93, jungle: 0.5, southbeach: 0.5, hawaii: 0.78, malibu: 0.62, everest: 0.58, overlook: 0.38, nyroof: 0.215, antdubai: 0.35, anttokyo: 0.445, antshanghai: 0.95, wing777: 0.5, mars: 0.3, moon: 0.58 };
   let panoId = "";
+  // high-up scenes (summits, rooftops, antenna tips, a plane wing): the panorama stays a plain sphere so the drop below
+  // reads as a drop (no ground flattened under her), and a small 3D platform carries her instead
+  const PANO_UP = { everest: "snow", overlook: "rock", nyroof: "roof", antdubai: "mast", anttokyo: "mast", antshanghai: "mast", wing777: "wing" };
+  let skyG = null, skyU = null; const props = {};
+  function makeProp(kind) {
+    const g = new THREE.Group();
+    const std = (o) => new THREE.MeshStandardMaterial(o);
+    if (kind === "rock" || kind === "snow") {
+      const geo = new THREE.IcosahedronGeometry(3.2, 3), pos = geo.getAttribute("position"), r = rnd(kind === "rock" ? 7 : 11), v = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i); const n = 1 + (r() - 0.5) * (kind === "rock" ? 0.22 : 0.08);
+        v.multiplyScalar(n); v.y *= v.y > 0 ? 0.05 : 0.55; if (v.y > 0) v.y += (r() - 0.5) * 0.04; pos.setXYZ(i, v.x, v.y, v.z);
+      }
+      geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, std(kind === "rock" ? { color: 0x6f665c, roughness: 0.95, flatShading: true } : { color: 0xf4f7fb, roughness: 0.75, flatShading: false }));
+      m.position.y = -0.15; g.add(m);
+    } else if (kind === "roof") {
+      const concrete = std({ color: 0x8b8a86, roughness: 0.95 }), glass = std({ color: 0x1b2330, roughness: 0.25, metalness: 0.6 });
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(14, 0.4, 14), concrete); slab.position.y = -0.2; g.add(slab);
+      for (const [x, z, w, d] of [[0, 7, 14, 0.3], [0, -7, 14, 0.3], [7, 0, 0.3, 14], [-7, 0, 0.3, 14]]) {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, d), concrete); wall.position.set(x, 0.55, z); g.add(wall);
+      }
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(14.2, 40, 14.2), glass); tower.position.y = -20.4; g.add(tower);
+      const pad = new THREE.Mesh(new THREE.RingGeometry(2.6, 2.9, 48), std({ color: 0xf2c230, roughness: 0.8 })); pad.rotation.x = -Math.PI / 2; pad.position.y = 0.004; g.add(pad);
+    } else if (kind === "mast") {
+      const steel = std({ color: 0x3b3f45, roughness: 0.45, metalness: 0.85 }), red = std({ color: 0xc8231f, roughness: 0.5, metalness: 0.3 }), white = std({ color: 0xeeeeee, roughness: 0.5, metalness: 0.3 });
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.08, 40), steel); plate.position.y = -0.04; g.add(plate);
+      for (let i = 0; i < 10; i++) {
+        const y0 = -0.08 - i * 3, rt = 0.32 + i * 0.07, rb = rt + 0.07;
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, 3, 24), i % 2 ? white : red); seg.position.y = y0 - 1.5; g.add(seg);
+      }
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
+    } else if (kind === "wing") {
+      const skin = std({ color: 0xe8ebef, roughness: 0.35, metalness: 0.35 }), grey = std({ color: 0xaeb4bb, roughness: 0.4, metalness: 0.5 });
+      const sh = new THREE.Shape(); const pts = [[1.1, 0.4], [1.1, -1.5], [-15, -4.8], [-15, 8.2]];
+      sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); sh.closePath();
+      const wg = new THREE.ExtrudeGeometry(sh, { depth: 0.28, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 });
+      wg.rotateX(-Math.PI / 2); wg.translate(0, -0.3, 0);
+      const wing = new THREE.Mesh(wg, skin); wing.rotation.z = 0.1; g.add(wing);
+      const winglet = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.4, 1.4), skin); winglet.position.set(1.2, 1.1, 0.6); winglet.rotation.set(0, 0, -0.25); g.add(winglet);
+      const eng = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.4, 6, 32, 1, true), grey); eng.rotation.x = Math.PI / 2; eng.position.set(-9.5, -2.75, -2.5); g.add(eng);
+      const fus = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 64, 40), skin); fus.rotation.x = Math.PI / 2; fus.position.set(-18.2, -0.8, 6); g.add(fus);
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 9, 6), skin); fin.position.set(-18.2, 5.5, 35); fin.rotation.x = 0.45; g.add(fin);
+      const stripe = new THREE.Mesh(new THREE.CylinderGeometry(3.13, 3.13, 64, 40, 1, true, -0.25, 0.5), std({ color: 0x1d4fa0, roughness: 0.4 })); stripe.rotation.x = Math.PI / 2; stripe.rotation.y = Math.PI / 2; stripe.position.copy(fus.position); g.add(stripe);
+    }
+    g.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; o.userData.lookShadow = true; } });
+    g.visible = false; scene.add(g); return g;
+  }
+  function hideSky() { if (skyG) skyG.visible = false; if (skyU) skyU.visible = false; for (const k in props) props[k].visible = false; sky = null; }
   function showPano(t) {
-    if (!sky) { sky = new GroundedSkybox(t, PANO_H, PANO_R, 96); sky.position.y = PANO_H - 0.005; sky.material.toneMapped = false; sky.renderOrder = -20; scene.add(sky); }
-    else if (sky.material.map !== t) { sky.material.map = t; sky.material.needsUpdate = true; }
+    const up = PANO_UP[panoId];
+    hideSky();
+    if (up) { if (!skyU) { skyU = new GroundedSkybox(t, 1000, 45, 96); skyU.position.y = PANO_H; skyU.material.toneMapped = false; skyU.renderOrder = -20; scene.add(skyU); } sky = skyU; (props[up] ||= makeProp(up)).visible = true; }
+    else { if (!skyG) { skyG = new GroundedSkybox(t, PANO_H, PANO_R, 96); skyG.position.y = PANO_H - 0.005; skyG.material.toneMapped = false; skyG.renderOrder = -20; scene.add(skyG); } sky = skyG; }
+    if (sky.material.map !== t) { sky.material.map = t; sky.material.needsUpdate = true; }
     sky.rotation.y = PANO_BASE + ((PANO_HERO[panoId] ?? 0.5) - 0.5) * Math.PI * 2;
     sky.visible = true; panoOn = true; backdrop.visible = false; floor.visible = false; skyFill.visible = false;
   }
@@ -2371,7 +2423,7 @@ function init() {
     if (want) {
       canvasWrap.style.background = "#0c0d10";
       const flat = () => {
-        if (sky) sky.visible = false; panoOn = false;
+        hideSky(); panoOn = false;
         const useT = (t) => { backdrop.material.map = t; backdrop.material.needsUpdate = true; const ft = floorFrom(want, t.image); floor.material.map = ft; floor.material.needsUpdate = true; floor.visible = true; skyFill.material.color.copy(ft.userData.sky); skyFill.visible = true; };
         if (bgTex[want]) useT(bgTex[want]);
         else new THREE.TextureLoader().load(new URL("img/baddies/bg3d/" + want + ".webp?v=4", document.baseURI).href, (t) => {
@@ -2387,14 +2439,14 @@ function init() {
       controls.maxDistance = 7; controls.minPolarAngle = 0.35; controls.maxPolarAngle = Math.PI / 2 + 0.3;
       if (!was) frameForBackdrop();
     } else if (plain && (!curBg || curBg === "white")) {   // white studio: light seamless sweep with her shadow on the floor
-      backdrop.visible = false; floor.visible = false; skyFill.visible = false; if (sky) sky.visible = false; panoOn = false;
+      backdrop.visible = false; floor.visible = false; skyFill.visible = false; hideSky(); panoOn = false;
       canvasWrap.style.background = "radial-gradient(120% 85% at 50% 35%, #ffffff 0%, #f1f1f2 45%, #dcdcde 100%)";
       controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       ground.visible = true;
       if (was) unframeBackdrop();
     } else {
       if (was) unframeBackdrop();
-      backdrop.visible = false; floor.visible = false; skyFill.visible = false; if (sky) sky.visible = false; panoOn = false; canvasWrap.style.background = lookBg;
+      backdrop.visible = false; floor.visible = false; skyFill.visible = false; hideSky(); panoOn = false; canvasWrap.style.background = lookBg;
       controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       if (curLook && !curLook.holo && !curLook.grid && !curLook.shadows) ground.visible = true;
     }

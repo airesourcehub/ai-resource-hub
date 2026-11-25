@@ -423,6 +423,18 @@
     ["frenchmans", "Frenchman's Cove", "Frenchman's Cove in Portland, Jamaica on a sunny day, a secluded cove with bright turquoise water, white sand and lush green jungle cliffs background"],
     ["bamboo", "Jamaica bamboo rafting", "standing on a long bamboo raft on the emerald Rio Grande river in Portland, Jamaica, lush tropical rainforest and bamboo groves on both banks background"],
     ["chinasnow", "Ancient China in snow", "an ancient Chinese city on a snowy winter night, traditional buildings with snow-covered curved tiled roofs, glowing red lanterns, warm lit windows, a pagoda and gentle snowfall background"],
+    ["southbeach", "South Beach", "the wide white sand of South Beach in Miami on a bright sunny afternoon, turquoise ocean, colorful lifeguard towers, palm trees and the art deco hotels of Ocean Drive background"],
+    ["hawaii", "Waikiki, Hawaii", "Waikiki Beach in Honolulu, Hawaii on a sunny day, golden sand, clear turquoise Pacific waves with surfers, Diamond Head crater and tall palm trees background"],
+    ["malibu", "Malibu sunset", "a Malibu, California beach at sunset, the Pacific Ocean under a glowing orange and pink sky, the pier, coastal hills and beach houses background"],
+    ["everest", "Mount Everest summit", "standing on the snowy summit of Mount Everest at sunrise, jagged Himalaya peaks and a sea of clouds far below her, deep blue sky background"],
+    ["overlook", "Alps mountaintop", "standing on a rocky mountaintop in the Swiss Alps at golden hour, a green valley with a charming alpine village, river and waterfalls far below her, snowy peaks around background"],
+    ["nyroof", "NYC skyscraper rooftop", "standing on the roof of a skyscraper in Midtown Manhattan at night, the Empire State Building glowing nearby and the glittering New York City skyline far below and all around background"],
+    ["antdubai", "Burj Khalifa spire", "standing on the tiny top of the Burj Khalifa spire in Dubai at sunset, more than 800 meters up, the whole city, desert and Persian Gulf far below her, a daring rooftopper selfie background"],
+    ["anttokyo", "Tokyo Skytree antenna", "standing on the tiny top of the Tokyo Skytree antenna at dusk, more than 600 meters up, the endless lights of Tokyo far below her and Mount Fuji on the horizon, a daring rooftopper selfie background"],
+    ["antshanghai", "Shanghai Tower top", "standing on the tiny top of the Shanghai Tower at blue hour, more than 600 meters up, the glowing Lujiazui skyline and Huangpu River far below her, a daring rooftopper selfie background"],
+    ["wing777", "777 wingtip", "standing on the wingtip of a Boeing 777 airliner at cruising altitude at sunset, the white wing and engine beside her, a sea of clouds far below and a glowing orange and pink sky background"],
+    ["mars", "Mars", "standing on the surface of Mars, rust red dust and rocks, red mountains and a huge crater rim on the horizon, hazy butterscotch sky background"],
+    ["moon", "The Moon", "standing on the surface of the Moon, grey lunar dust and craters, a black starry sky with the blue Earth above the horizon, a lunar lander in the distance background"],
   ];
 
   var NEGATIVE = "child, minor, teen, young-looking, childlike body, nude, nudity, topless, nipples, genitals, nsfw, explicit, " +
