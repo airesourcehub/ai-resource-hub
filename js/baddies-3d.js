@@ -624,7 +624,9 @@ function init() {
           if (!drop(x / 3, y / 3, z / 3)) keep.push(src[t], src[t + 1], src[t + 2]); }
         g.setIndex(keep); };
       const ey = eyeInfo.l.y, ef = eyeInfo.front;
-      cut(M.hair_pony, (x, y, z) => y < ey - 0.02 && z < ef - 0.14);
+      // the stock tail hangs off the back of the skull: drop whatever stands clear of the scalp (keeps the nape hairline)
+      const hc = new THREE.Vector3(0, ey + 0.012, ef - 0.085);
+      cut(M.hair_pony, (x, y, z) => z < hc.z - 0.02 && y < ey + 0.05 && Math.hypot(x, (y - hc.y) * 0.92, z - hc.z) > 0.112);
       cut(M.hair_bob, (x, y, z) => z > ef - 0.035 && y < ey + 0.04 && Math.abs(x) < 0.07);
     }
     if (!body) return fail("No body in the model");
@@ -681,7 +683,28 @@ function init() {
 
   // Materials for the real asset meshes: hair, brows and lashes are alpha cards tinted by colour;
   // shoes keep their texture detail but take the chosen colour; bottoms use the camo pattern.
-  const HAIRU = { uPlate: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlateS: { value: 0 }, uEarL: { value: new THREE.Vector4(0, 0, 0, 0) }, uEarR: { value: new THREE.Vector4(0, 0, 0, 0) } };
+  // GLSL: push a hair vertex (holder rest space) out of the hood rolled round her neck, so hair lies over it
+  const HOOD_GLSL = `uniform vec4 uHood; uniform vec2 uHoodE;
+    vec3 hoodOut(vec3 t, float py) {
+      if (uHood.w < 0.5 || t.z > uHood.x + 0.03) return t;
+      vec2 d = vec2(t.x, t.z - uHood.x);
+      float e = length(d / uHoodE), back = clamp(-d.y / max(length(d), 0.001), 0.0, 1.0);
+      float r = uHood.z * sqrt(back) + 0.03, tgt = 1.0 + r / (0.5 * (uHoodE.x + uHoodE.y));
+      float f = smoothstep(uHood.y + r + 0.06, uHood.y + r * 0.3, py) * smoothstep(uHood.y - 0.26, uHood.y - r, py);
+      if (e > 0.2 && e < tgt) { d *= mix(1.0, tgt / e, f); t.x = d.x; t.z = d.y + uHood.x; }
+      return t;
+    }`;
+  const hairOrg = { value: new THREE.Vector3() };   // the head group's rest position (strand hair is built relative to it)
+  function strandHood(mat) {   // loose strands (knotless braids, locs, curls) get the same hood push
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uHood = HAIRU.uHood; sh.uniforms.uHoodE = HAIRU.uHoodE; sh.uniforms.uOrg = hairOrg;
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform vec3 uOrg;\n" + HOOD_GLSL)
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\n transformed = hoodOut(transformed + uOrg, position.y + uOrg.y) - uOrg;");
+    };
+    mat.customProgramCacheKey = () => "strandHood";
+    return mat;
+  }
+  const HAIRU = { uPlate: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlateS: { value: 0 }, uEarL: { value: new THREE.Vector4(0, 0, 0, 0) }, uEarR: { value: new THREE.Vector4(0, 0, 0, 0) }, uHood: { value: new THREE.Vector4(0, 0, 0, 0) }, uHoodE: { value: new THREE.Vector2(0.1, 0.1) } };
   function tintMat(src, gain, base, amt, opts = {}) {
     const m = new THREE.MeshStandardMaterial({ map: src && src.map, roughness: opts.roughness ?? 0.5, metalness: 0,
       alphaTest: opts.alpha ? 0.35 : 0, transparent: false, side: opts.alpha ? THREE.DoubleSide : THREE.FrontSide });
@@ -690,17 +713,22 @@ function init() {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave; Object.assign(sh.uniforms, HAIRU);
       // body-wave: ripple long hair below the ears (rest-space y; eyes sit at ~1.5 m)
-      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR;")
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR;\n" + HOOD_GLSL)
         .replace("#include <begin_vertex>", `#include <begin_vertex>
-          float wv = smoothstep(1.47, 1.36, position.y) * uWave * (1.0 + clamp((1.36 - position.y) * 2.5, 0.0, 1.0));
-          transformed += normal * wv * (0.45 + 0.55 * sin(position.y * 36.0 + position.x * 9.0)) * 0.06;
-          transformed.x += wv * (sin(position.y * 28.0 + 1.3) * 0.034 + sign(position.x) * 0.022);
-          transformed.z += wv * cos(position.y * 28.0 + position.x * 12.0) * 0.02;
+          // the whole sheet moves together (offsets depend on height, plus a smooth outward swell), so the hair
+          // cards never tear apart into steps and the inner layer never pokes through the outer one
+          float wv = smoothstep(1.47, 1.36, position.y) * uWave * (1.0 + clamp((1.36 - position.y) * 2.0, 0.0, 0.4));
+          vec2 rad = position.xz - vec2(0.0, -0.02); rad = rad / max(length(rad), 0.02);
+          float ph = sin(position.y * 40.0);
+          transformed.xz += rad * wv * (0.014 + 0.005 * ph);
+          transformed.x += wv * clamp(position.x, -0.11, 0.11) * (0.04 + 0.03 * sin(position.y * 40.0));   // wavy outline on both sides
+          transformed.z += wv * sin(position.y * 40.0 + 1.4) * 0.014;
           if (uPlate.w > 0.5 && position.z < -0.02 && abs(position.x) < 0.17) {   // lie over the back plate, not between it and her back
             float zo = uPlate.x + uPlateS * (position.y - 1.17);
             float f = smoothstep(uPlate.y + 0.07, uPlate.y - 0.005, position.y) * smoothstep(uPlate.z - 0.1, uPlate.z, position.y);
             transformed.z = mix(transformed.z, min(transformed.z, zo), f);
           }
+          transformed = hoodOut(transformed, position.y);
           for (int k = 0; k < 2; k++) {   // tucked behind the ears so the earrings show
             vec4 e = k == 0 ? uEarL : uEarR;
             if (e.w > 0.5 && position.x * e.x > 0.0 && position.z > e.z - 0.05) {
@@ -861,7 +889,7 @@ function init() {
     }
     // ---- pose presets and custom (dragged) hands and feet
     if (cust) { if (cust.hr) ik("r", v3(...cust.hr)); if (cust.hl) ik("l", v3(...cust.hl)); }
-    else if (PR.hr && !curRig) { ik("r", v3(...PR.hr), PR.elbow); if (PR.hl) ik("l", v3(...PR.hl), PR.elbow); }
+    else if (PR.hr && !curRig) { ik("r", fitHand(v3(...PR.hr)), PR.elbow); if (PR.hl) ik("l", fitHand(v3(...PR.hl)), PR.elbow); }
     const fT = {
       l: cust && cust.fl ? v3(...cust.fl) : feet0.l.clone().add(v3(...(PR.fl || [0, 0, 0]))),
       r: cust && cust.fr ? v3(...cust.fr) : feet0.r.clone().add(v3(...(PR.fr || [0, 0, 0])))
@@ -1096,6 +1124,33 @@ function init() {
     b.quaternion.copy(pw.invert().multiply(q).multiply(bw)); b.updateMatrixWorld(true);
   }
   // Two-bone IK: bend the arm so the wrist reaches T, elbow pointing down and out.
+  // Hands resting on the body (hands on hips, hip pop, the free hand of the peace sign): the preset wrist
+  // targets were set for a slim figure, so with wide hips the fingers sank into her. Measure the posed body
+  // just below the wrist and move the hand out so the palm rests on the surface.
+  let torsoVerts = null;
+  function fitHand(T) {
+    if (!body || Math.abs(T.x) > 0.34 || T.y < 0.7 || T.y > 1.3 || Math.abs(T.z) > 0.14) return T;
+    const g = body.geometry;
+    if (!torsoVerts || torsoVerts.g !== g) {
+      const SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array, P = g.attributes.position.array;
+      const nm = body.skeleton.bones.map(b => b.name), bad = nm.map(n => /arm|hand|clav|thumb|index|middle|ring|pinky|head|neck/.test(n));
+      const list = [];
+      for (let i = 0, n = P.length / 3; i < n; i += 2) {
+        let w = 0; for (let j = 0; j < 4; j++) if (bad[SI[i * 4 + j]]) w += SW[i * 4 + j];
+        if (w < 0.2) list.push(i);
+      }
+      torsoVerts = { g, list };
+    }
+    holder.updateMatrixWorld(true); body.skeleton.update();
+    const s = T.x < 0 ? -1 : 1, v = new THREE.Vector3(); let w = 0;
+    for (const i of torsoVerts.list) {
+      body.getVertexPosition(i, v); v.applyMatrix4(body.matrixWorld); holder.worldToLocal(v);
+      if (v.y < T.y - 0.12 || v.y > T.y + 0.03 || Math.abs(v.z - T.z) > 0.12 || v.x * s <= 0) continue;
+      if (v.x * s > w) w = v.x * s;
+    }
+    if (w + 0.03 > Math.abs(T.x)) T.x = s * (w + 0.03);
+    return T;
+  }
   function ik(side, T, elbowOut) {
     const e = elbowOut == null ? 0.75 : elbowOut;
     ikChain("upperarm_" + side, "lowerarm_" + side, "hand_" + side, T, v3(side === "r" ? -e : e, -1, -0.25));
@@ -1152,7 +1207,7 @@ function init() {
   // Knotless = alternating braid lobes; butterfly = thicker, lumpy twisted locs.
   function braidHair(style, R, len, hairM, scalp, rim) {
     const G = new THREE.Group(), r = rnd(style === "butterfly" ? 41 : style === "curly" ? 53 : style === "wave" ? 61 : style === "locs" ? 67 : 29), fly = style === "butterfly", curly = style === "curly", wavy = style === "wave", locs = style === "locs";
-    const mat = hairM.clone(); mat.roughness = fly ? 0.7 : curly ? 0.6 : wavy ? 0.36 : locs ? 0.88 : 0.55;
+    const mat = hairM.clone(); mat.roughness = fly ? 0.7 : curly ? 0.6 : wavy ? 0.36 : locs ? 0.88 : 0.55; strandHood(mat);
     // scalp ellipsoid from the short-hair cap's bounds (relative to H), else a sphere guess
     const d2r = Math.PI / 180, sc = scalp || { c: new THREE.Vector3(0, 0.004, -0.008), r: new THREE.Vector3(R, R, R) }, RS = 1.0;
     const sp = (a, e, rad) => new THREE.Vector3(Math.sin(a) * Math.cos(e) * (sc.r.x * rad + (rad - 1) * 0.0), Math.sin(e) * sc.r.y * rad, -Math.cos(a) * Math.cos(e) * sc.r.z * rad).add(sc.c);
@@ -1796,6 +1851,11 @@ function init() {
   function seamTex() {
     return canvasTex("capseams", 512, 64, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); for (let k = 0; k < 6; k++) { const x = (k + 0.5) / 6 * w; g.fillStyle = "rgba(0,0,0,0.28)"; g.fillRect(x - 1.5, 0, 3, h); g.fillStyle = "rgba(0,0,0,0.12)"; g.fillRect(x - 6, 0, 1, h); g.fillRect(x + 5, 0, 1, h); } });
   }
+  function hoodHair(pts, rad) {   // tell the hair shader where the hood lies: neck centre z, height, roll radius, ring half-sizes
+    let zb = 0, yb = 0, xw = 0, czs = 0;
+    for (const p of pts) { if (p.z < zb) { zb = p.z; yb = p.y; } if (Math.abs(p.x) > xw) { xw = Math.abs(p.x); czs = p.z; } }
+    HAIRU.uHood.value.set(czs, yb, rad, 1); HAIRU.uHoodE.value.set(xw, Math.max(0.03, czs - zb));
+  }
   function fuzzyRing(pts, rad, mat, closed = true, rough = 0.18) {   // fur hood / bunched hood: a tube with varying radius and a lumpy surface
     const curve = new THREE.CatmullRomCurve3(pts, closed, "centripetal"), TS = pts.length * 3, RS = 14;
     const g = new THREE.TubeGeometry(curve, TS, 1, RS, closed), P = g.attributes.position, rr = rnd(77);
@@ -1808,7 +1868,7 @@ function init() {
 
   let garCS = null, garCSKey = "", garShellKey = "";
   function garments(s, one, has, H) {
-    HAIRU.uPlate.value.set(0, 0, 0, 0); HAIRU.uEarL.value.set(0, 0, 0, 0); HAIRU.uEarR.value.set(0, 0, 0, 0);
+    HAIRU.uPlate.value.set(0, 0, 0, 0); HAIRU.uHood.value.set(0, 0, 0, 0); HAIRU.uEarL.value.set(0, 0, 0, 0); HAIRU.uEarR.value.set(0, 0, 0, 0);
     U.uGarOn.value = 0;
     if (!G) { clearShells(); return; }
     // the shells are skinned, so a new pose doesn't need new ones: rebuild only when the shape or outfit changes
@@ -1976,11 +2036,11 @@ function init() {
       const hood = back.map((p) => { const o = v3(p.x, 0, p.z - 0.012).normalize(); return p.clone().addScaledVector(o, 0.012).add(v3(0, -0.018, -0.008)); });
       g.add(fuzzyRing(hood, (t) => 0.02 + 0.03 * Math.sin(Math.PI * t), hm, false, 0.05));
       g.add(fuzzyRing(back, (t) => 0.012 + 0.016 * Math.sin(Math.PI * t), fur, false, 0.45));
-      ride(g, "spine_03");
+      ride(g, "spine_03"); hoodHair(hood, 0.05);
     } else if (top === "hoodie") {
       const ring = neckRing(CS, 1.37, 1.335, T.thick + 0.004, 48), back = ring.filter((p, k) => { const th = k / 48 * Math.PI * 2; return th > Math.PI * 0.55 && th < Math.PI * 1.45; });
       const hm = std({ color: 0xffffff, map: camoTex(camo), roughness: 0.97 }); hm.userData.cloth = true;
-      const g = new THREE.Group(); g.add(fuzzyRing(back, (t) => 0.018 + 0.03 * Math.sin(t * Math.PI), hm, false, 0.08));
+      const g = new THREE.Group(); g.add(fuzzyRing(back, (t) => 0.018 + 0.03 * Math.sin(t * Math.PI), hm, false, 0.08)); hoodHair(back, 0.048);
       const cord = std({ color: 0xf2f2f2, roughness: 0.6 });
       for (const sd of [-1, 1]) {
         const pts = [];
@@ -2273,6 +2333,7 @@ function init() {
     const R = headInfo ? headInfo.r : 0.095;                        // skull radius
     if (headInfo) H.position.copy(headInfo.c); else H.position.copy(headB).add(v3(0, 0.085, 0.01));
     if (eyeInfo) H.position.x = (eyeInfo.l.x + eyeInfo.r.x) / 2;   // centre on the face midline (the head bone sits slightly off it)
+    hairOrg.value.copy(H.position);
     // irises on the eyeballs
     const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
     for (const m of [eyeC, pupil]) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4; }
@@ -2343,7 +2404,7 @@ function init() {
     }
     const hatRim = has("gear", "beanie") ? { front: eyeY + 0.045, back: eyeY - 0.012 } : has("gear", "cap") ? { front: eyeY + 0.052, back: eyeY + 0.008 } : one("eyewear") === "nvg" ? { front: eyeY + 0.03, back: eyeY - 0.004 } : null;
     if (realHair && style === "curly") H.add(braidHair("curly", R, 0.3, hairM, scalp, hatRim));
-    else if (realHair && style === "wave") H.add(braidHair("wave", R, 0.4, hairM, scalp, hatRim));
+    // (body wave: the long sheet carries the waves itself; the old loose strands ended mid-back like claws)
     else if (style === "afro" && scalp && !capped) {
       const grooves = [], ears = []; if (has("gear", "headset")) grooves.push([-0.12, 0.022]); if (has("jewelry", "crystalband")) grooves.push([0.42, 0.011]);
       if (has("gear", "headset") && faceFit && faceFit.ear) faceFit.ear.forEach((e) => ears.push(e.clone().sub(H.position)));
