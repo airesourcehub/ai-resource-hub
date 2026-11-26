@@ -681,20 +681,36 @@ function init() {
 
   // Materials for the real asset meshes: hair, brows and lashes are alpha cards tinted by colour;
   // shoes keep their texture detail but take the chosen colour; bottoms use the camo pattern.
+  const HAIRU = { uPlate: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlateS: { value: 0 }, uEarL: { value: new THREE.Vector4(0, 0, 0, 0) }, uEarR: { value: new THREE.Vector4(0, 0, 0, 0) } };
   function tintMat(src, gain, base, amt, opts = {}) {
     const m = new THREE.MeshStandardMaterial({ map: src && src.map, roughness: opts.roughness ?? 0.5, metalness: 0,
       alphaTest: opts.alpha ? 0.35 : 0, transparent: false, side: opts.alpha ? THREE.DoubleSide : THREE.FrontSide });
     m.userData.uTint = { value: new THREE.Color(1, 1, 1) };
     m.userData.uWave = { value: 0 };
     m.onBeforeCompile = (sh) => {
-      sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave;
+      sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave; Object.assign(sh.uniforms, HAIRU);
       // body-wave: ripple long hair below the ears (rest-space y; eyes sit at ~1.5 m)
-      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave;")
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR;")
         .replace("#include <begin_vertex>", `#include <begin_vertex>
           float wv = smoothstep(1.47, 1.36, position.y) * uWave * (1.0 + clamp((1.36 - position.y) * 2.5, 0.0, 1.0));
           transformed += normal * wv * (0.45 + 0.55 * sin(position.y * 36.0 + position.x * 9.0)) * 0.06;
           transformed.x += wv * (sin(position.y * 28.0 + 1.3) * 0.034 + sign(position.x) * 0.022);
-          transformed.z += wv * cos(position.y * 28.0 + position.x * 12.0) * 0.02;`);
+          transformed.z += wv * cos(position.y * 28.0 + position.x * 12.0) * 0.02;
+          if (uPlate.w > 0.5 && position.z < -0.02 && abs(position.x) < 0.17) {   // lie over the back plate, not between it and her back
+            float zo = uPlate.x + uPlateS * (position.y - 1.17);
+            float f = smoothstep(uPlate.y + 0.07, uPlate.y - 0.005, position.y) * smoothstep(uPlate.z - 0.1, uPlate.z, position.y);
+            transformed.z = mix(transformed.z, min(transformed.z, zo), f);
+          }
+          for (int k = 0; k < 2; k++) {   // tucked behind the ears so the earrings show
+            vec4 e = k == 0 ? uEarL : uEarR;
+            if (e.w > 0.5 && position.x * e.x > 0.0 && position.z > e.z - 0.05) {
+              float wy = smoothstep(e.y + 0.07, e.y + 0.035, position.y) * smoothstep(e.y - 0.16, e.y - 0.09, position.y);
+              float wx = smoothstep(abs(e.x) - 0.04, abs(e.x) - 0.012, abs(position.x));
+              float w = wy * wx;
+              transformed.z = mix(transformed.z, min(transformed.z, e.z - 0.038), w);
+              transformed.x += sign(e.x) * 0.01 * w;
+            }
+          }`);
       sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uTint;")
         .replace("#include <map_fragment>", `#include <map_fragment>
           float lum = clamp(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)) * ${gain.toFixed(2)}, 0.0, 1.0);
@@ -1195,10 +1211,11 @@ function init() {
     return G;
   }
   // Sleek high ponytail: a bundle of strands gathered at the crown with a band, arcing back and down the back.
-  function highPony(hairM, eyeY, eyeZ, top) {
+  function highPony(hairM, eyeY, eyeZ, top, hat) {
     const G = new THREE.Group(), r = rnd(17), mat = hairM.clone(); mat.roughness = 0.35;
-    const base = new THREE.Vector3(0, top - 0.02, eyeZ - 0.155);
-    const spine = [base, new THREE.Vector3(0, top + 0.012, eyeZ - 0.2), new THREE.Vector3(0, eyeY + 0.03, eyeZ - 0.255),
+    const base = hat === "cap" ? new THREE.Vector3(0, eyeY + 0.04, eyeZ - 0.19) : hat ? new THREE.Vector3(0, eyeY - 0.03, eyeZ - 0.185) : new THREE.Vector3(0, top - 0.02, eyeZ - 0.155);
+    const spine = hat ? [base, new THREE.Vector3(0, base.y - 0.012, eyeZ - 0.228), new THREE.Vector3(0, base.y - 0.05, eyeZ - 0.252),
+      new THREE.Vector3(0, eyeY - 0.14, eyeZ - 0.262), new THREE.Vector3(0, eyeY - 0.3, eyeZ - 0.255), new THREE.Vector3(0, eyeY - 0.46, eyeZ - 0.245)] : [base, new THREE.Vector3(0, top + 0.012, eyeZ - 0.2), new THREE.Vector3(0, eyeY + 0.03, eyeZ - 0.255),
       new THREE.Vector3(0, eyeY - 0.12, eyeZ - 0.262), new THREE.Vector3(0, eyeY - 0.3, eyeZ - 0.255), new THREE.Vector3(0, eyeY - 0.46, eyeZ - 0.245)];
     const sc = new THREE.CatmullRomCurve3(spine), NS = 40, fr = sc.computeFrenetFrames(NS, false), sp = sc.getSpacedPoints(NS);
     for (let k = 0; k < 34; k++) {
@@ -1787,6 +1804,7 @@ function init() {
 
   let garCS = null, garCSKey = "", garShellKey = "";
   function garments(s, one, has, H) {
+    HAIRU.uPlate.value.set(0, 0, 0, 0); HAIRU.uEarL.value.set(0, 0, 0, 0); HAIRU.uEarR.value.set(0, 0, 0, 0);
     U.uGarOn.value = 0;
     if (!G) { clearShells(); return; }
     // the shells are skinned, so a new pose doesn't need new ones: rebuild only when the shape or outfit changes
@@ -1866,6 +1884,7 @@ function init() {
       const BG = new THREE.Group(); BG.position.set(0, 1.17, zb); BG.rotation.x = Math.atan(LB ? LB.slope : 0); g.add(BG);
       const fp = plateMesh(0.27, 0.3, 0.045, vm); fp.position.set(0, 0, 0.024); FG.add(fp);
       const bp = plateMesh(0.28, 0.31, 0.04, vm); bp.position.set(0, 0, -0.022); BG.add(bp);
+      HAIRU.uPlate.value.set(zb - 0.048, 1.17 + 0.155, 1.17 - 0.155, 1); HAIRU.uPlateS.value = LB ? LB.slope : 0;
       for (const x of [-0.072, 0, 0.072]) {
         const p = rbox(0.064, 0.1, 0.036, 0.009, pm); p.position.set(x, -0.095, 0.064); FG.add(p);
         const f = rbox(0.066, 0.032, 0.04, 0.008, pm); f.position.set(x, -0.043, 0.065); FG.add(f);
@@ -2004,6 +2023,7 @@ function init() {
     const eyeY = eyeInfo ? eyeInfo.l.y : 1.5;
     const goldP = new THREE.MeshPhysicalMaterial({ color: 0xe8c36a, metalness: 1, roughness: 0.12, envMap: getEnv(), envMapIntensity: 1.8, clearcoat: 0.7 });
     const lobes = faceFit && faceFit.lobe ? faceFit.lobe : null;
+    if (lobes && (has("jewelry", "hoops") || has("jewelry", "studs"))) for (let k = 0; k < 2; k++) { const L = lobes[k]; if (L) (L.x > 0 ? HAIRU.uEarL : HAIRU.uEarR).value.set(L.x, L.y, L.z, 1); }
     if (lobes && has("jewelry", "hoops")) for (let k = 0; k < 2; k++) {
       const L = lobes[k], sd = Math.sign(L.x) || 1, h = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.0022, 12, 56), goldP);
       h.position.set(L.x + sd * 0.004, L.y - 0.02, L.z + 0.002); h.rotation.set(0, Math.PI / 2, sd * 0.08); HG.add(h);
@@ -2296,7 +2316,7 @@ function init() {
     if (realHair && style === "curly") H.add(braidHair("curly", R, 0.3, hairM, scalp, hatRim));
     else if (realHair && style === "wave") H.add(braidHair("wave", R, 0.4, hairM, scalp, hatRim));
     else if (style === "afro" && scalp && !capped) H.add(afroHair(hairM, scalp, eyeY, eyeZ));
-    else if (realHair && style === "pony") H.add(highPony(hairM, eyeY, eyeZ, scalpTop));
+    else if (realHair && style === "pony") H.add(highPony(hairM, eyeY, eyeZ, scalpTop, has("gear", "cap") ? "cap" : has("gear", "beanie") ? "beanie" : null));
     else if (realHair && style === "buns" && !capped) {
       for (const sd of [-1, 1]) {
         const bn = sphere(0.04, hairM, sd * 0.052, scalpTop - 0.024, zc - 0.004, 1, 0.9, 1); H.add(bn);
