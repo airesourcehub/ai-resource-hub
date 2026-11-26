@@ -1211,12 +1211,16 @@ function init() {
     return G;
   }
   // Sleek high ponytail: a bundle of strands gathered at the crown with a band, arcing back and down the back.
-  function highPony(hairM, eyeY, eyeZ, top, hat) {
+  function highPony(hairM, eyeY, eyeZ, top, hat, down, clear = 0) {
     const G = new THREE.Group(), r = rnd(17), mat = hairM.clone(); mat.roughness = 0.35;
     const base = hat === "cap" ? new THREE.Vector3(0, eyeY + 0.04, eyeZ - 0.19) : hat ? new THREE.Vector3(0, eyeY - 0.03, eyeZ - 0.185) : new THREE.Vector3(0, top - 0.02, eyeZ - 0.155);
     const spine = hat ? [base, new THREE.Vector3(0, base.y - 0.012, eyeZ - 0.228), new THREE.Vector3(0, base.y - 0.05, eyeZ - 0.252),
       new THREE.Vector3(0, eyeY - 0.14, eyeZ - 0.262), new THREE.Vector3(0, eyeY - 0.3, eyeZ - 0.255), new THREE.Vector3(0, eyeY - 0.46, eyeZ - 0.245)] : [base, new THREE.Vector3(0, top + 0.012, eyeZ - 0.2), new THREE.Vector3(0, eyeY + 0.03, eyeZ - 0.255),
       new THREE.Vector3(0, eyeY - 0.12, eyeZ - 0.262), new THREE.Vector3(0, eyeY - 0.3, eyeZ - 0.255), new THREE.Vector3(0, eyeY - 0.46, eyeZ - 0.245)];
+    if (down && (down.y > -0.985 || clear)) {   // re-hang everything past the gathered top along gravity (and out over a back plate)
+      const back = v3(0, 0, -1).sub(down.clone().multiplyScalar(-down.z)).normalize();
+      for (let i = 3; i < spine.length; i++) { const seg = spine[i].distanceTo(spine[i - 1]); spine[i] = spine[i - 1].clone().addScaledVector(down, seg * 0.94).addScaledVector(back, seg * 0.12 + (i === 3 ? clear : 0)); }
+    }
     const sc = new THREE.CatmullRomCurve3(spine), NS = 40, fr = sc.computeFrenetFrames(NS, false), sp = sc.getSpacedPoints(NS);
     for (let k = 0; k < 34; k++) {
       const a = r() * 6.28, rr = Math.sqrt(r()), ln = 0.75 + r() * 0.25, pts = [];
@@ -1877,7 +1881,7 @@ function init() {
       const g = new THREE.Group(), base = GEAR_BLACK, wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
       const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
       const pm = std({ color: new THREE.Color(base).multiplyScalar(0.92), roughness: 0.92 }); pm.userData.cloth = true;
-      const vb = [-0.12, 0.12, 1.03, 1.29], LF = surfLine(CS, vb, "front", 10, false, 0.12), LB = surfLine(CS, vb, "back", 10, false);
+      const vb = [-0.12, 0.12, 1.03, 1.29], LF = surfLine(CS, vb, "front", 10, false, 0.12), LB = surfLine(CS, [-0.12, 0.12, 1.1, 1.29], "back", 8, false, 0.35);   // upper back only: the glute shelf must not push the plate out
       const zf0 = extent(CS, vb, "front", false), zb0 = extent(CS, vb, "back", false);
       const zfAt = (y) => (LF ? LF.at(y) : zf0) + tMax, zbAt = (y) => (LB ? LB.at(y) : zb0) - tMax, zf = zfAt(1.165), zb = zbAt(1.17);
       const FG = new THREE.Group(); FG.position.set(0, 1.165, zf); FG.rotation.x = Math.atan(LF ? LF.slope : 0); g.add(FG);
@@ -1949,15 +1953,18 @@ function init() {
       const P = topShell.geometry.attributes.position, AR = topShell.geometry.attributes.aRest, bins = {};
       for (let i = 0; i < P.count; i++) {
         if (Math.abs(AR.getX(i)) > 0.009 || AR.getZ(i) < 0.02 || !topJ(i)) continue;
-        const y = AR.getY(i), b = Math.round(y / 0.016); if (!bins[b] || P.getZ(i) > bins[b].z) bins[b] = { x: 0, y: P.getY(i), z: P.getZ(i) };
+        const y = AR.getY(i), b = Math.round(y / 0.016); if (!bins[b] || P.getZ(i) > bins[b].z) bins[b] = { i, x: 0, y: P.getY(i), z: P.getZ(i) };
       }
-      const pts = Object.keys(bins).map(Number).sort((a, b) => a - b).map((b) => v3(0, bins[b].y, bins[b].z + 0.0018));
+      holder.updateMatrixWorld(true); topShell.updateMatrixWorld(true); if (topShell.skeleton) topShell.skeleton.update();
+      const qs = new THREE.Quaternion(); restToHolder("spine_02").decompose(new THREE.Vector3(), qs, new THREE.Vector3());
+      const outN = v3(0, 0, 1).applyQuaternion(qs), sideN = v3(1, 0, 0).applyQuaternion(qs);
+      const pts = Object.keys(bins).map(Number).sort((a, b) => a - b).map((b) => { const v = new THREE.Vector3(); topShell.getVertexPosition(bins[b].i, v); v.applyMatrix4(topShell.matrixWorld); holder.worldToLocal(v); return v.addScaledVector(outN, 0.0018); });
       if (pts.length > 3) {
         const zm = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.35, metalness: 0.6 }), g = new THREE.Group();
-        g.add(sweep(pts, 0, zm, { flat: [0.0075, 0.0022], side: v3(1, 0, 0), seg: pts.length * 6 }));
+        g.add(sweep(pts, 0, zm, { flat: [0.0075, 0.0022], side: sideN, seg: pts.length * 6 }));
         const pull = rbox(0.008, 0.02, 0.003, 0.002, new THREE.MeshStandardMaterial({ color: 0x9a9da2, roughness: 0.25, metalness: 1 }));
-        const tp = pts[pts.length - 1]; pull.position.set(0, tp.y - 0.022, tp.z + 0.003); g.add(pull);
-        ride(g, "spine_03");
+        const tp = pts[pts.length - 1], tp2 = pts[Math.max(0, pts.length - 3)]; pull.position.copy(tp).lerp(tp2, 0.6).addScaledVector(outN, 0.003); pull.quaternion.copy(qs); g.add(pull);
+        extras.add(g);
       }
     }
     if (top === "puffer") {   // fur-trimmed hood lying back on the shoulders (open at the front)
@@ -2035,14 +2042,16 @@ function init() {
     const hs0 = one("hair") || "straight", hairOff = (hs0 === "pixie" || hs0 === "buzz") ? 0.004 : ["straight", "wave", "curly", "own", "pony", "bob"].includes(hs0) ? 0.017 : 0.008;   // hats sit over long hair, not through it
     if (has("jewelry", "crystalband")) {
       for (const [tl, rs] of [[0.37, 0.0034], [0.47, 0.0034]]) {   // extra rows either side of the main one
-        const row = headArc(hairOff + 0.0045, tl, -1.25, 1.25, 30); if (!row || row.length < 5) continue;
+        const afroB = hs0 === "afro" && !has("gear", "beanie") && !has("gear", "cap") && one("eyewear") !== "nvg";
+        const row = afroB && afroShell ? afroArc(tl, -1.1, 1.1, 30, 0.0) : headArc(hairOff + 0.0045, tl, -1.25, 1.25, 30); if (!row || row.length < 5) continue;
         const c = new THREE.CatmullRomCurve3(row), L = c.getLength(), n = Math.round(L / 0.0072), fr = [];
         for (let k = 0; k <= n; k++) { const p = c.getPointAt(k / n), d = p.clone().sub(G.headC).normalize(), T2 = c.getTangentAt(k / n), Z = new THREE.Vector3().crossVectors(T2, d).normalize(); fr.push(new THREE.Matrix4().makeBasis(T2, d, Z).setPosition(p)); }
         HG.add(instAlong(brilliant(rs), new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, ior: 2.4, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4.5, emissive: 0x1a1b22 }), fr));
       }
-      const band = headArc(hairOff + 0.0025, 0.42, -1.3, 1.3, 34);
+      const afroC = hs0 === "afro" && !has("gear", "beanie") && !has("gear", "cap") && one("eyewear") !== "nvg";
+      const band = afroC && afroShell ? afroArc(0.42, -1.15, 1.15, 34, 0.006) : headArc(hairOff + 0.0025, 0.42, -1.3, 1.3, 34);
       if (band && band.length > 4) HG.add(sweep(band, 0, new THREE.MeshPhysicalMaterial({ color: 0x1b1b1e, metalness: 0.4, roughness: 0.4 }), { flat: [0.024, 0.003], side: v3(0, 0, 1), seg: 60 }));
-      const pts = headArc(hairOff + 0.005, 0.42, -1.3, 1.3, 34);
+      const pts = afroC && afroShell ? afroArc(0.42, -1.15, 1.15, 34, 0.002) : headArc(hairOff + 0.005, 0.42, -1.3, 1.3, 34);
       if (pts && pts.length > 4) {
         const fr = []; const c = new THREE.CatmullRomCurve3(pts), L = c.getLength(), n = Math.round(L / 0.0095);
         for (let k = 0; k <= n; k++) { const p = c.getPointAt(k / n), d = p.clone().sub(G.headC).normalize(), T2 = c.getTangentAt(k / n), Z = new THREE.Vector3().crossVectors(T2, d).normalize(); fr.push(new THREE.Matrix4().makeBasis(T2, d, Z).setPosition(p)); }
@@ -2087,7 +2096,8 @@ function init() {
       }
     }
     if (has("gear", "headset") && faceFit && faceFit.ear) {
-      const arc = headArc(hairOff + (has("gear", "beanie") ? 0.018 : has("gear", "cap") ? 0.014 : 0.006), -0.12, -1.25, 1.25, 30);
+      const afroG = hs0 === "afro" && !has("gear", "beanie") && !has("gear", "cap") && one("eyewear") !== "nvg";
+      const arc = afroG && afroShell ? afroArc(-0.12, -1.25, 1.25, 30, 0.014) : headArc(hairOff + (has("gear", "beanie") ? 0.018 : has("gear", "cap") ? 0.014 : 0.006), -0.12, -1.25, 1.25, 30);
       const hm = std({ color: 0x1a1b1e, roughness: 0.55, metalness: 0.2 }), pad = std({ color: 0x2a2c30, roughness: 0.9 }), olive = std({ color: 0x232427, roughness: 0.6 });
       if (arc && arc.length > 4) HG.add(sweep(arc, 0, hm, { flat: [0.026, 0.008], side: v3(0, 0, 1), seg: 48 }));
       for (const E of faceFit.ear) {
@@ -2137,7 +2147,7 @@ function init() {
     tx.wrapS = tx.wrapT = THREE.RepeatWrapping; return tx;
   }
   // big round natural afro: a lumpy ellipsoid around the skull with the face left open
-  function afroHair(hairM, sc, eyeY, eyeZ) {
+  function afroHair(hairM, sc, eyeY, eyeZ, cut) {
     const col = "#" + hairM.color.getHexString(), tx = coilTex(col); tx.repeat.set(8, 6);
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tx, bumpMap: tx, bumpScale: 3, roughness: 1, side: THREE.DoubleSide });
     const g = new THREE.SphereGeometry(1, 128, 96), P = g.attributes.position, d = new THREE.Vector3(), q = new THREE.Vector3(), r = rnd(5);
@@ -2152,12 +2162,31 @@ function init() {
       const win = ex * ex + ey * ey;                                       // < 1 inside the face oval
       if (q.z > faceZ - 0.03 && win < 2.2) { const t = Math.min(1, (2.2 - win) / 1.2); q.z = THREE.MathUtils.lerp(q.z, Math.min(q.z, faceZ + 0.02), t); }
       keep[i] = !(q.z > faceZ - 0.06 && win < 1) && q.y > eyeY - 0.2;
+      if (cut) {
+        for (const [tl, dep] of cut.grooves) {   // the band presses the hair down a little
+          const n = v3(0, -Math.sin(tl), Math.cos(tl)), rel = q.clone().sub(cut.hc), sd2 = Math.abs(rel.dot(n));
+          const w = THREE.MathUtils.smoothstep(0.04, 0.014, sd2) * THREE.MathUtils.smoothstep(cut.hc.y - 0.04, cut.hc.y, q.y), rq = rel.length();
+          if (w > 0) q.copy(cut.hc).addScaledVector(rel.normalize(), rq - dep * w);
+        }
+        for (const E of cut.ears) {   // flattened where the ear cups press against the head
+          const sd = Math.sign(E.x) || 1; if (q.x * sd < Math.abs(E.x) - 0.01) continue;
+          const dyz = Math.hypot(q.y - E.y, q.z - E.z), w = THREE.MathUtils.smoothstep(0.08, 0.048, dyz);
+          if (w > 0) q.x = sd * THREE.MathUtils.lerp(Math.abs(q.x), Math.min(Math.abs(q.x), Math.abs(E.x) + 0.01), w);
+        }
+      }
       P.setXYZ(i, q.x, q.y, q.z);
     }
     const I = g.index.array, out = [];
     for (let t = 0; t < I.length; t += 3) if (keep[I[t]] && keep[I[t + 1]] && keep[I[t + 2]]) out.push(I[t], I[t + 1], I[t + 2]);
     g.setIndex(out); g.computeVertexNormals();
-    return new THREE.Mesh(g, m);
+    const am = new THREE.Mesh(g, m); am.userData.afro = { C: C.clone(), R: Rb }; return am;
+  }
+  let afroShell = null;
+  function afroArc(tilt, a0, a1, n, inset) {   // a band path riding the afro's surface (holder rest space)
+    if (!afroShell || !G || !G.headC) return null;
+    const O = G.headC, m = O.clone().sub(afroShell.C), pts = [];
+    for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * k / n, d = v3(Math.sin(a), Math.cos(a) * Math.cos(tilt), Math.cos(a) * Math.sin(tilt)).normalize(), b = m.dot(d), c = m.dot(m) - afroShell.R ** 2, disc = b * b - c; if (disc > 0) pts.push(O.clone().addScaledVector(d, -b + Math.sqrt(disc) - inset)); }
+    return pts;
   }
   // glossy wrapped-hair material: fine lengthwise strand streaks + clearcoat shine
   function sleekHairMat(hairM, rep = 1) {
@@ -2274,8 +2303,8 @@ function init() {
     if (ewear && ewear !== "none") eyewear(ewear, H, eyeY, eyeZ, eyeInfo ? Math.abs(eyeInfo.l.x - H.position.x) : 0.032);
 
     // hair
-    const style = one("hair") || "straight";
-    const capped = has("gear", "beanie") || has("gear", "cap");
+    const style = one("hair") || "straight"; afroShell = null;
+    const capped = has("gear", "beanie") || has("gear", "cap") || one("eyewear") === "nvg";
     const HAIRMAP = { straight: "hair_long", wave: "hair_long", curly: "hair_long", knotless: "hair_pixie", butterfly: "hair_pixie", pony: "hair_pony", buns: "hair_pixie", spike: "hair_pixie", bob: "hair_bob", pixie: "hair_pixie", own: "hair_long",
       afro: "", locs: "hair_pixie", manbun: "hair_pixie", cornrows: "", waves: "", hightop: "", mohawk_low: "", mohawk_tall: "", fade: "", buzz: "", bald: "" };
     const realHair = !!M.hair_long;
@@ -2312,11 +2341,18 @@ function init() {
       const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 28, 0, Math.PI * 2, 0, Math.PI * 0.6), capM);
       cap.scale.copy(scalp.r).multiplyScalar(capped ? 0.94 : 1.005); cap.position.copy(scalp.c); cap.rotation.x = -0.62; H.add(cap);   // tucked under a hat
     }
-    const hatRim = has("gear", "beanie") ? { front: eyeY + 0.045, back: eyeY - 0.012 } : has("gear", "cap") ? { front: eyeY + 0.052, back: eyeY + 0.008 } : null;
+    const hatRim = has("gear", "beanie") ? { front: eyeY + 0.045, back: eyeY - 0.012 } : has("gear", "cap") ? { front: eyeY + 0.052, back: eyeY + 0.008 } : one("eyewear") === "nvg" ? { front: eyeY + 0.03, back: eyeY - 0.004 } : null;
     if (realHair && style === "curly") H.add(braidHair("curly", R, 0.3, hairM, scalp, hatRim));
     else if (realHair && style === "wave") H.add(braidHair("wave", R, 0.4, hairM, scalp, hatRim));
-    else if (style === "afro" && scalp && !capped) H.add(afroHair(hairM, scalp, eyeY, eyeZ));
-    else if (realHair && style === "pony") H.add(highPony(hairM, eyeY, eyeZ, scalpTop, has("gear", "cap") ? "cap" : has("gear", "beanie") ? "beanie" : null));
+    else if (style === "afro" && scalp && !capped) {
+      const grooves = [], ears = []; if (has("gear", "headset")) grooves.push([-0.12, 0.022]); if (has("jewelry", "crystalband")) grooves.push([0.42, 0.011]);
+      if (has("gear", "headset") && faceFit && faceFit.ear) faceFit.ear.forEach((e) => ears.push(e.clone().sub(H.position)));
+      const af = afroHair(hairM, scalp, eyeY, eyeZ, grooves.length && G && G.headC ? { hc: G.headC.clone().sub(H.position), R: headInfo ? headInfo.r : 0.095, grooves, ears } : null);
+      H.add(af); afroShell = { C: af.userData.afro.C.clone().add(H.position), R: af.userData.afro.R };
+    }
+    else if (realHair && style === "pony") { const qh = new THREE.Quaternion(), qs = new THREE.Quaternion(); restToHolder("head").decompose(new THREE.Vector3(), qh, new THREE.Vector3()); restToHolder("spine_03").decompose(new THREE.Vector3(), qs, new THREE.Vector3());
+      const up = Math.max(0, v3(0, 1, 0).applyQuaternion(qs).y), hang = v3(0, -0.55, -1).normalize().lerp(v3(0, -1, 0), up * up).normalize();   // bent over: drapes back along her neck and back
+      H.add(highPony(hairM, eyeY, eyeZ, scalpTop, has("gear", "cap") ? "cap" : has("gear", "beanie") ? "beanie" : null, hang.applyQuaternion(qh.invert()), has("gear", "vest") ? 0.07 : 0)); }
     else if (realHair && style === "buns" && !capped) {
       for (const sd of [-1, 1]) {
         const bn = sphere(0.04, hairM, sd * 0.052, scalpTop - 0.024, zc - 0.004, 1, 0.9, 1); H.add(bn);
