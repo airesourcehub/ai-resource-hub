@@ -694,6 +694,15 @@ function init() {
       if (e > 0.2 && e < tgt) { d *= mix(1.0, tgt / e, f); t.x = d.x; t.z = d.y + uHood.x; }
       return t;
     }`;
+  function hoodOutJS(p, extra) {
+    const u = HAIRU.uHood.value, E = HAIRU.uHoodE.value; if (u.w < 0.5 || p.z > u.x + 0.03) return p;
+    let dx = p.x, dz = p.z - u.x; const L = Math.hypot(dx, dz), e = Math.hypot(dx / E.x, dz / E.y), back = Math.min(1, Math.max(0, -dz / Math.max(L, 0.001)));
+    const r = u.z * Math.sqrt(back) + 0.03, tgt = 1 + (r + extra) / (0.5 * (E.x + E.y));
+    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const f = ss(u.y + r + 0.06, u.y + r * 0.3, p.y) * ss(u.y - 0.26, u.y - r, p.y);
+    if (e > 0.2 && e < tgt && f > 0) { const k = 1 + (tgt / e - 1) * f; return new THREE.Vector3(dx * k, p.y, dz * k + u.x); }
+    return p;
+  }
   const hairOrg = { value: new THREE.Vector3() };   // the head group's rest position (strand hair is built relative to it)
   function strandHood(mat) {   // loose strands (knotless braids, locs, curls) get the same hood push
     mat.onBeforeCompile = (sh) => {
@@ -709,11 +718,11 @@ function init() {
     const m = new THREE.MeshStandardMaterial({ map: src && src.map, roughness: opts.roughness ?? 0.5, metalness: 0,
       alphaTest: opts.alpha ? 0.35 : 0, transparent: false, side: opts.alpha ? THREE.DoubleSide : THREE.FrontSide });
     m.userData.uTint = { value: new THREE.Color(1, 1, 1) };
-    m.userData.uWave = { value: 0 };
+    m.userData.uWave = { value: 0 }; m.userData.uHoodK = { value: 1 };
     m.onBeforeCompile = (sh) => {
-      sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave; Object.assign(sh.uniforms, HAIRU);
+      sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave; sh.uniforms.uHoodK = m.userData.uHoodK; Object.assign(sh.uniforms, HAIRU);
       // body-wave: ripple long hair below the ears (rest-space y; eyes sit at ~1.5 m)
-      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR; uniform mat4 uHangM; uniform float uHangOn; uniform float uHangY;\n" + HOOD_GLSL)
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR; uniform mat4 uHangM; uniform float uHangOn; uniform float uHangY; uniform float uHoodK;\n" + HOOD_GLSL)
         .replace("#include <begin_vertex>", `#include <begin_vertex>
           // the whole sheet moves together (offsets depend on height, plus a smooth outward swell), so the hair
           // cards never tear apart into steps and the inner layer never pokes through the outer one
@@ -729,7 +738,7 @@ function init() {
             float f = smoothstep(uPlate.y + 0.07, uPlate.y - 0.005, position.y) * smoothstep(uPlate.z - 0.1, uPlate.z, position.y);
             transformed.z = mix(transformed.z, min(transformed.z, zo), f);
           }
-          transformed = hoodOut(transformed, position.y);
+          transformed = mix(transformed, hoodOut(transformed, position.y), uHoodK);
           for (int k = 0; k < 2; k++) {   // tucked behind the ears so the earrings show
             vec4 e = k == 0 ? uEarL : uEarR;
             if (e.w > 0.5 && position.x * e.x > 0.0 && position.z > e.z - 0.05) {
@@ -755,7 +764,7 @@ function init() {
   function setupAssetMaterials() {
     for (const k in M) {
       const o = M[k], src = o.material;
-      if (/^hair_/.test(k)) o.material = tintMat(src, 1.6, 0.35, 1.0, { alpha: true, roughness: 0.42 });
+      if (/^hair_/.test(k)) { o.material = tintMat(src, 1.6, 0.35, 1.0, { alpha: true, roughness: 0.42 }); if (k !== "hair_long") o.material.userData.uHoodK.value = 0; }   // short styles end above the hood: pushing them flared the ends
       else if (k === "brows") o.material = tintMat(src, 1.2, 0.4, 0.8, { alpha: true });
       else if (k === "lashes") { o.material = tintMat(src, 1.0, 0.0, 0.25, { alpha: true }); o.material.userData.uTint.value.set(0x111111); }
       else if (k === "cl_boots") o.material = tintMat(src, 3.2, 0.5, 0.6, { roughness: 0.4 });
@@ -1248,6 +1257,7 @@ function init() {
         const z = Math.min(last.z, -0.06) - 0.035 * t - (y < -0.2 ? 0.03 + Math.abs(x) * 0.15 : 0) - r() * 0.012;
         pts.push(new THREE.Vector3(x, y, z));
       }
+      const mk = (pts) => {
       let curve = new THREE.CatmullRomCurve3(pts);
       if (curly) {   // wind a tight spiral around the path
         const NS = 170, sp2 = curve.getSpacedPoints(NS), fr = curve.computeFrenetFrames(NS, false), cr = 0.01 + r() * 0.005, ph0 = r() * 6.28;
@@ -1268,7 +1278,8 @@ function init() {
         }
       }
       g.computeVertexNormals();
-      G.add(new THREE.Mesh(g, mat));
+      return g; };
+      const sm = new THREE.Mesh(mk(pts), mat); sm.userData.strand = { pts, mk }; G.add(sm);
     }
     // ends: small cuffs / sealed tips on butterfly locs
     return G;
@@ -1875,7 +1886,9 @@ function init() {
   }
 
   let garCS = null, garCSKey = "", garShellKey = "";
+  let plateF = null;
   function garments(s, one, has, H) {
+    plateF = null;
     HAIRU.uPlate.value.set(0, 0, 0, 0); HAIRU.uHood.value.set(0, 0, 0, 0); HAIRU.uEarL.value.set(0, 0, 0, 0); HAIRU.uEarR.value.set(0, 0, 0, 0);
     U.uGarOn.value = 0;
     if (!G) { clearShells(); return; }
@@ -1953,6 +1966,7 @@ function init() {
       const zf0 = extent(CS, vb, "front", false), zb0 = extent(CS, vb, "back", false);
       const zfAt = (y) => (LF ? LF.at(y) : zf0) + tMax, zbAt = (y) => (LB ? LB.at(y) : zb0) - tMax, zf = zfAt(1.165), zb = zbAt(1.17);
       const FG = new THREE.Group(); FG.position.set(0, 1.165, zf); FG.rotation.x = Math.atan(LF ? LF.slope : 0); g.add(FG);
+      plateF = { zf, slope: LF ? LF.slope : 0 };   // necklaces lie over the front plate
       const BG = new THREE.Group(); BG.position.set(0, 1.17, zb); BG.rotation.x = Math.atan(LB ? LB.slope : 0); g.add(BG);
       const fp = plateMesh(0.27, 0.3, 0.045, vm); fp.position.set(0, 0, 0.024); FG.add(fp);
       const bp = plateMesh(0.28, 0.31, 0.04, vm); bp.position.set(0, 0, -0.022); BG.add(bp);
@@ -2059,17 +2073,29 @@ function init() {
       ride(g, "spine_03");
     }
 
-    // ---- necklaces (lie on the skin or over the top's collar)
+    // ---- necklaces (lie on the skin or over the top's collar; over the front plate of a plate carrier)
+    const overPlate = (pts) => {
+      if (!plateF) return pts;
+      return pts.map((q) => {
+        if (q.z < 0 || Math.abs(q.x) > 0.15) return q;
+        const top = 1.315, w = q.y < top ? 1 : Math.max(0, 1 - (q.y - top) / 0.035);
+        if (w <= 0) return q;
+        let zt = plateF.zf + plateF.slope * (Math.min(q.y, top) - 1.165) + 0.05;
+        if (Math.abs(q.x) < 0.08 && q.y > 1.175 && q.y < 1.255) zt += 0.022;   // over the admin pouch
+        const z = q.z + Math.max(0, zt - q.z) * w;
+        return z > q.z ? v3(q.x, q.y, z) : q;
+      });
+    };
     const jOff = 0.0032 + (T.neck === 1 ? 0 : (top === "puffer" ? 0.012 : T.thick));
     if (has("jewelry", "chain")) {
-      const pts = neckRing(CS, 1.372, 1.3, jOff + 0.002, 72), fr = ringFrames(pts, 0.0066);
+      const pts = overPlate(neckRing(CS, 1.372, 1.3, jOff + 0.002, 72)), fr = ringFrames(pts, 0.0066);
       const lg = new THREE.TorusGeometry(0.0041, 0.0016, 8, 18); lg.rotateX(Math.PI / 2); lg.scale(1.32, 1, 1);
       const gm = new THREE.MeshPhysicalMaterial({ color: 0xe8c36a, metalness: 1, roughness: 0.14, envMap: getEnv(), envMapIntensity: 1.7, clearcoat: 0.6 });
       const g = new THREE.Group(); g.add(instAlong(lg, gm, fr.map((f, k) => f.m.clone().multiply(new THREE.Matrix4().makeRotationX(k % 2 ? 0.55 : -0.55)))));
       ride(g, "spine_03");
     }
     if (has("jewelry", "tennis")) {
-      const pts = neckRing(CS, 1.366, 1.312, jOff + 0.0018, 72), fr = ringFrames(pts, 0.0047);
+      const pts = overPlate(neckRing(CS, 1.366, 1.312, jOff + 0.0018, 72)), fr = ringFrames(pts, 0.0047);
       const dm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0, ior: 2.4, specularIntensity: 1, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4, emissive: 0x15161a });
       const wg = new THREE.MeshPhysicalMaterial({ color: 0xd9dce0, metalness: 1, roughness: 0.2, envMap: getEnv(), envMapIntensity: 1.4 });
       const cup = new THREE.CylinderGeometry(0.0027, 0.0021, 0.0022, 10);
@@ -2078,7 +2104,7 @@ function init() {
       ride(g, "spine_03");
     }
     if (has("jewelry", "dogtags")) {
-      const pts = neckRing(CS, 1.374, 1.2, jOff + 0.0045, 80), fr = ringFrames(pts, 0.0034);
+      const pts = overPlate(neckRing(CS, 1.374, 1.2, jOff + 0.0045, 80)), fr = ringFrames(pts, 0.0034);
       const sm = new THREE.MeshPhysicalMaterial({ color: 0xc9ccd1, metalness: 1, roughness: 0.25, envMap: getEnv(), envMapIntensity: 1.4 });
       const g = new THREE.Group(); g.add(instAlong(new THREE.SphereGeometry(0.0013, 8, 6), sm, fr.map((f) => f.m)));
       let lo = fr[0]; for (const f of fr) if (f.p.y < lo.p.y) lo = f;
@@ -2527,6 +2553,13 @@ function init() {
     }
     }
     try { garments(s, one, has, H); } catch (e) { console.warn("garments", e); U.uGarOn.value = 0; }
+    if (HAIRU.uHood.value.w > 0.5) H.traverse((m) => {   // loose braids / locs: move the strand's centre line out over the hood (the shader push alone flattened them)
+      const st = m.userData && m.userData.strand; if (!st) return;
+      const org = hairOrg.value, dense = new THREE.CatmullRomCurve3(st.pts).getPoints(48);
+      let moved = false;
+      const np = dense.map((q) => { const w = q.clone().add(org), o = hoodOutJS(w, 0.012); if (o !== w) moved = true; return o.sub(org); });
+      if (moved) { m.geometry.dispose(); m.geometry = st.mk(np); }
+    });
     followHead();
     // the seat she sits on
     if (curSeat && curSeat.type !== "floor") {
