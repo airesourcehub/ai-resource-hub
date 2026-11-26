@@ -794,6 +794,7 @@ function init() {
     const handsBusy = preset !== "hold" && preset !== "kneel" && preset !== "custom";
     const w = s.weapon || "none", armed = w !== "none", pistol = w === "glock" || w === "deagle";
     const hold = armed && handsBusy ? "sling" : (preset === "custom" ? "free" : (s.hold || "low"));
+    curHold = armed ? hold : "none"; curPistol = armed && pistol; holsterM = null;
     for (const n in restQ) B[n].quaternion.copy(restQ[n]);
     if (B.pelvis && restP.pelvis) B.pelvis.position.copy(restP.pelvis);
     const LK = PZ.look || {}, DEG = Math.PI / 180;
@@ -984,7 +985,7 @@ function init() {
   }
 
   // ------------------------------------------------------------ two-hand gun rig (IK)
-  let curRig = null, curGunK = 1;
+  let curRig = null, curGunK = 1, curHold = "low", curPistol = false, holsterM = null;
   function gunDims(w, pistol) {
     const src = weaponCache[w];
     if (src) {
@@ -1133,7 +1134,7 @@ function init() {
   }
   // Long braids / locs: tubes rooted all over the scalp that hug the skull, then fall behind the shoulders.
   // Knotless = alternating braid lobes; butterfly = thicker, lumpy twisted locs.
-  function braidHair(style, R, len, hairM, scalp) {
+  function braidHair(style, R, len, hairM, scalp, rim) {
     const G = new THREE.Group(), r = rnd(style === "butterfly" ? 41 : style === "curly" ? 53 : style === "wave" ? 61 : style === "locs" ? 67 : 29), fly = style === "butterfly", curly = style === "curly", wavy = style === "wave", locs = style === "locs";
     const mat = hairM.clone(); mat.roughness = fly ? 0.7 : curly ? 0.6 : wavy ? 0.36 : locs ? 0.88 : 0.55;
     // scalp ellipsoid from the short-hair cap's bounds (relative to H), else a sphere guess
@@ -1142,15 +1143,21 @@ function init() {
     const n = fly ? 96 : curly ? 130 : wavy ? 80 : locs ? 70 : 130, thick = fly ? 0.0082 : curly ? 0.0042 : wavy ? 0.0085 : locs ? 0.0098 : 0.0055;
     for (let k = 0; k < n; k++) {
       // spread roots evenly over the back / sides / crown (golden-angle spiral), hairline stays off the face
-      const u = (k + 0.5) / n, e = (8 + 78 * Math.sqrt(1 - u)) * d2r, a = ((k * 137.508) % 300 - 150) * d2r;
-      const front = Math.abs(a) > 105 * d2r;
-      if (wavy && e > 52 * d2r) continue;   // the sleek crown is the base hair; waves start lower
+      const u = (k + 0.5) / n, a = ((k * 137.508) % 300 - 150) * d2r; let e = (8 + 78 * Math.sqrt(1 - u)) * d2r;
+      let front = Math.abs(a) > 105 * d2r;
+      if (rim) {   // under a cap or beanie: no crown or front roots; each root sits just under the brim line
+        if (front) continue;
+        const ry = rim.back + (rim.front - rim.back) * (1 - Math.cos(a)) / 2 - 0.012;
+        const eMax = Math.asin(THREE.MathUtils.clamp((ry - sc.c.y) / sc.r.y, -0.9, 0.95));
+        if (e > eMax) e = eMax - r() * 0.12;
+      }
+      if (wavy && e > 52 * d2r && !rim) continue;   // the sleek crown is the base hair; waves start lower
       if (front && (e < 45 * d2r || style !== "curly" && style !== "wave")) continue;
       const way = [[a, e]];
       if (front) way.push([Math.sign(a) * 100 * d2r, e * 0.75]);      // front roots sweep back over the crown
       const a1 = way[way.length - 1][0];
       const pts = way.map(([aa, ee]) => sp(aa, ee, 1.02));
-      const puff = curly ? 0.03 + r() * 0.024 : wavy ? 0.003 : 0;   // curls stand off the scalp for volume
+      const puff = (curly ? 0.03 + r() * 0.024 : wavy ? 0.003 : 0) * (rim ? 0.45 : 1);   // curls stand off the scalp for volume (less right under a hat brim)
       for (let ee = way[way.length - 1][1] - 15 * d2r; ee > -50 * d2r; ee -= 15 * d2r) pts.push(sp(a1, ee, 1.04 + (puff * (1 + (e - ee)) + (ee < 0 ? -ee * (curly ? 0.04 : 0.01) : 0)) / 0.09));
       // hang: behind the shoulders, spreading a little, gentle sway
       const last = pts[pts.length - 1], drop = len * (0.82 + r() * 0.3);
@@ -1259,42 +1266,81 @@ function init() {
       }
       return G;
     }
-    if (type === "shield") {   // one wrap-around mirrored visor
-      const r = z0 - zcF + 0.003, v = new THREE.Mesh(new THREE.CylinderGeometry(r, r - 0.003, 0.038, 48, 1, true, -0.72, 1.44), mirror);
-      v.position.set(0, eyeY, zcF); G.add(v);
-      const top = new THREE.Mesh(new THREE.TorusGeometry(r + 0.001, 0.0022, 8, 48, 1.44), frameBlack); top.rotation.x = Math.PI / 2; top.rotation.z = -Math.PI / 2 - 0.72; top.position.set(0, eyeY + 0.019, zcF); G.add(top);
-      temples(frameBlack, 0.004, 0.006); return G;
-    }
-    if (type === "goggles") {
-      const r = z0 - zcF + 0.01;
-      const lens = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.034, 48, 1, true, -0.62, 1.24), new THREE.MeshPhysicalMaterial({ color: 0x5a6a5a, roughness: 0.04, metalness: 0.6, transparent: true, opacity: 0.8, clearcoat: 1, envMap: envTex, envMapIntensity: 2, side: THREE.DoubleSide }));
-      lens.position.set(0, eyeY, zcF); G.add(lens);
-      const rim = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.003, r - 0.003, 0.044, 48, 1, true, -0.68, 1.36), new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.8, side: THREE.DoubleSide }));
-      rim.position.set(0, eyeY, zcF - 0.002); G.add(rim);
-      G.add(headStrap(0.098, 0.008, new THREE.MeshStandardMaterial({ color: 0x1d1f1a, roughness: 0.95 }), eyeY + 0.004, -0.006, Math.PI * 1.3, 1.6));
+    // flat pieces built facing +z at their own depth, then bent round the face about the skull centre
+    const bend = (geo, r0, vk = 0) => {
+      const P = geo.attributes.position;
+      for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), rr = P.getZ(i) - zcF - vk * (y - eyeY) ** 2, a = x / r0; P.setX(i, Math.sin(a) * rr); P.setZ(i, zcF + Math.cos(a) * rr); }
+      geo.computeVertexNormals(); return geo;
+    };
+    const atWrap = (x, y, z, r0) => { const rr = z - zcF, a = x / r0; return new THREE.Vector3(Math.sin(a) * rr, y, zcF + Math.cos(a) * rr); };
+    const wrapTemples = (mat, xEnd, zEnd, r0, th, hgt, yOff = 0.004) => {
+      for (const sd of [-1, 1]) {
+        const e = ears ? ears[sd > 0 ? 0 : 1] : new THREE.Vector3(sd * (ex + 0.035), eyeY - 0.005, z0 - 0.1);
+        const hinge = atWrap(sd * xEnd, eyeY + yOff, zEnd, r0), earPt = new THREE.Vector3(sd * (Math.abs(e.x) + th * 0.6 + 0.0015), e.y + 0.01, e.z + 0.008);
+        if (Math.abs(hinge.x) < Math.abs(earPt.x)) hinge.x = sd * Math.abs(earPt.x);
+        bar(hinge.toArray(), earPt.toArray(), th, hgt, mat);
+        bar(earPt.toArray(), [earPt.x - sd * 0.003, earPt.y - 0.026, earPt.z - 0.016], th, hgt * 0.8, mat);
+      }
+    };
+    const outline = (W, top, bot, notchW, notchH, side = 0.9) => {   // lens outline: wide, flatter top, rounded outer corners, nose notch at the bottom
+      const S = new THREE.Shape();
+      S.moveTo(-W, top * 0.45);
+      S.bezierCurveTo(-W * 0.8, top * 1.05, -W * 0.35, top, 0, top * 0.94);
+      S.bezierCurveTo(W * 0.35, top, W * 0.8, top * 1.05, W, top * 0.45);
+      S.bezierCurveTo(W * 1.04, bot * 0.1, W * 0.92, bot * side, W * 0.62, bot);
+      S.bezierCurveTo(W * 0.4, bot * 1.06, notchW * 1.6, bot * 0.9, notchW, bot + notchH * 0.35);
+      S.quadraticCurveTo(0, bot + notchH * 1.25, -notchW, bot + notchH * 0.35);
+      S.bezierCurveTo(-notchW * 1.6, bot * 0.9, -W * 0.4, bot * 1.06, -W * 0.62, bot);
+      S.bezierCurveTo(-W * 0.92, bot * side, -W * 1.04, bot * 0.1, -W, top * 0.45);
+      return S;
+    };
+    if (type === "shield") {   // sport wraparound (Oakley-style): one mirrored lens, slim brow bar, nose pads, straight stems
+      const zL = z0 + 0.006, r0 = zL - zcF, W = 0.084;
+      const lensS = outline(W, 0.024, -0.024, 0.012, 0.02, 0.75);
+      const lens = new THREE.Mesh(bend(new THREE.ShapeGeometry(lensS, 40).translate(0, eyeY, zL), r0, 1.2), mirror); G.add(lens);
+      const brow = new THREE.Shape(); { const pts = lensS.getPoints(40).filter((p) => p.y > 0.024 * 0.42); pts.sort((a, b) => a.x - b.x);
+        brow.moveTo(pts[0].x, pts[0].y + 0.003); pts.forEach((p) => brow.lineTo(p.x, p.y + 0.003)); [...pts].reverse().forEach((p) => brow.lineTo(p.x, p.y - 0.0035)); brow.closePath(); }
+      const bm = new THREE.Mesh(bend(new THREE.ExtrudeGeometry(brow, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0007, bevelSegments: 2, curveSegments: 24 }).translate(0, eyeY, zL - 0.002), r0, 1.2), frameBlack); G.add(bm);
+      for (const sd of [-1, 1]) { const np = new THREE.Mesh(new THREE.SphereGeometry(0.004, 12, 8), new THREE.MeshPhysicalMaterial({ color: 0x9a9aa0, roughness: 0.3, transparent: true, opacity: 0.85 })); np.scale.set(0.6, 1, 0.5); np.position.set(sd * 0.0085, eyeY - 0.006, z0 - 0.002); G.add(np); }
+      wrapTemples(frameBlack, W - 0.004, zL - 0.002, r0, 0.0045, 0.008, 0.012);
       return G;
     }
-    if (type === "vr") {
-      const sh = new THREE.Shape(), w = 0.072, h = 0.03, rr = 0.014;
+    if (type === "goggles") {   // tactical ballistic goggles: thick rubber frame sealed to the face, smoked wrap lens, vents, wide strap with side clips
+      const zL = z0 + 0.016, r0 = zL - zcF, W = 0.088, frameD = 0.02;
+      const outer = outline(W, 0.032, -0.034, 0.016, 0.024, 0.7), inner = outline(W - 0.008, 0.024, -0.026, 0.018, 0.022, 0.7);
+      const ring = outline(W, 0.032, -0.034, 0.016, 0.024, 0.7); ring.holes.push(new THREE.Path(inner.getPoints(64)));
+      const rubber = new THREE.MeshStandardMaterial({ color: 0x17181b, roughness: 0.85 });
+      const fr = new THREE.Mesh(bend(new THREE.ExtrudeGeometry(ring, { depth: frameD, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.0018, bevelSegments: 3, curveSegments: 40 }).translate(0, eyeY, zL - frameD), r0, 1.4), rubber); G.add(fr);
+      const smoked = new THREE.MeshPhysicalMaterial({ color: 0x3e4a46, roughness: 0.03, metalness: 0.35, transparent: true, opacity: 0.78, clearcoat: 1, envMap: envTex, envMapIntensity: 2.2, side: THREE.DoubleSide });
+      const lens = new THREE.Mesh(bend(new THREE.ShapeGeometry(outline(W - 0.004, 0.028, -0.03, 0.017, 0.023, 0.7), 40).translate(0, eyeY, zL + 0.0005), r0, 1.4), smoked); G.add(lens);
+      for (const x of [-0.05, -0.025, 0, 0.025, 0.05]) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.0025, 0.004), new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 1 })); v.position.copy(atWrap(x, eyeY + 0.029, zL - 0.001, r0)); v.rotation.y = x / r0; G.add(v); }
+      const strapM = new THREE.MeshStandardMaterial({ color: 0x24261f, roughness: 0.95 });
+      G.add(headStrap(0.099, 0.012, strapM, eyeY + 0.002, -0.008, Math.PI * 1.25, 2.6));
+      for (const sd of [-1, 1]) { const cl = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.026, 0.02), rubber); cl.position.copy(atWrap(sd * (W + 0.003), eyeY + 0.001, zL - frameD * 0.6, r0)); cl.rotation.y = sd * (W / r0); G.add(cl); }
+      return G;
+    }
+    if (type === "vr") {   // Quest-3-style visor: rounded, gently curved front, three vertical sensor pills, grey face seal, side arms + rear strap
+      const sh = new THREE.Shape(), w = 0.074, h = 0.033, rr = 0.016;
       sh.moveTo(-w + rr, -h); sh.lineTo(w - rr, -h); sh.quadraticCurveTo(w, -h, w, -h + rr); sh.lineTo(w, h - rr); sh.quadraticCurveTo(w, h, w - rr, h);
       sh.lineTo(-w + rr, h); sh.quadraticCurveTo(-w, h, -w, h - rr); sh.lineTo(-w, -h + rr); sh.quadraticCurveTo(-w, -h, -w + rr, -h);
-      const white = new THREE.MeshPhysicalMaterial({ color: 0xf2f2f0, roughness: 0.35, clearcoat: 0.6 });
-      white.envMap = envTex;
-      const box = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.034, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 4, curveSegments: 16 }), white);
-      box.position.set(0, eyeY + 0.008, eyeZ + 0.012); G.add(box);
-      // soft black light seal between the visor and the face
-      const seal = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.016, bevelEnabled: false, curveSegments: 16 }), new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.95 }));
-      seal.scale.set(0.94, 0.9, 1); seal.position.set(0, eyeY + 0.008, eyeZ - 0.004); G.add(seal);
-      const face = new THREE.Mesh(new THREE.ShapeGeometry(sh, 16), new THREE.MeshPhysicalMaterial({ color: 0x0c0c10, roughness: 0.15, clearcoat: 1 }));
-      face.visible = false;
-      const pillM = new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, roughness: 0.1, clearcoat: 1 });
-      for (const x of [-0.042, 0, 0.042]) {   // three sensor pills across the front
-        const pill = new THREE.Mesh(new THREE.CapsuleGeometry(0.0055, 0.012, 6, 12), pillM); pill.rotation.z = Math.PI / 2; pill.scale.z = 0.3;
-        pill.position.set(x, eyeY + 0.008, eyeZ + 0.0565); G.add(pill);
+      const white = new THREE.MeshPhysicalMaterial({ color: 0xf3f3f1, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.35 }); white.envMap = envTex;
+      const zB = eyeZ + 0.012, r0 = zB + 0.045 - zcF, D = 0.042;
+      const box = new THREE.Mesh(bend(new THREE.ExtrudeGeometry(sh, { depth: D, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.009, bevelSegments: 6, curveSegments: 20 }).translate(0, eyeY + 0.008, zB), r0, 2.0), white); G.add(box);
+      const seal = new THREE.Mesh(bend(new THREE.ExtrudeGeometry(sh, { depth: 0.016, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.004, bevelSegments: 3, curveSegments: 16 }).scale(0.95, 0.92, 1).translate(0, eyeY + 0.008, eyeZ - 0.005), r0, 2.0), new THREE.MeshStandardMaterial({ color: 0x55575c, roughness: 0.95 })); G.add(seal);
+      const pillM = new THREE.MeshPhysicalMaterial({ color: 0x08080a, roughness: 0.08, clearcoat: 1 });
+      for (const x of [-0.046, 0, 0.046]) {
+        const pill = new THREE.Mesh(new THREE.CapsuleGeometry(0.0062, x === 0 ? 0.014 : 0.024, 6, 14), pillM); pill.scale.z = 0.35;
+        pill.position.copy(atWrap(x, eyeY + 0.008, zB + D + 0.0115, r0)); pill.rotation.y = x / r0; G.add(pill);
       }
-      const strapM = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.85 });
-      G.add(headStrap(0.099, 0.006, strapM, eyeY, -0.01, Math.PI * 1.35, 2.2));
-      const top = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.005, 6, 32, Math.PI * 0.9), strapM); top.rotation.y = Math.PI / 2; top.rotation.z = Math.PI * 0.05; top.position.set(0, eyeY - 0.005, -0.012); G.add(top);
+      const strapM = new THREE.MeshStandardMaterial({ color: 0x3a3b40, roughness: 0.85 });
+      for (const sd of [-1, 1]) {   // rigid side arms running from the visor back over the ears
+        const e = ears ? ears[sd > 0 ? 0 : 1] : new THREE.Vector3(sd * 0.075, eyeY - 0.005, zcF);
+        const a0 = atWrap(sd * (w + 0.004), eyeY + 0.012, zB + 0.01, r0), a1 = new THREE.Vector3(sd * (Math.abs(e.x) + 0.012), eyeY + 0.016, e.z - 0.012);
+        if (Math.abs(a0.x) < Math.abs(a1.x)) a0.x = sd * Math.abs(a1.x);
+        bar(a0.toArray(), a1.toArray(), 0.009, 0.016, strapM);
+      }
+      G.add(headStrap(0.099, 0.008, strapM, eyeY + 0.014, -0.012, Math.PI * 1.25, 2.6));
+      const top = new THREE.Mesh(new THREE.TorusGeometry(0.096, 0.0055, 6, 32, Math.PI * 0.9), strapM); top.rotation.y = Math.PI / 2; top.rotation.z = Math.PI * 0.05; top.position.set(0, eyeY - 0.004, -0.012); G.add(top);
       return G;
     }
     if (type === "nvg") {   // ballistic helmet with a front shroud, flip-down arm and twin green-glow tubes
@@ -1553,6 +1599,24 @@ function init() {
     }
     return best;
   }
+  function surfLine(CS, box, which, nb = 10, legOnly, maxSlope = 0.6) {
+    const ext = new Array(nb).fill(null), side = which === "left" || which === "right", sgn = which === "front" || which === "left" ? 1 : -1;
+    for (let i = 0; i < G.n; i++) {
+      const rx = G.rest[i * 3], ry = G.rest[i * 3 + 1];
+      if (rx < box[0] || rx > box[1] || ry < box[2] || ry > box[3]) continue;
+      if (gArmJ(i) > 0.5 || G.R1[i * 4] > 0.5) continue;
+      if (legOnly === true && gLegJ(i) < 0.5) continue;
+      if (legOnly === false && gLegJ(i) > 0.5) continue;
+      const k = Math.min(nb - 1, Math.floor((ry - box[2]) / (box[3] - box[2]) * nb)), v = (side ? CS.cur[i * 3] : CS.cur[i * 3 + 2]) * sgn, y = CS.cur[i * 3 + 1];
+      if (!ext[k] || v > ext[k].v) ext[k] = { v, y };
+    }
+    const pts = ext.filter(Boolean); if (pts.length < 2) return null;
+    const my = pts.reduce((a, p) => a + p.y, 0) / pts.length, mv = pts.reduce((a, p) => a + p.v, 0) / pts.length;
+    let sxy = 0, sxx = 0; for (const p of pts) { sxy += (p.y - my) * (p.v - mv); sxx += (p.y - my) ** 2; }
+    const b = Math.max(-maxSlope, Math.min(maxSlope, sxx > 1e-9 ? sxy / sxx : 0)); let a = mv - b * my;
+    for (const p of pts) a = Math.max(a, p.v - b * p.y);   // shifted out so nothing pokes through
+    return { at: (y) => sgn * (a + b * y), slope: sgn * b };
+  }
   function centreZ(CS, box) {   // average z of leg vertices in a box (thigh centre for straps / pockets)
     let s = 0, c = 0;
     for (let i = 0; i < G.n; i++) { const rx = G.rest[i * 3], ry = G.rest[i * 3 + 1]; if (rx < box[0] || rx > box[1] || ry < box[2] || ry > box[3] || gLegJ(i) < 0.5) continue; s += CS.cur[i * 3 + 2]; c++; }
@@ -1795,19 +1859,24 @@ function init() {
       const g = new THREE.Group(), base = GEAR_BLACK, wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
       const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
       const pm = std({ color: new THREE.Color(base).multiplyScalar(0.92), roughness: 0.92 }); pm.userData.cloth = true;
-      const zf = extent(CS, [-0.12, 0.12, 1.03, 1.29], "front", false) + tMax, zb = extent(CS, [-0.12, 0.12, 1.03, 1.29], "back", false) - tMax;
-      const fp = plateMesh(0.27, 0.3, 0.045, vm); fp.position.set(0, 1.165, zf + 0.026); g.add(fp);
-      const bp = plateMesh(0.28, 0.31, 0.04, vm); bp.position.set(0, 1.17, zb - 0.024); g.add(bp);
+      const vb = [-0.12, 0.12, 1.03, 1.29], LF = surfLine(CS, vb, "front", 10, false, 0.12), LB = surfLine(CS, vb, "back", 10, false);
+      const zf0 = extent(CS, vb, "front", false), zb0 = extent(CS, vb, "back", false);
+      const zfAt = (y) => (LF ? LF.at(y) : zf0) + tMax, zbAt = (y) => (LB ? LB.at(y) : zb0) - tMax, zf = zfAt(1.165), zb = zbAt(1.17);
+      const FG = new THREE.Group(); FG.position.set(0, 1.165, zf); FG.rotation.x = Math.atan(LF ? LF.slope : 0); g.add(FG);
+      const BG = new THREE.Group(); BG.position.set(0, 1.17, zb); BG.rotation.x = Math.atan(LB ? LB.slope : 0); g.add(BG);
+      const fp = plateMesh(0.27, 0.3, 0.045, vm); fp.position.set(0, 0, 0.024); FG.add(fp);
+      const bp = plateMesh(0.28, 0.31, 0.04, vm); bp.position.set(0, 0, -0.022); BG.add(bp);
       for (const x of [-0.072, 0, 0.072]) {
-        const p = rbox(0.064, 0.1, 0.036, 0.009, pm); p.position.set(x, 1.07, zf + 0.066); g.add(p);
-        const f = rbox(0.066, 0.032, 0.04, 0.008, pm); f.position.set(x, 1.122, zf + 0.067); g.add(f);
+        const p = rbox(0.064, 0.1, 0.036, 0.009, pm); p.position.set(x, -0.095, 0.064); FG.add(p);
+        const f = rbox(0.066, 0.032, 0.04, 0.008, pm); f.position.set(x, -0.043, 0.065); FG.add(f);
       }
-      const ad = rbox(0.15, 0.07, 0.022, 0.01, pm); ad.position.set(0, 1.215, zf + 0.06); g.add(ad);
+      const ad = rbox(0.15, 0.07, 0.022, 0.01, pm); ad.position.set(0, 0.05, 0.058); FG.add(ad);
+      for (const sd of [-1, 1]) for (const yy of [-0.08, 0.04]) { const lp = rbox(0.012, 0.03, 0.02, 0.004, pm); lp.position.set(sd * 0.13, yy, 0.022); FG.add(lp); }   // side loops
       for (const sd of [-1, 1]) {
         let ys = 0, zs = 0, c = 0;
         for (let i = 0; i < G.n; i++) { const x = G.rest[i * 3]; if (Math.abs(x - sd * 0.1) > 0.012 || gArmJ(i) > 0.5 || G.R1[i * 4] > 0.5 || G.rest[i * 3 + 1] < 1.2) continue; if (CS.cur[i * 3 + 1] > ys) { ys = CS.cur[i * 3 + 1]; zs = CS.cur[i * 3 + 2]; } c++; }
         if (!c) continue;
-        const st = sweep([v3(sd * 0.098, 1.3, zf + 0.012), v3(sd * 0.1, ys + tMax * 0.7 + 0.004, zs + 0.03), v3(sd * 0.1, ys + tMax * 0.7 + 0.006, zs - 0.03), v3(sd * 0.098, 1.31, zb - 0.012)], 0, vm, { flat: [0.048, 0.014], side: v3(1, 0, 0), seg: 40 });
+        const st = sweep([v3(sd * 0.098, 1.3, zfAt(1.3) + 0.006), v3(sd * 0.1, ys + tMax * 0.7 + 0.004, zs + 0.03), v3(sd * 0.1, ys + tMax * 0.7 + 0.006, zs - 0.03), v3(sd * 0.098, 1.31, zbAt(1.31) - 0.006)], 0, vm, { flat: [0.048, 0.014], side: v3(1, 0, 0), seg: 40 });
         g.add(st);
       }
       band("cummerbund", new THREE.Vector4(1.03, 1.13, 0, 2), (i) => (topJ(i) ? topT(i) : 0) + 0.014, new THREE.Vector4(...new THREE.Color(base).toArray(), 0), { rough: 0.92, min: 0.004 });
@@ -1818,11 +1887,13 @@ function init() {
       const g = new THREE.Group(), base = GEAR_BLACK, wt = webbingTex(base).clone(); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(5, 5); wt.needsUpdate = true;
       const vm = std({ color: 0xffffff, map: wt, roughness: 0.92 }); vm.userData.cloth = true;
       const pm = std({ color: new THREE.Color(base).multiplyScalar(0.9), roughness: 0.92 }); pm.userData.cloth = true;
-      const zf = extent(CS, [-0.13, 0.13, 0.97, 1.06], "front", false) + (top === "puffer" ? 0 : T.thick), zb = extent(CS, [-0.1, 0.1, 1.0, 1.2], "back", false) - (T.hem < 1.0 ? T.thick : tMax);
-      const pn = rbox(0.27, 0.11, 0.014, 0.012, vm); pn.position.set(0, 1.02, zf + 0.009); g.add(pn);
+      const cb = [-0.13, 0.13, 0.93, 1.0], LC = surfLine(CS, cb, "front", 5, false, 0.2), cAdd = (T.hem < 0.96 ? (top === "puffer" ? tMax : T.thick) : (Bt.thick || 0.004)) + 0.002;
+      const zf = (LC ? LC.at(0.985) : extent(CS, cb, "front", false)) + cAdd, zb = extent(CS, [-0.1, 0.1, 1.0, 1.2], "back", false) - (T.hem < 1.0 ? T.thick : tMax);
+      const RG = new THREE.Group(); RG.position.set(0, 0.985, zf); RG.rotation.x = Math.atan(LC ? LC.slope : 0); g.add(RG);
+      const pn = rbox(0.27, 0.11, 0.014, 0.012, vm); pn.position.set(0, 0.02, 0.008); RG.add(pn);
       for (const x of [-0.096, -0.032, 0.032, 0.096]) {
-        const p = rbox(0.056, 0.115, 0.036, 0.009, pm); p.position.set(x, 1.0, zf + 0.034); g.add(p);
-        const f = rbox(0.058, 0.03, 0.04, 0.008, pm); f.position.set(x, 1.055, zf + 0.035); g.add(f);
+        const p = rbox(0.056, 0.115, 0.036, 0.009, pm); p.position.set(x, 0, 0.032); RG.add(p);
+        const f = rbox(0.058, 0.03, 0.04, 0.008, pm); f.position.set(x, 0.055, 0.033); RG.add(f);
       }
       for (const sd of [-1, 1]) {
         const fz = extent(CS, [sd * 0.13 - 0.014, sd * 0.13 + 0.014, 1.17, 1.21], "front", false) + tMax;
@@ -1834,13 +1905,21 @@ function init() {
       ride(g, "spine_02");
     }
     // ---- drop-leg holster on the right thigh (right = -x)
-    if (has("gear", "holster")) {
+    if (has("gear", "holster") || (curPistol && curHold === "sling")) {
       const y0 = 0.69, bx = [-0.32, -0.04, y0 - 0.012, y0 + 0.012], legT = (bottom === "pants" || bottom === "leggings") ? Bt.thick + (Bt.loose || 0) * 0.5 : (bottom === "cargo" || bottom === "shorts") && y0 > Bt.hem ? Bt.thick + (Bt.flare || 0) * 0.5 : 0;
-      const xo = extent(CS, bx, "right", true) - legT, zc = centreZ(CS, [-0.32, -0.04, y0 - 0.03, y0 + 0.03]), g = new THREE.Group();
-      const pl = rbox(0.085, 0.2, 0.012, 0.012, mBlack); pl.rotation.y = Math.PI / 2; pl.position.set(xo - 0.011, y0, zc); g.add(pl);
-      const hb = rbox(0.064, 0.17, 0.036, 0.014, mBlack); hb.rotation.y = Math.PI / 2; hb.position.set(xo - 0.034, y0 - 0.012, zc + 0.006); g.add(hb);
-      const gr = rbox(0.032, 0.08, 0.026, 0.008, std({ color: 0x1b1c1f, roughness: 0.6 })); gr.rotation.set(0, Math.PI / 2, -0.12); gr.position.set(xo - 0.036, y0 + 0.11, zc - 0.012); g.add(gr);
-      const sl = rbox(0.12, 0.028, 0.024, 0.005, std({ color: 0x232428, roughness: 0.35, metalness: 0.5 })); sl.rotation.y = Math.PI / 2; sl.position.set(xo - 0.036, y0 + 0.07, zc + 0.02); g.add(sl);
+      const LT = surfLine(CS, [-0.32, -0.04, y0 - 0.12, y0 + 0.12], "right", 8, true);
+      const xo = (LT ? LT.at(y0) : extent(CS, bx, "right", true)) - legT, zc = centreZ(CS, [-0.32, -0.04, y0 - 0.03, y0 + 0.03]), g = new THREE.Group();
+      const HG = new THREE.Group(); HG.position.set(xo, y0, zc); HG.rotation.z = -Math.atan(LT ? LT.slope : 0); g.add(HG);
+      const pl = rbox(0.085, 0.2, 0.012, 0.012, mBlack); pl.rotation.y = Math.PI / 2; pl.position.set(-0.011, 0, 0); HG.add(pl);
+      const hb = rbox(0.064, 0.17, 0.036, 0.014, mBlack); hb.rotation.y = Math.PI / 2; hb.position.set(-0.034, -0.012, 0.006); HG.add(hb);
+      const hood = rbox(0.07, 0.022, 0.04, 0.008, mBlack); hood.rotation.y = Math.PI / 2; hood.position.set(-0.034, 0.08, 0.0); HG.add(hood);   // retention hood over the slide
+      if (curPistol && curHold === "sling") {   // the real pistol goes in: muzzle down, slide facing forward
+        HG.updateMatrix(); g.updateMatrix();
+        holsterM = restToHolder("thigh_r").clone().multiply(HG.matrix).multiply(new THREE.Matrix4().makeTranslation(-0.036, 0.085, -0.004));
+      } else {
+        const gr = rbox(0.032, 0.08, 0.026, 0.008, std({ color: 0x1b1c1f, roughness: 0.6 })); gr.rotation.set(0, Math.PI / 2, -0.12); gr.position.set(-0.036, 0.11, -0.012); HG.add(gr);
+        const sl = rbox(0.12, 0.028, 0.024, 0.005, std({ color: 0x232428, roughness: 0.35, metalness: 0.5 })); sl.rotation.y = Math.PI / 2; sl.position.set(-0.036, 0.07, 0.02); HG.add(sl);
+      }
       ride(g, "thigh_r");
       for (const [a, b2] of [[0.6, 0.628], [0.735, 0.763]]) band("strap" + a, new THREE.Vector4(a, b2, -1, 1), (i) => botT(i) * (botJ(i) ? 1 : 0) + 0.0042, new THREE.Vector4(0.05, 0.05, 0.055, 0), { min: 0.002 });
     }
@@ -1933,7 +2012,7 @@ function init() {
       const L = lobes[k], sd = Math.sign(L.x) || 1, dm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, ior: 2.4, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4, emissive: 0x15161a });
       const st = new THREE.Mesh(brilliant(0.0032), dm); st.position.set(L.x + sd * 0.0035, L.y - 0.001, L.z + 0.001); st.rotation.z = -sd * Math.PI / 2; HG.add(st);
     }
-    const hairOff = (one("hair") === "pixie" || one("hair") === "buzz") ? 0.004 : 0.008;
+    const hs0 = one("hair") || "straight", hairOff = (hs0 === "pixie" || hs0 === "buzz") ? 0.004 : ["straight", "wave", "curly", "own", "pony", "bob"].includes(hs0) ? 0.017 : 0.008;   // hats sit over long hair, not through it
     if (has("jewelry", "crystalband")) {
       for (const [tl, rs] of [[0.37, 0.0034], [0.47, 0.0034]]) {   // extra rows either side of the main one
         const row = headArc(hairOff + 0.0045, tl, -1.25, 1.25, 30); if (!row || row.length < 5) continue;
@@ -2211,19 +2290,20 @@ function init() {
         g.globalAlpha = 1;
       }) });
       const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 28, 0, Math.PI * 2, 0, Math.PI * 0.6), capM);
-      cap.scale.copy(scalp.r).multiplyScalar(1.005); cap.position.copy(scalp.c); cap.rotation.x = -0.62; H.add(cap);
+      cap.scale.copy(scalp.r).multiplyScalar(capped ? 0.94 : 1.005); cap.position.copy(scalp.c); cap.rotation.x = -0.62; H.add(cap);   // tucked under a hat
     }
-    if (realHair && style === "curly") H.add(braidHair("curly", R, 0.3, hairM, scalp));
-    else if (realHair && style === "wave") H.add(braidHair("wave", R, 0.4, hairM, scalp));
+    const hatRim = has("gear", "beanie") ? { front: eyeY + 0.045, back: eyeY - 0.012 } : has("gear", "cap") ? { front: eyeY + 0.052, back: eyeY + 0.008 } : null;
+    if (realHair && style === "curly") H.add(braidHair("curly", R, 0.3, hairM, scalp, hatRim));
+    else if (realHair && style === "wave") H.add(braidHair("wave", R, 0.4, hairM, scalp, hatRim));
     else if (style === "afro" && scalp && !capped) H.add(afroHair(hairM, scalp, eyeY, eyeZ));
     else if (realHair && style === "pony") H.add(highPony(hairM, eyeY, eyeZ, scalpTop));
-    else if (realHair && style === "buns") {
+    else if (realHair && style === "buns" && !capped) {
       for (const sd of [-1, 1]) {
         const bn = sphere(0.04, hairM, sd * 0.052, scalpTop - 0.024, zc - 0.004, 1, 0.9, 1); H.add(bn);
         const tw = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.009, 8, 28), hairM); tw.position.set(sd * 0.05, scalpTop - 0.034, zc - 0.004); tw.rotation.set(Math.PI / 2 - 0.2, 0, sd * 0.4); H.add(tw);
       }
     }
-    else if (realHair && style === "locs") H.add(braidHair("locs", R, 0.2, hairM, scalp));
+    else if (realHair && style === "locs") H.add(braidHair("locs", R, 0.2, hairM, scalp, hatRim));
     else if (realHair && !(style === "knotless" || style === "butterfly" || style === "spike")) { /* nothing extra */ }
     else if (style === "straight" || style === "wave") {
       const panel = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, backLen, 8, 24), hairM);
@@ -2237,7 +2317,7 @@ function init() {
       const r = rnd(7);
       for (let i = 0; i < 34; i++) { const a = r() * Math.PI * 2, yy = 0.08 - r() * 0.48; H.add(sphere(0.055 + r() * 0.03, hairM, Math.cos(a) * 0.13, yy, -0.04 + Math.sin(a) * 0.07 - (yy < -0.05 ? 0.06 : 0))); }
     } else if (style === "knotless" || style === "butterfly") {
-      H.add(braidHair(style, R, backLen, hairM, scalp));
+      H.add(braidHair(style, R, backLen, hairM, scalp, hatRim));
     } else if (style === "pony") {
       H.add(sphere(0.032, hairM, 0, 0.07, -0.1));
       H.add(limb([0, 0.07, -0.12], [0, -backLen, -0.17], 0.038, 0.018, hairM));
@@ -2377,16 +2457,56 @@ function init() {
     // the grip sits in the right hand; the barrel points along where the hands point
     const hr = bonePos("hand_r"), hl = bonePos("hand_l");
     if (hold === "sling") {
-      if (pistol) { const t = bonePos("thigh_r"); g.position.copy(t).add(v3(-0.1, -0.12, 0.0)); g.rotation.set(Math.PI / 2, 0, 0); return; }
-      // slung diagonally across her back: stock behind her right shoulder, muzzle down toward her left hip,
-      // lying flat against the back (its side facing out), top rail toward her right side
-      const s3 = bonePos("spine_03"), nk = bonePos("neck_01"), sh = bonePos("upperarm_r"), hipL = bonePos("thigh_l");
-      const top = v3(sh.x * 0.85, nk.y - 0.03, s3.z - 0.12);
-      // down toward the far hip, leaning out behind her so the lower end clears her hips and glutes
-      const z = v3(Math.max(0.55, (hipL.x - top.x) * 2.2), -1.0, -0.4).normalize(), x = v3(0, 0, -1), y = z.clone().cross(x).normalize(), x2 = y.clone().cross(z).normalize();
-      g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x2, y, z));
+      if (pistol) {
+        if (holsterM) { const p = new THREE.Vector3(), q = new THREE.Quaternion(); holsterM.decompose(p, q, new THREE.Vector3()); g.position.copy(p); g.quaternion.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(v3(1, 0, 0), Math.PI / 2)); return; }
+        const t = bonePos("thigh_r"); g.position.copy(t).add(v3(-0.1, -0.12, 0.0)); g.rotation.set(Math.PI / 2, 0, 0); return;
+      }
       const dm = gunDims(w, false), k = curGunK;
-      g.position.copy(top).addScaledVector(z, -dm.zMin * k);   // the butt sits at the shoulder end
+      if (curSeat && curSeat.type === "chair") {   // sitting back in a chair: the rifle rests across her lap, magazine toward her
+        const pel = bonePos("pelvis"), kn = bonePos("calf_l").add(bonePos("calf_r")).multiplyScalar(0.5), th = bonePos("thigh_l").add(bonePos("thigh_r")).multiplyScalar(0.5);
+        const c = th.clone().lerp(kn, 0.58); let lapY = Math.max(th.y, kn.y) + 0.12;
+        try {
+          holder.updateMatrixWorld(true); body.boundingSphere = null; const rc = new THREE.Raycaster(); let best = -1;
+          for (const dx of [-0.16, 0, 0.16]) for (const sx of [-1, 1]) {
+            const px = sx * Math.abs(th.x) * 0.9 + dx * 0.3, o = holder.localToWorld(v3(px, Math.max(th.y, kn.y) + 0.5, c.z));
+            rc.set(o, v3(0, -1, 0)); for (const h of rc.intersectObject(body, false)) { const hy = holder.worldToLocal(h.point.clone()).y; if (hy < th.y + 0.3) { best = Math.max(best, hy); break; } }
+          }
+          if (best > 0) lapY = best + 0.03;
+        } catch (e) {}
+        const z = v3(1, 0.04, 0.22).normalize(), y = v3(0, 0, 1).sub(z.clone().multiplyScalar(z.z)).normalize(), x = y.clone().cross(z).normalize();
+        g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+        g.position.set(c.x, lapY, c.z + 0.05).addScaledVector(z, -((dm.zMin + dm.zMax) / 2) * k);
+        return;
+      }
+      // slung diagonally across her back: stock behind her right shoulder, muzzle down toward her left hip,
+      // lying flat against the back (its side facing out), top rail toward her right side. Laid out on the
+      // standing body, then carried along by the upper back so it stays on her back when she bends or crawls.
+      const M = restToHolder("spine_03"), Mi = M.clone().invert(), Mp = restToHolder("pelvis").clone().invert();
+      const s3 = bonePos("spine_03").applyMatrix4(Mi), nk = bonePos("neck_01").applyMatrix4(Mi), sh = bonePos("upperarm_r").applyMatrix4(Mi), hipL = bonePos("thigh_l").applyMatrix4(Mp);
+      const top = v3(sh.x * 0.85, nk.y - 0.03, s3.z - 0.12), M0 = new THREE.Quaternion(); M.decompose(new THREE.Vector3(), M0, new THREE.Vector3());
+      const upright = Math.max(0, v3(0, 1, 0).applyQuaternion(M0).y);   // 1 standing, 0 bent flat over
+      // down toward the far hip, leaning out behind her so the lower end clears her hips and glutes
+      const z = v3(Math.max(0.55, (hipL.x - top.x) * 2.2), -1.0, -0.4 * upright * upright - 0.06).normalize(), x = v3(0, 0, -1), y = z.clone().cross(x).normalize(), x2 = y.clone().cross(z).normalize();
+      const qr = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x2, y, z)), qM = new THREE.Quaternion();
+      M.decompose(new THREE.Vector3(), qM, new THREE.Vector3());
+      g.quaternion.copy(qM).multiply(qr);
+      g.position.copy(top).addScaledVector(z, -dm.zMin * k).applyMatrix4(M);   // the butt sits at the shoulder end
+      // keep both ends (and the magazine) off the floor or the seat: swing it up across her back about the shoulder end
+      const minY = (curSeat && curSeat.type !== "floor" ? curSeat.h : 0) + 0.05, pivot = top.clone().applyMatrix4(M);
+      const ends = () => { const zz = v3(0, 0, 1).applyQuaternion(g.quaternion), yy = v3(0, 1, 0).applyQuaternion(g.quaternion);
+        const a = g.position.clone().addScaledVector(zz, dm.zMax * k), b = g.position.clone().addScaledVector(zz, dm.zMin * k);
+        return Math.min(a.y, b.y, a.clone().addScaledVector(yy, dm.yMin * k).y, g.position.clone().addScaledVector(yy, dm.yMin * k).y); };
+      const axis = v3(1, 0, 0).applyQuaternion(g.quaternion), swing = (ang) => { const q = new THREE.Quaternion().setFromAxisAngle(axis, ang); g.quaternion.premultiply(q); g.position.sub(pivot).applyQuaternion(q).add(pivot); };
+      if (ends() < minY) {
+        swing(0.1); const up = ends(); swing(-0.1); const dir = up > ends() ? 1 : -1;
+        let n = 0; for (; n < 16 && ends() < minY; n++) swing(dir * 0.1);
+        if (n > 6 && (!curSeat || curSeat.type === "floor")) {   // too low to wear it: laid flat on the ground beside her right hip
+          const pel = bonePos("pelvis"), xr = Math.min(bonePos("thigh_r").x, bonePos("calf_r").x, bonePos("foot_r").x) - 0.2;
+          const zz = v3(0.08, 0, 1).normalize(), yy = v3(-1, 0, 0), xx = yy.clone().cross(zz).normalize();
+          g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xx, yy, zz));
+          g.position.set(xr, 0.03, pel.z + 0.05).addScaledVector(zz, -((dm.zMin + dm.zMax) / 2) * k);
+        }
+      }
     } else {
       g.position.copy(hr).add(v3(0, -0.02, 0.03));
       const dir = pistol || hold === "side" ? null : hl.clone().sub(hr);
