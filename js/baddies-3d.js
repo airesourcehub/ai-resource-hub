@@ -577,7 +577,7 @@ function init() {
     setupAssetMaterials();
     if (eyes) {
       eyes.frustumCulled = false;
-      if (eyes !== M.eyes_hp) eyes.material = new THREE.MeshStandardMaterial({ color: 0xf2efe9, roughness: 0.2 });
+      if (eyes !== M.eyes_hp) { eyes.material = new THREE.MeshStandardMaterial({ color: 0xf2efe9, roughness: 0.4 }); eyes.material.envMapIntensity = 0.35; }
       const P = eyes.geometry.attributes.position, L = new THREE.Vector3(), Rr = new THREE.Vector3(); let nl = 0, nr = 0, zmax = -9;
       for (let i = 0; i < P.count; i++) { const x = P.getX(i); if (x > 0) { L.add(new THREE.Vector3(x, P.getY(i), P.getZ(i))); nl++; } else { Rr.add(new THREE.Vector3(x, P.getY(i), P.getZ(i))); nr++; } zmax = Math.max(zmax, P.getZ(i)); }
       L.divideScalar(nl || 1); Rr.divideScalar(nr || 1);
@@ -704,7 +704,7 @@ function init() {
     mat.customProgramCacheKey = () => "strandHood";
     return mat;
   }
-  const HAIRU = { uPlate: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlateS: { value: 0 }, uEarL: { value: new THREE.Vector4(0, 0, 0, 0) }, uEarR: { value: new THREE.Vector4(0, 0, 0, 0) }, uHood: { value: new THREE.Vector4(0, 0, 0, 0) }, uHoodE: { value: new THREE.Vector2(0.1, 0.1) } };
+  const HAIRU = { uPlate: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlateS: { value: 0 }, uEarL: { value: new THREE.Vector4(0, 0, 0, 0) }, uEarR: { value: new THREE.Vector4(0, 0, 0, 0) }, uHood: { value: new THREE.Vector4(0, 0, 0, 0) }, uHoodE: { value: new THREE.Vector2(0.1, 0.1) }, uHangM: { value: new THREE.Matrix4() }, uHangOn: { value: 0 }, uHangY: { value: 1.42 } };
   function tintMat(src, gain, base, amt, opts = {}) {
     const m = new THREE.MeshStandardMaterial({ map: src && src.map, roughness: opts.roughness ?? 0.5, metalness: 0,
       alphaTest: opts.alpha ? 0.35 : 0, transparent: false, side: opts.alpha ? THREE.DoubleSide : THREE.FrontSide });
@@ -713,7 +713,7 @@ function init() {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uTint = m.userData.uTint; sh.uniforms.uWave = m.userData.uWave; Object.assign(sh.uniforms, HAIRU);
       // body-wave: ripple long hair below the ears (rest-space y; eyes sit at ~1.5 m)
-      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR;\n" + HOOD_GLSL)
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uWave; uniform vec4 uPlate; uniform float uPlateS; uniform vec4 uEarL; uniform vec4 uEarR; uniform mat4 uHangM; uniform float uHangOn; uniform float uHangY;\n" + HOOD_GLSL)
         .replace("#include <begin_vertex>", `#include <begin_vertex>
           // the whole sheet moves together (offsets depend on height, plus a smooth outward swell), so the hair
           // cards never tear apart into steps and the inner layer never pokes through the outer one
@@ -723,6 +723,7 @@ function init() {
           transformed.xz += rad * wv * (0.014 + 0.005 * ph);
           transformed.x += wv * clamp(position.x, -0.11, 0.11) * (0.04 + 0.03 * sin(position.y * 40.0));   // wavy outline on both sides
           transformed.z += wv * sin(position.y * 40.0 + 1.4) * 0.014;
+          vec3 restT = transformed;   // (before the plate / hood pushes: hung hair is clear of both)
           if (uPlate.w > 0.5 && position.z < -0.02 && abs(position.x) < 0.17) {   // lie over the back plate, not between it and her back
             float zo = uPlate.x + uPlateS * (position.y - 1.17);
             float f = smoothstep(uPlate.y + 0.07, uPlate.y - 0.005, position.y) * smoothstep(uPlate.z - 0.1, uPlate.z, position.y);
@@ -738,6 +739,11 @@ function init() {
               transformed.z = mix(transformed.z, min(transformed.z, e.z - 0.038), w);
               transformed.x += sign(e.x) * 0.01 * w;
             }
+          }`);
+      sh.vertexShader = sh.vertexShader.replace("#include <skinning_vertex>", `#include <skinning_vertex>
+          if (uHangOn > 0.0) {   // bent over (All fours): hair below the nape hangs from the head toward the floor instead of lying along her back
+            float hw = uHangOn * smoothstep(uHangY, uHangY - 0.1, position.y);
+            transformed = mix(transformed, (uHangM * vec4(restT, 1.0)).xyz, hw);
           }`);
       sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 uTint;")
         .replace("#include <map_fragment>", `#include <map_fragment>
@@ -755,7 +761,7 @@ function init() {
       else if (k === "cl_boots") o.material = tintMat(src, 3.2, 0.5, 0.6, { roughness: 0.4 });
       else if (k === "cl_sneakers") o.material = new THREE.MeshStandardMaterial({ map: src.map, roughness: 0.6 });
       else if (/^cl_/.test(k)) o.material = new THREE.MeshStandardMaterial({ map: camoTex("snow"), roughness: 0.85, side: THREE.DoubleSide });
-      else if (k === "eyes_hp") o.material = new THREE.MeshStandardMaterial({ color: 0xece8e2, roughness: 0.15 });
+      else if (k === "eyes_hp") { o.material = new THREE.MeshStandardMaterial({ color: 0xece8e2, roughness: 0.4 }); o.material.envMapIntensity = 0.35; }
       if (o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
       if (/^hair_|brows|lashes|eyes_hp/.test(k)) o.material.userData.outlineParameters = { visible: false };
       if (/^cl_/.test(k)) o.material.userData.cloth = true;
@@ -776,7 +782,9 @@ function init() {
   function build(s) {
     pendingState = s;
     if (!body) return;
-    const P = s.pick || {}, one = (k) => (P[k] || [])[0], has = (k, v) => (P[k] || []).indexOf(v) >= 0;
+    const P = s.pick || {}, one = (k) => (P[k] || [])[0];
+    // the night-vision helmet replaces a cap or beanie (both were drawn, one through the other)
+    const has = (k, v) => (k === "gear" && (v === "cap" || v === "beanie") && one("eyewear") === "nvg") ? false : (P[k] || []).indexOf(v) >= 0;
     const exag = (s.exag == null ? 80 : s.exag) / 100;
     const k = 0.55 + exag * 1.45;                        // how far the "up" morphs go
     const sh = s.shape || {};
@@ -2334,8 +2342,24 @@ function init() {
     if (headInfo) H.position.copy(headInfo.c); else H.position.copy(headB).add(v3(0, 0.085, 0.01));
     if (eyeInfo) H.position.x = (eyeInfo.l.x + eyeInfo.r.x) / 2;   // centre on the face midline (the head bone sits slightly off it)
     hairOrg.value.copy(H.position);
+    {   // gravity hang for the long hair sheet when her back is far from upright
+      HAIRU.uHangOn.value = 0;
+      const qs = new THREE.Quaternion(); restToHolder("spine_03").decompose(new THREE.Vector3(), qs, new THREE.Vector3());
+      const ang = v3(0, -1, 0).applyQuaternion(qs).angleTo(v3(0, -1, 0));
+      const on = THREE.MathUtils.clamp((ang - 0.5) / 0.5, 0, 1);
+      if (on > 0) {
+        const MH = restToHolder("head"), qh = new THREE.Quaternion(); MH.decompose(new THREE.Vector3(), qh, new THREE.Vector3());
+        const hi = skel.bones.findIndex((b) => b.name === "head"), hb = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(skel.boneInverses[hi]).invert());   // head bone, rest pose
+        const pr = hb.add(v3(0, 0.0, -0.06)), pp = pr.clone().applyMatrix4(MH);
+        const qc = new THREE.Quaternion().setFromUnitVectors(v3(0, -1, 0).applyQuaternion(qh), v3(0, -1, 0));
+        HAIRU.uHangM.value.makeTranslation(pp.x, pp.y, pp.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(qc))
+          .multiply(new THREE.Matrix4().makeTranslation(-pp.x, -pp.y, -pp.z)).multiply(MH);
+        HAIRU.uHangY.value = pr.y; HAIRU.uHangOn.value = on;
+      }
+    }
     // irises on the eyeballs
-    const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.15 }), pupil = std({ color: 0x050505, roughness: 0.1 });
+    const eyeC = std({ color: EYES[one("eyes")] || EYES.brown, roughness: 0.45 }), pupil = std({ color: 0x050505, roughness: 0.4 });
+    eyeC.envMapIntensity = 0.3; pupil.envMapIntensity = 0.3;   // glossy eyes mirrored the bright sky and went white when seen from below
     for (const m of [eyeC, pupil]) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -4; }
     const EYEG = new THREE.Group(); extras.add(EYEG);
     if (eyeInfo) for (const c of [eyeInfo.l, eyeInfo.r]) {
@@ -2413,7 +2437,7 @@ function init() {
     }
     else if (realHair && style === "pony") { const qh = new THREE.Quaternion(), qs = new THREE.Quaternion(); restToHolder("head").decompose(new THREE.Vector3(), qh, new THREE.Vector3()); restToHolder("spine_03").decompose(new THREE.Vector3(), qs, new THREE.Vector3());
       const up = Math.max(0, v3(0, 1, 0).applyQuaternion(qs).y), hang = v3(0, -0.55, -1).normalize().lerp(v3(0, -1, 0), up * up).normalize();   // bent over: drapes back along her neck and back
-      H.add(highPony(hairM, eyeY, eyeZ, scalpTop, has("gear", "cap") ? "cap" : has("gear", "beanie") ? "beanie" : null, hang.applyQuaternion(qh.invert()), has("gear", "vest") ? 0.07 : 0)); }
+      H.add(highPony(hairM, eyeY, eyeZ, scalpTop, has("gear", "cap") ? "cap" : has("gear", "beanie") || one("eyewear") === "nvg" ? "beanie" : null, hang.applyQuaternion(qh.invert()), has("gear", "vest") ? 0.07 : 0)); }
     else if (realHair && style === "buns" && !capped) {
       for (const sd of [-1, 1]) {
         const bn = sphere(0.04, hairM, sd * 0.052, scalpTop - 0.024, zc - 0.004, 1, 0.9, 1); H.add(bn);
