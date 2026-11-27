@@ -1167,13 +1167,15 @@
   function singleShot() { return poseMatch() || !!state.with; }
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
   function sceneLock() { return !!(window.BADDIES_3D_UP && window.BADDIES_3D_UP[state.bg]) && !!window.BADDIES_SCENE_PLATE; }
-  function neckFix() {   // text-to-image copies his chain onto her: the final edit puts back exactly her own necklaces
+  function neckFix() {   // text-to-image copies his chain onto her: the final edit puts back exactly her own necklaces, his stays
     var N = { chain: "a gold chain necklace", tennis: "a diamond tennis necklace", dogtags: "silver dog tags on a thin silver ball chain" };
     var mine = (state.pick.jewelry || []).filter(function (k) { return N[k]; }).map(function (k) { return N[k]; });
-    var his = withOpt("jewel") === "on";
-    return "Around the woman's neck there is " + (mine.length ? "only " + mine.join(" and ") : "no necklace at all") + ": remove any other chain or pendant from her" +
-      (mine.indexOf(N.chain) < 0 ? ", including any thick gold Cuban link chain" : "") + " and any lion pendant. " +
-      (his ? "The man keeps his own chain and pendant exactly as they are. " : "The man wears no chain, necklace or pendant. ");
+    var h = String((state["with"] || {}).handle || "").toLowerCase(), his = withOpt("jewel") === "on";
+    var hisChain = JEWEL[h] ? "his " + JEWEL[h].replace(/^his /, "") : "his own necklace";
+    return (his ? "The man keeps " + hisChain + " exactly as it is in the picture: do not change, shrink or remove his chain or pendant. "
+                : "The man wears no chain, necklace or pendant: remove them from him. ") +
+      "Only on the woman: her neck has " + (mine.length ? "only " + mine.join(" and ") : "no necklace at all") +
+      (mine.indexOf(N.chain) < 0 ? "; if the woman has a thick gold chain or a lion pendant, take it off her (only hers)" : "") + ". ";
   }
   function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one real photo
     var two = !!state["with"];
