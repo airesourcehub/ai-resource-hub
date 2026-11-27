@@ -40,7 +40,7 @@ function init() {
   controls.enablePan = false;
   controls.enableDamping = true;
   controls.minDistance = 1.0;
-  controls.maxDistance = 5.5;
+  controls.maxDistance = 14;   // zoom out far enough to see the whole scene around her
   controls.minPolarAngle = 0.25;
   controls.maxPolarAngle = Math.PI / 2 + 0.12;
   controls.autoRotate = true;
@@ -3004,18 +3004,18 @@ function init() {
       if (panoTex[want]) showPano(panoTex[want]);
       else { flat(); loadPano(want, (t) => { if (t && bgWant === want && bgOn) showPano(t); }); }
       ground.visible = true;
-      controls.maxDistance = 7; controls.minPolarAngle = 0.35; controls.maxPolarAngle = Math.PI / 2 + 0.3;
+      controls.maxDistance = PANO_UP[want] ? 24 : 18; controls.minPolarAngle = 0.35; controls.maxPolarAngle = Math.PI / 2 + 0.3;
       if (!was) frameForBackdrop();
     } else if (plain && (!curBg || curBg === "white")) {   // white studio: light seamless sweep with her shadow on the floor
       backdrop.visible = false; floor.visible = false; skyFill.visible = false; hideSky(); panoOn = false;
       canvasWrap.style.background = "radial-gradient(120% 85% at 50% 35%, #ffffff 0%, #f1f1f2 45%, #dcdcde 100%)";
-      controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
+      controls.maxDistance = 14; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       ground.visible = true;
       if (was) unframeBackdrop();
     } else {
       if (was) unframeBackdrop();
       backdrop.visible = false; floor.visible = false; skyFill.visible = false; hideSky(); panoOn = false; canvasWrap.style.background = lookBg;
-      controls.maxDistance = 5.5; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
+      controls.maxDistance = 14; controls.minPolarAngle = 0.25; controls.maxPolarAngle = Math.PI / 2 + 0.12;
       if (curLook && !curLook.holo && !curLook.grid && !curLook.shadows) ground.visible = true;
     }
   }
