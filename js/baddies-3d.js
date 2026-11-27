@@ -312,12 +312,12 @@ function init() {
     const white = std({ color: 0xe6e9ec, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide });
     const led = new THREE.MeshBasicMaterial({ color: 0x48e6ff, toneMapped: false });
     const cable = std({ color: 0xf2f4f6, roughness: 0.4, metalness: 0.3 });
-    const W = 3.2, D = 2.6;
+    const W = 2.1, D = 2.4;   // narrow crown: her feet are near both glowing edges, the city drops away on each side
     const arch = (H, half, rot, off, leds = true) => {
       const fy = archCurve(H, half), grp = new THREE.Group();
       grp.add(sweepBox(fy, -half * 1.02, half * 1.02, half / 90, W, D, white));
       if (leds) for (const s of [-1, 1]) {   // LED strips on both top edges and a wash along the underside
-        grp.add(sweepBox((x) => fy(x) - 0.12, -half, half, half / 90, 0.12, 0.18, led, 0, [0, 0, s * (W / 2 + 0.05)]));
+        grp.add(sweepBox((x) => fy(x) - 0.06, -half, half, half / 90, 0.16, 0.26, led, 0, [0, 0, s * (W / 2 + 0.07)]));
       }
       if (leds) grp.add(sweepBox((x) => fy(x) - D - 0.02, -half, half, half / 90, 1.4, 0.06, led));
       // cable stays: fan down from the arch to the deck 100 m below, on both sides

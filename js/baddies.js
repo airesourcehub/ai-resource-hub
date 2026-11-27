@@ -1297,7 +1297,7 @@
       suit: "a sharp black two-button suit with a crisp white shirt and black leather shoes", street: "streetwear: a plain black oversized t-shirt, dark jeans and clean white sneakers" }[withOpt("outfit")];
     var jewel = withOpt("jewel") === "on" ? (JEWEL[h] ? JEWEL[h] + " as real jewelry over the shirt" : "their own jewelry") : "no chain, no necklace, no pendant and no jewelry at all";
     var glasses = withOpt("glasses") === "keep" ? (GLASSES_DEF[h] ? ", " + GLASSES_DEF[h] : "") : ", no sunglasses or glasses, eyes visible";
-    return " " + who + " wears " + outfit + ", " + jewel + glasses + ". These are worn only by " + who + ": the woman does not wear his chain, pendant, watch or clothes, and " + who +
+    return " " + who + " wears " + outfit + ", " + jewel + glasses + ". These are worn only by " + who + ": the woman does not wear his chain, pendant, watch or clothes (she wears only the jewelry listed for her, dog tags on a thin silver ball chain, no gold Cuban link chain unless listed for her), and " + who +
       " has none of her tattoos, gear, knee pads, boots or jewelry." + (withOpt("jewel") === "on" ? " " + CHAIN_NOTE : "");
   }
   function jewelNote(c) {
