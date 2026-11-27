@@ -804,6 +804,7 @@ function init() {
     };
     const pair = (up, dn, x, boost = k) => { set(up, x > 0 ? x * boost : 0); set(dn, x < 0 ? -x : 0); };
     const male = s.gender === "male";
+    curGear = { vest: has("gear", "vest"), chest: has("gear", "chest"), puffer: one("top") === "puffer" };
     if (male) {   // the preview body is female: flatten it toward a male build (flat chest, straight hips, more muscle)
       pair("hips_up", "hips_dn", e("hips") * 0.45 - 0.6, 1);
       pair("glutes_up", "glutes_dn", e("glutes") * 0.7 - 0.3, 1);
@@ -1145,8 +1146,8 @@ function init() {
   // targets were set for a slim figure, so with wide hips the fingers sank into her. Measure the posed body
   // just below the wrist and move the hand out so the palm rests on the surface.
   let torsoVerts = null;
-  function fitHand(T) {
-    if (!body || Math.abs(T.x) > 0.34 || T.y < 0.7 || T.y > 1.3 || Math.abs(T.z) > 0.14) return T;
+  let curGear = {};   // set by build(): what she wears in front of her torso (hands in front of the chest must clear it)
+  function torsoList() {
     const g = body.geometry;
     if (!torsoVerts || torsoVerts.g !== g) {
       const SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array, P = g.attributes.position.array;
@@ -1158,6 +1159,23 @@ function init() {
       }
       torsoVerts = { g, list };
     }
+    return torsoVerts.list;
+  }
+  function fitHand(T) {
+    if (!body) return T;
+    if (Math.abs(T.x) < 0.22 && T.z > 0.06 && T.y > 0.85 && T.y < 1.42) {   // hands in front of the chest (arms crossed): stay in front of the plate / chest rig
+      const add = (curGear.vest && T.y > 0.98 && T.y < 1.34 ? 0.085 : 0) || (curGear.chest && T.y > 0.9 && T.y < 1.08 ? 0.07 : 0) || (curGear.puffer ? 0.025 : 0);
+      if (!add) return T;
+      holder.updateMatrixWorld(true); body.skeleton.update();
+      const v = new THREE.Vector3(); let zf = -9;
+      for (const i of torsoList()) { body.getVertexPosition(i, v); v.applyMatrix4(body.matrixWorld); holder.worldToLocal(v);
+        if (Math.abs(v.x) < 0.16 && Math.abs(v.y - T.y) < 0.07 && v.z > zf) zf = v.z; }
+      if (zf > -9) T.z = Math.max(T.z, zf + add + 0.035);
+      if (add > 0.05) { T.x *= 0.35; T.y += 0.06; T.fwd = true; }   // over a plate the forearms can't cross as far: elbows come forward, wrists meet in front of it
+      return T;
+    }
+    if (Math.abs(T.x) > 0.34 || T.y < 0.7 || T.y > 1.3 || Math.abs(T.z) > 0.14) return T;
+    torsoList();
     holder.updateMatrixWorld(true); body.skeleton.update();
     const s = T.x < 0 ? -1 : 1, v = new THREE.Vector3(); let w = 0;
     for (const i of torsoVerts.list) {
@@ -1170,7 +1188,7 @@ function init() {
   }
   function ik(side, T, elbowOut) {
     const e = elbowOut == null ? 0.75 : elbowOut;
-    ikChain("upperarm_" + side, "lowerarm_" + side, "hand_" + side, T, v3(side === "r" ? -e : e, -1, -0.25));
+    ikChain("upperarm_" + side, "lowerarm_" + side, "hand_" + side, T, T.fwd ? v3(side === "r" ? -0.55 : 0.55, -0.6, 1.1) : v3(side === "r" ? -e : e, -1, -0.25));
   }
   function ikChain(ua, la, h, T, pole) {
     if (!B[ua] || !B[la] || !B[h]) return;
