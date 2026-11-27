@@ -91,7 +91,7 @@ function init() {
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
   const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
-  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b", southbeach: "1125a", hawaii: "1125a", malibu: "1125a", everest: "1125a", overlook: "1125a", nyroof: "1125a", antdubai: "1125a", anttokyo: "1125a", antshanghai: "1125a", wing777: "1125a", mars: "1125a", moon: "1125a" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b", southbeach: "1125a", hawaii: "1125a", malibu: "1125a", everest: "1125a", overlook: "1125a", nyroof: "1125a", antdubai: "1125a", anttokyo: "1125a", antshanghai: "1125a", wing777: "1125a", mars: "1125a", moon: "1125a", sigbridge: "1127a" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
   // 4K loads first; on desktops whose GPU takes 8192-px textures the 8K version follows and swaps in when ready
   const PANO_8K = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && renderer.capabilities.maxTextureSize >= 8192;
@@ -112,11 +112,11 @@ function init() {
     }, undefined, () => { panoMiss[id] = true; cb(null); });
   }
   // where each panorama's main subject sits (0..1 across the image): turned to stand behind her in the front view
-  const PANO_HERO = { timessquare: 0.5, pyramids: 0.74, santamonica: 0.12, vegas: 0.55, niagara: 0.42, burj: 0.53, eiffel: 0.92, liberty: 0.57, vizcaya: 0.89, frenchmans: 0.45, bamboo: 0.5, chinasnow: 0.7, desert: 0.45, snow: 0.5, christmas: 0.46, halloween: 0.975, newyear: 0.55, valentine: 0.5, july4: 0.72, brickellpm: 0.3, miami: 0.53, ultra: 0.93, jungle: 0.5, southbeach: 0.5, hawaii: 0.78, malibu: 0.62, everest: 0.58, overlook: 0.38, nyroof: 0.215, antdubai: 0.35, anttokyo: 0.445, antshanghai: 0.95, wing777: 0.5, mars: 0.3, moon: 0.58 };
+  const PANO_HERO = { timessquare: 0.5, pyramids: 0.74, santamonica: 0.12, vegas: 0.55, niagara: 0.42, burj: 0.53, eiffel: 0.92, liberty: 0.57, vizcaya: 0.89, frenchmans: 0.45, bamboo: 0.5, chinasnow: 0.7, desert: 0.45, snow: 0.5, christmas: 0.46, halloween: 0.975, newyear: 0.55, valentine: 0.5, july4: 0.72, brickellpm: 0.3, miami: 0.53, ultra: 0.93, jungle: 0.5, southbeach: 0.5, hawaii: 0.78, malibu: 0.62, everest: 0.58, overlook: 0.38, nyroof: 0.215, antdubai: 0.35, anttokyo: 0.445, antshanghai: 0.95, wing777: 0.5, mars: 0.3, moon: 0.58, sigbridge: 0.25 };
   let panoId = "";
   // high-up scenes (summits, rooftops, antenna tips, a plane wing): the panorama stays a plain sphere so the drop below
   // reads as a drop (no ground flattened under her), and a small 3D platform carries her instead
-  const PANO_UP = { everest: "snow", overlook: "rock", nyroof: "roof", antdubai: "mast", anttokyo: "mast", antshanghai: "mast", wing777: "wing" };
+  const PANO_UP = { everest: "snow", overlook: "rock", nyroof: "roof", antdubai: "mast", anttokyo: "mast", antshanghai: "mast", wing777: "wing", sigbridge: "arch" };
   let skyG = null, skyU = null; const props = {}, upEnv = {};
   // ---- Boeing 777 (real scale, metres): she stands at the right wingtip; nose toward -z, fuselage ~30 m inboard (-x)
   function canvasTexture(w, h, draw) {
@@ -289,6 +289,59 @@ function init() {
     const navR = navG.clone(); navR.material = new THREE.MeshBasicMaterial({ color: 0xff2a2a }); navR.position.x = 2 * FX - navG.position.x; g.add(navR);
     const navRGlow = glow(0xff2a2a, 0.32); navRGlow.position.copy(navR.position); g.add(navRGlow);
   }
+  // ---- Miami I-395 Signature Bridge: she stands on the crown of the tallest arch (~100 m over the highway).
+  // The arch runs along x (left / right in the front view). White concrete box section, cyan LED strips along
+  // both top edges and the underside, white cable stays fanning down to the deck, two lower crossing arches.
+  function archCurve(H, half) { const k = H / (half * half); return (x) => -k * x * x; }   // top surface, peak at y = 0
+  function sweepBox(fy, x0, x1, step, w, d, mat, rot, off) {   // rectangular section swept along y = fy(x) in the xy plane
+    const pos = [], idx = [], N = Math.round((x1 - x0) / step);
+    const corners = [[-w / 2, 0], [w / 2, 0], [w / 2, -d], [-w / 2, -d]];   // (z, down along the normal)
+    for (let i = 0; i <= N; i++) {
+      const x = x0 + (x1 - x0) * i / N, y = fy(x), e = 0.01, dy = (fy(x + e) - fy(x - e)) / (2 * e);
+      const tl = Math.hypot(1, dy), nx = -dy / tl, ny = 1 / tl;   // up normal of the curve
+      for (const [z, dn] of corners) pos.push(x + nx * dn, y + ny * dn, z);
+    }
+    for (let i = 0; i < N; i++) for (let c = 0; c < 4; c++) {
+      const a = i * 4 + c, b = i * 4 + (c + 1) % 4, a2 = a + 4, b2 = b + 4;
+      idx.push(a, a2, b, b, a2, b2);
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, mat); if (rot) m.rotation.y = rot; if (off) m.position.set(off[0], off[1], off[2]); return m;
+  }
+  function makeArch(g, std) {
+    const white = std({ color: 0xe6e9ec, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide });
+    const led = new THREE.MeshBasicMaterial({ color: 0x48e6ff, toneMapped: false });
+    const cable = std({ color: 0xf2f4f6, roughness: 0.4, metalness: 0.3 });
+    const W = 3.2, D = 2.6;
+    const arch = (H, half, rot, off, leds = true) => {
+      const fy = archCurve(H, half), grp = new THREE.Group();
+      grp.add(sweepBox(fy, -half * 1.02, half * 1.02, half / 90, W, D, white));
+      if (leds) for (const s of [-1, 1]) {   // LED strips on both top edges and a wash along the underside
+        grp.add(sweepBox((x) => fy(x) - 0.12, -half, half, half / 90, 0.12, 0.18, led, 0, [0, 0, s * (W / 2 + 0.05)]));
+      }
+      if (leds) grp.add(sweepBox((x) => fy(x) - D - 0.02, -half, half, half / 90, 1.4, 0.06, led));
+      // cable stays: fan down from the arch to the deck 100 m below, on both sides
+      for (let x = -half * 0.9; x <= half * 0.9; x += 7) {
+        if (Math.abs(x) < 4) continue;
+        for (const s of [-1, 1]) {
+          const a = new THREE.Vector3(x, fy(x) - D * 0.5, s * 1.2), b = new THREE.Vector3(x * 0.96, -H - 2, s * 9);
+          const len = a.distanceTo(b), c = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, len, 6, 1, true), cable);
+          c.position.copy(a).add(b).multiplyScalar(0.5); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); grp.add(c);
+        }
+      }
+      if (rot) grp.rotation.y = rot; if (off) grp.position.set(...off);
+      g.add(grp); return grp;
+    };
+    arch(100, 82);                                   // the tallest arch: she stands on its crown
+    // the five lower arches step down along the highway on both sides, turned and leaning so they cross each other
+    for (const [H, x, rot, lean] of [[86, -34, 0.32, 0.14], [86, 34, -0.32, -0.14], [70, -66, -0.28, -0.12], [70, 66, 0.28, 0.12], [56, -96, 0.22, 0.1]]) {
+      const a = arch(H, H * 0.84, rot, [x, -(100 - H), 0]); a.rotation.x = lean;
+    }
+    // highway deck far below (the panorama shows the city; this ties the cables to something)
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(260, 1.2, 34), std({ color: 0x3a3d42, roughness: 0.9 })); deck.position.y = -102.6; g.add(deck);
+    const glowStrip = (z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(260, 0.1, 0.4), new THREE.MeshBasicMaterial({ color: z > 0 ? 0xff4030 : 0xfff1d0, toneMapped: false })); m.position.set(0, -101.95, z); g.add(m); };
+    for (const z of [-11, -6, 6, 11]) glowStrip(z);
+  }
   function makeProp(kind) {
     const g = new THREE.Group();
     const std = (o) => new THREE.MeshStandardMaterial(o);
@@ -319,6 +372,8 @@ function init() {
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
     } else if (kind === "wing") {
       make777(g, std);
+    } else if (kind === "arch") {
+      makeArch(g, std);
     }
     g.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; o.userData.lookShadow = true; } });
     g.visible = false; scene.add(g); return g;

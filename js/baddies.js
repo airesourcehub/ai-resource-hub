@@ -438,6 +438,7 @@
     ["anttokyo", "Tokyo Skytree antenna", "standing on the tiny top of the Tokyo Skytree antenna at dusk, more than 600 meters up, the endless lights of Tokyo far below her and Mount Fuji on the horizon, a daring rooftopper selfie background"],
     ["antshanghai", "Shanghai Tower top", "standing on the tiny top of the Shanghai Tower at blue hour, more than 600 meters up, the glowing Lujiazui skyline and Huangpu River far below her, a daring rooftopper selfie background"],
     ["wing777", "777 wingtip", "standing on the wingtip of a Boeing 777 airliner at cruising altitude at sunset, the white wing and engine beside her, a sea of clouds far below and a glowing orange and pink sky background"],
+    ["sigbridge", "Miami Signature Bridge", "standing on the very top peak of the tallest white arch of Miami's I-395 Signature Bridge at dusk, about 100 meters up, the bridge's other white arches and cable stays glowing cyan blue below her, the downtown Miami skyline, Biscayne Bay and the highway light trails far below, an orange and pink sunset sky background"],
     ["mars", "Mars", "standing on the surface of Mars, rust red dust and rocks, red mountains and a huge crater rim on the horizon, hazy butterscotch sky background"],
     ["moon", "The Moon", "standing on the surface of the Moon, grey lunar dust and craters, a black starry sky with the blue Earth above the horizon, a lunar lander in the distance background"],
   ];
