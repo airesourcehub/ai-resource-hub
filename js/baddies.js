@@ -335,6 +335,10 @@
     ["side", "At her side", "holding it relaxed down at her side"]
   ];
 
+  // Picture size: Auto keeps each shot's own size; the others force the aspect ratio of every generated picture
+  var ASPECTS = [["auto", "Auto", 0, 0], ["9x16", "9:16", 768, 1344], ["2x3", "2:3", 832, 1216], ["4x5", "4:5", 896, 1120],
+    ["1x1", "1:1", 1024, 1024], ["3x2", "3:2", 1216, 832], ["16x9", "16:9", 1344, 768]];
+  function aspectDims() { var a = fromList(ASPECTS, state.aspect || "auto"); return a && a[2] ? { w: a[2], h: a[3] } : null; }
   var VIEWS = {
     sheet: { label: "Turnaround", w: 1344, h: 768, lead: "Character turnaround reference sheet of", tail: "shown three times side by side as the exact same character on one sheet: front view, side profile view and back view, all full body head to toe with boots visible, identical outfit, tattoos, hair and weapon in every view" },
     full: { label: "Full body", w: 832, h: 1216, lead: "Full-body shot, head to toe, of", tail: "standing facing the camera, whole body in frame including boots" },
@@ -448,7 +452,7 @@
     pick: { hair: ["straight"], haircolor: ["black"], makeup: ["glam"], eyes: ["brown"], expr: ["confident"],
       camo: ["snow"], top: ["puffer"], bottom: ["bodysuit"], gear: ["vest", "gloves"], eyewear: ["none"], boots: ["white"],
       tattoos: ["legs"], inkstyle: ["color"], jewelry: ["studs"] },
-    weapon: "ak47", hold: "low", camlock: "on", gender: "female", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
+    weapon: "ak47", hold: "low", camlock: "on", aspect: "auto", gender: "female", view: CFG.view in VIEWS ? CFG.view : "sheet", style: "game", bg: "white",
     pose: { preset: "hold", custom: null, match: false, look: { turn: 0, twist: 0, head: 0, nod: 0, tilt: 0, eyeX: 0, eyeY: 0 } }, duo: "side"
   };
 
@@ -509,6 +513,7 @@
       '<label class="bd-toggle"><input type="checkbox" id="bdPoseMatch" /> <span>Match my 3D pose exactly in the AI render</span></label>';
     $("bdDuo").innerHTML = '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
+      chipRow("aspect", "Picture size", ASPECTS.map(function (a) { return [a[0], a[1]]; })) +
       '<div class="bd-camlock">' + chipRow("camlock", "Viewer angle: match it", [["on", "Exactly (3D picture)"], ["off", "Words only (faster)"]]) +
       '<p class="bd-note">Frame her in the 3D viewer (drag, scroll, or High / Low / Close), then Generate. "Exactly" sends a picture from your camera so the render copies the angle.</p></div>' +
       chipRow("style", "Look", STYLES) + chipRow("bg", "Background", BGS);
@@ -895,7 +900,7 @@
       parts.push(V.lead + " @" + o.lora + " as a soldier character called a Baddie, unmistakably the same person with the same face");
     } else if (o.duo) {
       parts.push("Wide full-body shot of two people together, head to toe: a stunning adult woman in her late twenties, a female soldier character called a Baddie, and @" + o.duo +
-        " (exactly as they really look, in their own clothes). They are " + fromList(DUO, state.duo || "side")[2] + ". Everything below describes the woman");
+        " (exactly as they really look, in their own clothes)." + jewelNote(state["with"]) + " They are " + fromList(DUO, state.duo || "side")[2] + ". Everything below describes the woman");
     } else if (C) {
       parts.push("Restyle the exact person in this photo as a soldier character called a Baddie. IDENTITY FIRST: it must stay unmistakably this same person: same face, same age, same facial features and bone structure, same skin color (do not lighten or darken it), same head shape and neck, same eyes, nose, lips and eyebrows, and any glasses or distinctive features they have, recognizable in every view");
       parts.push(V.lead + " this same person as a female soldier character called a Baddie");
@@ -1154,7 +1159,16 @@
   function poseMatch() { return !!(state.pose && (state.pose.preset === "custom" || state.pose.match)); }
   function singleShot() { return poseMatch() || !!state.with; }
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
-  function planSteps() {
+  function planSteps() {   // the steps, sized to the chosen picture size
+    var plan = planSteps0(), A = aspectDims();
+    if (A) {
+      var sized = false;
+      plan.forEach(function (st) { if (st.w) { st.w = A.w; st.h = A.h; sized = true; } });
+      if (!sized) { var L = plan[plan.length - 1]; L.w = A.w; L.h = A.h; }
+    }
+    return plan;
+  }
+  function planSteps0() {
     var V = VIEWS[state.view], F = VIEWS.full, steps = [], C = state.char, single = singleShot();
     var LC = useLora(C) ? C : null, LW = !C && useLora(state["with"]) ? state["with"] : null;
     if (LC || LW) {   // LoRA mode: the trained character is drawn from scratch by its LoRA
@@ -1238,9 +1252,15 @@
     if (fromLeft) return "This picture has two panels. Show the woman from the LEFT panel, alone, in exactly the pose, body angle, arm, hand, leg and head positions and camera angle of the 3D figure in the RIGHT panel. Keep her face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon exactly the same. Full body head to toe, one person only, the 3D figure itself must not appear. " + bg + ". " + look + ".";
     return "Use the 3D figure in this picture as the pose and camera reference: create the following character with exactly the same pose, body angle, arm, hand, leg and head positions and the same camera angle and framing, rendered with full real detail (real skin, fabric and metal), not a plain 3D preview. Pose: " + poseDesc() + ". " + promptAs("full");
   }
+  var JEWEL = { crissp: "his thick chunky gold Cuban link chain with a large iced-out lion head pendant (the lion's face and mane paved with white diamonds, gold outlines, red ruby eyes, an open roaring gold mouth)" };
+  var CHAIN_NOTE = "Every chain and pendant is real three-dimensional metal jewelry hanging around the neck on top of the shirt, catching the light, never printed, drawn or embroidered on the clothes as a logo or graphic.";
+  function jewelNote(c) {
+    var j = c && c.handle ? JEWEL[String(c.handle).toLowerCase()] : "";
+    return (j ? " The other person (not the woman) wears " + j + " as real jewelry over the shirt." : "") + " " + CHAIN_NOTE;
+  }
   function duoPrompt() {
     var d = fromList(DUO, state.duo || "side")[2];
-    return "This picture shows two people side by side. Make one new photo of both of them together in the same scene: on the LEFT the woman soldier (keep her exact face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon); on the RIGHT the other person (keep their exact face, age, skin color, hair, body and clothes). They are " + d +
+    return "This picture shows two people side by side. Make one new photo of both of them together in the same scene: on the LEFT the woman soldier (keep her exact face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon); on the RIGHT the other person (keep their exact face, age, skin color, hair, body and clothes)." + jewelNote(state["with"]) + " They are " + d +
       ", both full body head to toe and both clearly recognizable, exactly two people. " + fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ".";
   }
   async function composite(blobs) {
@@ -1291,7 +1311,7 @@
     settings.models = plan.map(stepModel).concat(plan.some(function (st) { return st.post; }) ? ["qwen_edit2509"] : [])
       .filter(function (m, i, a) { return a.indexOf(m) === i; });
     var card = { id: "tmp-" + Date.now(), name: name, settings: settings, view: state.view, model: model, prompt: genderize(plan.map(function (x) { return x.prompt; }).join("\n\n")),
-      created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: state.with ? 1216 : last.w, h: state.with ? 832 : last.h,
+      created_at: new Date().toISOString(), status: "queued", pending: true, progress: 2, stage: "Sending to the GPU…", urls: [], w: aspectDims() ? aspectDims().w : state.with ? 1216 : last.w, h: aspectDims() ? aspectDims().h : state.with ? 832 : last.h,
       plan: plan, si: -1, blobs: blobs, editModel: editModel(), engine: state.engine, wearing: wearingLine(), who: state.char && state.char.handle ? "@" + state.char.handle : "" };
     state.mine.unshift(card); renderMine();
     try { await runStep(card, 0, token); }
@@ -1497,14 +1517,14 @@
   // ------------------------------------------------------------ settings in/out
   function snapshot() {
     return { skin: state.skin, height: state.height, exag: state.exag, shape: clone(state.shape), pick: clone(state.pick),
-      weapon: state.weapon, hold: state.hold, view: state.view, camlock: state.camlock || "on", loraMode: loraMode(), gender: state.gender || "female", style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
+      weapon: state.weapon, hold: state.hold, view: state.view, aspect: state.aspect || "auto", camlock: state.camlock || "on", loraMode: loraMode(), gender: state.gender || "female", style: state.style, bg: state.bg, extra: $("bdExtra") ? $("bdExtra").value.trim() : "",
       hairTouched: !!state.hairTouched, pose: clone(state.pose || DEFAULTS.pose), duo: state.duo || "side",
       "with": state["with"] ? { key: state["with"].key, name: state["with"].name, handle: state["with"].handle, kind: state["with"].kind, thumb: state["with"].thumb, url: state["with"].url } : null,
       char: state.char ? { key: state.char.key, name: state.char.name, handle: state.char.handle, kind: state.char.kind, thumb: state.char.thumb, url: state.char.url } : null };
   }
   function applySettings(s, quiet) {
     if (!s) return;
-    ["skin", "height", "exag", "weapon", "hold", "view", "camlock", "loraMode", "gender", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
+    ["skin", "height", "exag", "weapon", "hold", "view", "aspect", "camlock", "loraMode", "gender", "style", "bg"].forEach(function (k) { if (s[k] != null) state[k] = s[k]; });
     if (!VIEWS[state.view]) state.view = "sheet";
     if (s.shape) state.shape = Object.assign(clone(DEFAULTS.shape), s.shape);
     if (s.pick) state.pick = Object.assign(clone(DEFAULTS.pick), clone(s.pick));
