@@ -342,6 +342,7 @@ function init() {
     const glowStrip = (z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(260, 0.1, 0.4), new THREE.MeshBasicMaterial({ color: z > 0 ? 0xff4030 : 0xfff1d0, toneMapped: false })); m.position.set(0, -101.95, z); g.add(m); };
     for (const z of [-11, -6, 6, 11]) glowStrip(z);
   }
+  window.BADDIES_3D_UP = PANO_UP;   // scenes built in 3D: the AI render is matched to the 3D view
   function makeProp(kind) {
     const g = new THREE.Group();
     const std = (o) => new THREE.MeshStandardMaterial(o);
