@@ -3316,6 +3316,34 @@ function init() {
   }
   window.BADDIES_CAMERA = camInfo;
   // the current view, as seen in the viewer (background on), without the height ruler and pose handles
+  // The 3D scene from the viewer camera WITHOUT her (a clean plate), plus where she stands in it (pixel box of her body).
+  window.BADDIES_SCENE_PLATE = async function (W, H) {
+    const vis = [ruler.visible, handleGroup.visible, holder.visible], ar = controls.autoRotate, pr = renderer.getPixelRatio();
+    try {
+      ruler.visible = false; handleGroup.visible = false; controls.autoRotate = false;
+      renderer.setPixelRatio(1); renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
+      placeBackdrop(); upShadowFix();
+      let box = null;
+      if (body) {
+        holder.updateMatrixWorld(true); if (body.skeleton) body.skeleton.update();
+        const v = new THREE.Vector3(), P = body.geometry.attributes.position; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        for (let i = 0; i < P.count; i += 7) {
+          body.getVertexPosition(i, v); v.applyMatrix4(body.matrixWorld).project(camera);
+          const x = (v.x + 1) / 2 * W, y = (1 - v.y) / 2 * H; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+        const hair = extras ? new THREE.Box3().setFromObject(extras) : null;   // hair / hats stick up above the scalp
+        if (hair && !hair.isEmpty()) { const t = new THREE.Vector3((hair.min.x + hair.max.x) / 2, hair.max.y, (hair.min.z + hair.max.z) / 2).project(camera); y0 = Math.min(y0, (1 - t.y) / 2 * H); }
+        if (y1 > y0 + 8) box = { x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x1), y1: Math.round(y1) };
+      }
+      holder.visible = false;
+      if (curLook.outline) outline.render(scene, camera); else renderer.render(scene, camera);
+      const blob = await new Promise((res) => dom.toBlob(res, "image/png"));
+      return { blob, box };
+    } finally {
+      ruler.visible = vis[0]; handleGroup.visible = vis[1]; holder.visible = vis[2]; controls.autoRotate = ar;
+      renderer.setPixelRatio(pr); resize(); controls.update();
+    }
+  };
   window.BADDIES_CAMERA_SNAPSHOT = async function (W, H) {
     const vis = [ruler.visible, handleGroup.visible], ar = controls.autoRotate, pr = renderer.getPixelRatio();
     try {

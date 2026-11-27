@@ -1166,7 +1166,15 @@
   function poseMatch() { return !!(state.pose && (state.pose.preset === "custom" || state.pose.match)); }
   function singleShot() { return poseMatch() || !!state.with; }
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
-  function sceneLock() { return !!(window.BADDIES_3D_UP && window.BADDIES_3D_UP[state.bg]) && !!window.BADDIES_CAMERA_SNAPSHOT; }
+  function sceneLock() { return !!(window.BADDIES_3D_UP && window.BADDIES_3D_UP[state.bg]) && !!window.BADDIES_SCENE_PLATE; }
+  function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one real photo
+    var two = !!state["with"];
+    return "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. Turn it into one seamless real photo. " +
+      "Keep everything exactly where it is: the camera angle, framing, horizon, the background, the structure under their feet, and " + (two ? "each person's" : "her") +
+      " position, size, pose, face, hair, body, clothes, tattoos and jewelry. Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add real contact shadows under the feet, " +
+      "and give the scene real photographic detail and texture (smooth white concrete, glowing lights, a real city, water and sky). Do not add, remove or move any person, arch, tower, road or building. " +
+      fromList(STYLES, state.style)[2] + ".";
+  }
   function scenePrompt() {
     var two = !!state["with"];
     return "Picture 1 is a 3D preview that shows the exact place, structure and camera angle to use. Picture 2 shows the real " + (two ? "people" : "woman") + ". " +
@@ -1180,7 +1188,7 @@
     var plan = planSteps0(), A = aspectDims();
     if (sceneLock() && !plan.some(function (st) { return st.inputs.indexOf("cam") >= 0; })) {
       var CVs = camShot(), b0 = plan[plan.length - 1].batch; delete plan[plan.length - 1].batch;
-      plan.push({ label: "matching the 3D scene", inputs: ["cam", "prev"], multi: true, w: CVs.w, h: CVs.h, prompt: scenePrompt(), post: state["with"] ? "" : bodyEdit(), batch: b0 });
+      plan.push({ label: "matching the 3D scene", inputs: ["plate", "prev"], multi: true, place: true, w: CVs.w, h: CVs.h, prompt: placePrompt(), batch: b0 });
     }
     if (A) {
       var sized = false;
@@ -1336,6 +1344,12 @@
         var cst = plan.filter(function (st) { return st.inputs.indexOf("cam") >= 0; })[0], cv = cst && cst.w ? { w: cst.w, h: cst.h } : camShot(), cb = await window.BADDIES_CAMERA_SNAPSHOT(cv.w, cv.h); if (!cb) throw new Error("Couldn't capture the camera view.");
         blobs.cam = new File([cb], "camera-view.png", { type: "image/png" });
       }
+      var pst = plan.filter(function (st) { return st.place; })[0];
+      if (pst) {   // the scene plate from the viewer camera, and where she stands in it
+        var pr = await window.BADDIES_SCENE_PLATE(pst.w, pst.h); if (!pr || !pr.blob) throw new Error("Couldn't capture the 3D scene.");
+        if (!pr.box || pr.box.x1 < 0 || pr.box.x0 > pst.w || pr.box.y1 < 0 || pr.box.y0 > pst.h) throw new Error("She is out of the 3D view. Frame her in the 3D preview first, then Generate.");
+        blobs.plate = new File([pr.blob], "scene-plate.png", { type: "image/png" }); pst.placeBox = Object.assign({ duo: !!state["with"] }, pr.box);
+      }
       if (poseMatch() && state.view !== "cam") {
         if (!window.BADDIES_POSE_SNAPSHOT) throw new Error("The 3D preview isn't ready yet, so the pose can't be captured. Wait a moment and try again.");
         var pb = await window.BADDIES_POSE_SNAPSHOT(); if (!pb) throw new Error("Couldn't capture the 3D pose.");
@@ -1383,6 +1397,7 @@
     if (st.multi) { if (ins[1]) fd.append("image2", ins[1], ins[1].name || "image2.png"); if (ins[2]) fd.append("image3", ins[2], ins[2].name || "image3.png"); }
     if (mdl === "flux2" || /_edit/.test(mdl)) { fd.append("lora", ""); fd.append("lora_strength", "1.0"); }
     if (st.post) fd.append("post_edit", genderize(st.post));
+    if (st.placeBox) fd.append("place", JSON.stringify(st.placeBox));
     var r = await fetch(RENDER() + "/image-jobs", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
     var d = await r.json().catch(function () { return {}; });
     if (!r.ok) throw new Error(d.detail || ("HTTP " + r.status));
