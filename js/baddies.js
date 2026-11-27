@@ -1201,6 +1201,10 @@
       var CVs = camShot(), b0 = plan[plan.length - 1].batch; delete plan[plan.length - 1].batch;
       plan.push({ label: "matching the 3D scene", inputs: ["plate", "prev"], multi: true, place: true, w: CVs.w, h: CVs.h, prompt: placePrompt(), batch: b0 });
     }
+    else if (state["with"] && plan.some(function (st) { return st.lora; }) && !plan.some(function (st) { return st.inputs.length; })) {   // LoRA duo drawn from text: fix who wears which jewelry
+      var b1 = plan[plan.length - 1].batch; delete plan[plan.length - 1].batch;
+      plan.push({ label: "fixing the jewelry", inputs: ["prev"], prompt: "Keep this picture exactly as it is: the same two people, faces, bodies, poses, clothes, tattoos, background, lighting and framing. " + neckFix(), batch: b1 });
+    }
     if (A) {
       var sized = false;
       plan.forEach(function (st) { if (st.w) { st.w = A.w; st.h = A.h; sized = true; } });
