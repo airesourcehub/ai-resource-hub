@@ -438,7 +438,7 @@
     ["anttokyo", "Tokyo Skytree antenna", "standing on the tiny top of the Tokyo Skytree antenna at dusk, more than 600 meters up, the endless lights of Tokyo far below her and Mount Fuji on the horizon, a daring rooftopper selfie background"],
     ["antshanghai", "Shanghai Tower top", "standing on the tiny top of the Shanghai Tower at blue hour, more than 600 meters up, the glowing Lujiazui skyline and Huangpu River far below her, a daring rooftopper selfie background"],
     ["wing777", "777 wingtip", "standing on the wingtip of a Boeing 777 airliner at cruising altitude at sunset, the white wing and engine beside her, a sea of clouds far below and a glowing orange and pink sky background"],
-    ["sigbridge", "Miami Signature Bridge", "standing on the very top peak of the tallest white arch of Miami's I-395 Signature Bridge at dusk, about 100 meters up, the bridge's other white arches and cable stays glowing cyan blue below her, the downtown Miami skyline, Biscayne Bay and the highway light trails far below, an orange and pink sunset sky background"],
+    ["sigbridge", "Miami Signature Bridge", "standing high in the air on top of the curved white crown of the tallest arch of Miami's I-395 Signature Bridge at dusk, about 100 meters above the highway: under her boots is only the narrow rounded white top of the arch, no road, deck, ledge or railing at her level. The arch curves down and away behind her toward the downtown Miami and Brickell skyline, the bridge's other white arches with cyan blue lights and their fanning white cables are below her, the highway with red and white car light trails is far, far below, Biscayne Bay and an orange and pink sunset sky, a daring rooftopper-style aerial photo"],
     ["mars", "Mars", "standing on the surface of Mars, rust red dust and rocks, red mountains and a huge crater rim on the horizon, hazy butterscotch sky background"],
     ["moon", "The Moon", "standing on the surface of the Moon, grey lunar dust and craters, a black starry sky with the blue Earth above the horizon, a lunar lander in the distance background"],
   ];
@@ -514,7 +514,6 @@
       '<label class="bd-toggle"><input type="checkbox" id="bdPoseMatch" /> <span>Match my 3D pose exactly in the AI render</span></label>';
     $("bdDuo").innerHTML = '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
-      chipRow("aspect", "Picture size", ASPECTS.map(function (a) { return [a[0], a[1]]; })) +
       '<div class="bd-camlock">' + chipRow("camlock", "Viewer angle: match it", [["on", "Exactly (3D picture)"], ["off", "Words only (faster)"]]) +
       '<p class="bd-note">Frame her in the 3D viewer (drag, scroll, or High / Low / Close), then Generate. "Exactly" sends a picture from your camera so the render copies the angle.</p></div>' +
       chipRow("style", "Look", STYLES) + chipRow("bg", "Background", BGS);
@@ -553,6 +552,7 @@
       b.hidden = b.getAttribute("data-bg") !== (state.gender || "female");
       b.classList.toggle("is-on", !!ap && ap.id === b.getAttribute("data-bp"));
     });
+    each($("bdAspect").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === (state.aspect || "auto")); });
     each($("bdEngine").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.engine); });
     each($("bdEdit").children, function (b) { b.classList.toggle("is-on", b.getAttribute("data-v") === state.editEngine); });
     $("bdBatch").textContent = state.batch;
@@ -745,6 +745,7 @@
       }
     });
     $("bdExtra").addEventListener("input", sync);
+    $("bdAspect").addEventListener("click", function (e) { var b = e.target.closest("[data-v]"); if (b) { state.aspect = b.getAttribute("data-v"); sync(); } });
     $("bdEngine").addEventListener("click", function (e) { var b = e.target.closest("[data-v]"); if (b) { state.engine = b.getAttribute("data-v"); sync(); } });
     $("bdEdit").addEventListener("click", function (e) { var b = e.target.closest("[data-v]"); if (b) { state.editEngine = b.getAttribute("data-v"); sync(); } });
     $("bdBatchDn").addEventListener("click", function () { state.batch = Math.max(1, state.batch - 1); sync(); });

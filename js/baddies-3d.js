@@ -373,7 +373,7 @@ function init() {
     } else if (kind === "wing") {
       make777(g, std);
     } else if (kind === "arch") {
-      makeArch(g, std);
+      makeArch(g, std); g.rotation.y = Math.PI / 2;   // the arches run along the highway in the panorama
     }
     g.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; o.userData.lookShadow = true; } });
     g.visible = false; scene.add(g); return g;

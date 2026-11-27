@@ -22,7 +22,7 @@
 <meta name="description" content="Design your own Baddie character on your GPU: pick skin tone, height, body shape and how exaggerated the curves are, then outfit, tattoos and a real-world weapon. Turnaround sheets in one click." />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/video.css" />
-<link rel="stylesheet" href="css/baddies.css?v=20261123b" />
+<link rel="stylesheet" href="css/baddies.css?v=20261127a" />
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <script src="js/site-settings.js"></script>
 <script src="js/gpu.js"></script>
@@ -150,6 +150,12 @@
 
     <footer class="bd-foot">
       <div class="bd-foot-row bd-edit-row">
+        <span class="bd-edit-lbl" title="The shape of the finished picture. Auto keeps each shot's own size.">Size</span>
+        <div class="bd-seg bd-seg-sm bd-seg-xs" id="bdAspect" role="radiogroup" aria-label="Picture size">
+          <button type="button" data-v="auto" title="Each shot's own size">Auto</button><button type="button" data-v="9x16" title="Tall, for Reels / TikTok / Stories">9:16</button><button type="button" data-v="2x3">2:3</button><button type="button" data-v="4x5" title="Instagram portrait">4:5</button><button type="button" data-v="1x1" title="Square">1:1</button><button type="button" data-v="3x2">3:2</button><button type="button" data-v="16x9" title="Wide, for YouTube">16:9</button>
+        </div>
+      </div>
+      <div class="bd-foot-row bd-edit-row">
         <span class="bd-edit-lbl" title="The model that draws the first picture (when no character face or 3D pose is used)">Create</span>
         <div class="bd-seg bd-seg-sm" id="bdEngine" role="radiogroup" aria-label="Create engine">
           <button type="button" data-v="zimage" title="Z-Image Turbo: the default, best overall look, about 10 to 20 seconds">Z-Image</button>
@@ -265,7 +271,7 @@
 <script src="js/auth-nav.js"></script>
 <script src="js/render-status.js"></script>
 <script src="js/baddies-thumbs.js?v=20261127a"></script>
-<script src="js/baddies.js?v=20261127b"></script>
-<script type="module" src="js/baddies-3d.js?v=20261127d"></script>
+<script src="js/baddies.js?v=20261127c"></script>
+<script type="module" src="js/baddies-3d.js?v=20261127e"></script>
 </body>
 </html>
