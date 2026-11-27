@@ -1886,7 +1886,29 @@ function init() {
   }
 
   let garCS = null, garCSKey = "", garShellKey = "";
-  let plateF = null;
+  let plateF = null, legVerts = null;
+  // Sitting / squatting: the thighs come up into the lower edge of a front plate or chest rig. Swing the piece
+  // out on its top edge (like a real plate riding up on the lap) just far enough that the thighs clear it.
+  function clearThighs(bone, sub, pivot, box, maxDeg = 40) {
+    const down = Math.max(...["l", "r"].map((sd) => -bonePos("calf_" + sd).sub(bonePos("thigh_" + sd)).normalize().y));
+    if (down > 0.8) return 0;   // standing: thighs hang down
+    if (!legVerts) { legVerts = []; for (let i = 0; i < G.n; i += 3) if (gLegJ(i) > 0.5) legVerts.push(i); }
+    holder.updateMatrixWorld(true); body.skeleton.update(); sub.updateMatrix();
+    const toSub = sub.matrix.clone().invert().multiply(restToHolder(bone).invert()), v = new THREE.Vector3(), q = [];
+    for (const i of legVerts) { body.getVertexPosition(i, v); v.applyMatrix4(body.matrixWorld); holder.worldToLocal(v); v.applyMatrix4(toSub);
+      if (v.y > box[2] - 0.05 && v.y < box[3] + 0.05 && Math.abs(v.x) < box[1] + 0.05) q.push(v.clone()); }
+    if (!q.length) return 0;
+    const P = new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z), Pi = new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z);
+    let a = 0;
+    for (let deg = 0; deg <= maxDeg; deg += 3) {
+      a = deg * Math.PI / 180;
+      const inv = P.clone().multiply(new THREE.Matrix4().makeRotationX(a)).multiply(Pi);
+      let hit = 0; for (const p0 of q) { const t = p0.clone().applyMatrix4(inv); if (t.x > box[0] && t.x < box[1] && t.y > box[2] && t.y < box[3] && t.z > box[4] && t.z < box[5]) hit++; }
+      if (hit < 3) break;
+    }
+    if (a > 0) { sub.matrixAutoUpdate = false; sub.matrix.multiply(P).multiply(new THREE.Matrix4().makeRotationX(-a)).multiply(Pi); }
+    return a;
+  }
   function garments(s, one, has, H) {
     plateF = null;
     HAIRU.uPlate.value.set(0, 0, 0, 0); HAIRU.uHood.value.set(0, 0, 0, 0); HAIRU.uEarL.value.set(0, 0, 0, 0); HAIRU.uEarR.value.set(0, 0, 0, 0);
@@ -1985,6 +2007,7 @@ function init() {
         g.add(st);
       }
       band("cummerbund", new THREE.Vector4(1.03, 1.13, 0, 2), (i) => (topJ(i) ? topT(i) : 0) + 0.014, new THREE.Vector4(...new THREE.Color(base).toArray(), 0), { rough: 0.92, min: 0.004 });
+      clearThighs("spine_03", FG, v3(0, 0.15, 0), [-0.14, 0.14, -0.155, 0.02, -0.005, 0.095]);
       ride(g, "spine_03");
     }
     // ---- chest rig
@@ -2007,6 +2030,7 @@ function init() {
         g.add(sweep([v3(sd * 0.11, 1.075, zf + 0.012), v3(sd * 0.135, 1.19, fz + 0.006), v3(sd * 0.1, ys + tMax * 0.7 + 0.005, zs + 0.02), v3(sd * 0.085, ys + tMax * 0.7 + 0.004, zs - 0.035),
           v3(sd * 0.04, 1.17, zb - 0.008), v3(-sd * 0.06, 1.04, zb - 0.006)], 0, vm, { flat: [0.032, 0.008], side: v3(1, 0, 0), seg: 56 }));
       }
+      clearThighs("spine_02", RG, v3(0, 0.075, 0), [-0.135, 0.135, -0.065, 0.075, -0.005, 0.06]);
       ride(g, "spine_02");
     }
     // ---- drop-leg holster on the right thigh (right = -x)
