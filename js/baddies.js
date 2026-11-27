@@ -1167,12 +1167,21 @@
   function singleShot() { return poseMatch() || !!state.with; }
   function promptAs(view) { var v = state.view; state.view = view; try { return buildPrompt(); } finally { state.view = v; } }
   function sceneLock() { return !!(window.BADDIES_3D_UP && window.BADDIES_3D_UP[state.bg]) && !!window.BADDIES_SCENE_PLATE; }
+  function neckFix() {   // text-to-image copies his chain onto her: the final edit puts back exactly her own necklaces
+    var N = { chain: "a gold chain necklace", tennis: "a diamond tennis necklace", dogtags: "silver dog tags on a thin silver ball chain" };
+    var mine = (state.pick.jewelry || []).filter(function (k) { return N[k]; }).map(function (k) { return N[k]; });
+    var his = withOpt("jewel") === "on";
+    return "Around the woman's neck there is " + (mine.length ? "only " + mine.join(" and ") : "no necklace at all") + ": remove any other chain or pendant from her" +
+      (mine.indexOf(N.chain) < 0 ? ", including any thick gold Cuban link chain" : "") + " and any lion pendant. " +
+      (his ? "The man keeps his own chain and pendant exactly as they are. " : "The man wears no chain, necklace or pendant. ");
+  }
   function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one real photo
     var two = !!state["with"];
     return "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. Turn it into one seamless real photo. " +
       "Keep everything exactly where it is: the camera angle, framing, horizon, the background, the structure under their feet, and " + (two ? "each person's" : "her") +
       " position, size, pose, face, hair, body, clothes, tattoos and jewelry. Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add real contact shadows under the feet, " +
       "and give the scene real photographic detail and texture (smooth white concrete, glowing lights, a real city, water and sky). Do not add, remove or move any person, arch, tower, road or building. " +
+      (two ? neckFix() : "") +
       fromList(STYLES, state.style)[2] + ".";
   }
   function scenePrompt() {
