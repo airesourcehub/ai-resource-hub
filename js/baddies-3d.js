@@ -134,7 +134,7 @@ function init() {
     sp.scale.setScalar(size); return sp;
   }
   function makeE777(g0, std) {
-    const g = new THREE.Group(); g.rotation.y = 5.2360; g0.add(g);   // same yaw as before: fuselage behind her in the front view
+    const g = new THREE.Group(); g.rotation.y = 5.2709; g0.add(g);   // 302 deg: fuselage behind her, the near engine hangs under the leading edge further in (seen with the raised wing camera)
     g0.userData.ready = new Promise((done) => {
       new GLTFLoader().load(new URL("models/e777.glb?v=1", document.baseURI).href, (gltf) => {
         const P = gltf.scene; P.rotation.y = Math.PI;   // model nose is +z; turn it so the nose is -z and her wing is +x
@@ -148,6 +148,28 @@ function init() {
           o.receiveShadow = true; o.castShadow = true; o.userData.lookShadow = true; keep.push(o);
         });
         P.updateMatrixWorld(true);
+        const wingM = keep.find((o) => o.name === "node_32");
+        if (wingM) {   // wings + tailplanes: top-down planar UVs (1 unit = 1 m) for a seam / rivet bump map
+          const pa = wingM.geometry.attributes.position, uv1 = new Float32Array(pa.count * 2);
+          for (let i = 0; i < pa.count; i++) { const ax = Math.abs(pa.getX(i)); uv1[i * 2] = ax / 6; uv1[i * 2 + 1] = (pa.getZ(i) + ax * 0.6) / 6; }   // sheared by the ~31 deg sweep: spanwise seams run along the spar
+          wingM.geometry.setAttribute("uv1", new THREE.BufferAttribute(uv1, 2));
+          const bt = bumpTexture(1024, 1024, (x, W, H) => {
+            x.strokeStyle = "#5a5a5a"; x.lineWidth = 2;
+            for (let k = 0; k <= 4; k++) { const u = k * W / 4; x.beginPath(); x.moveTo(u, 0); x.lineTo(u, H); x.stroke(); }          // chordwise skin joints every 1.5 m
+            for (let k = 0; k <= 3; k++) { const v = k * H / 3; x.beginPath(); x.moveTo(0, v); x.lineTo(W, v); x.stroke(); }          // spanwise joints every 2 m
+            x.fillStyle = "#9a9a9a"; for (let k = 0; k <= 4; k++) for (let v = 6; v < H; v += 14) x.fillRect(k * W / 4 + 5, v, 2, 2);   // rivet rows
+            for (let k = 0; k <= 3; k++) for (let u = 6; u < W; u += 14) x.fillRect(u, k * H / 3 + 5, 2, 2);
+          });
+          bt.wrapS = bt.wrapT = THREE.RepeatWrapping; bt.channel = 1;
+          const ao = bumpTexture(1024, 1024, (x, W, H) => {   // the same seams, faintly darker, so they show in soft light too
+            x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H); x.strokeStyle = "rgba(120,120,120,0.85)"; x.lineWidth = 2.5;
+            for (let k = 0; k <= 4; k++) { const u = k * W / 4; x.beginPath(); x.moveTo(u, 0); x.lineTo(u, H); x.stroke(); }
+            for (let k = 0; k <= 3; k++) { const v = k * H / 3; x.beginPath(); x.moveTo(0, v); x.lineTo(W, v); x.stroke(); }
+          });
+          ao.wrapS = ao.wrapT = THREE.RepeatWrapping; ao.channel = 1;
+          wingM.material.aoMap = ao; wingM.material.aoMapIntensity = 1;
+          wingM.material.bumpMap = bt; wingM.material.bumpScale = 1.2; wingM.material.roughness = 0.5; wingM.material.needsUpdate = true;
+        }
         // her spot: 2.5 m in from the right (+x) tip, 42% back from the leading edge, on the top skin
         const bb = new THREE.Box3().setFromObject(P), sx = bb.max.x - 2.5, rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
         let le = 1e9, te = -1e9;
@@ -3077,12 +3099,12 @@ function init() {
         });
         backdrop.visible = true;
       };
-      panoId = want;
+      const wasWing = PANO_UP[panoId] === "wing" && was; panoId = want;
       if (panoTex[want]) showPano(panoTex[want]);
       else { flat(); loadPano(want, (t) => { if (t && bgWant === want && bgOn) showPano(t); }); }
       ground.visible = true;
       controls.maxDistance = PANO_UP[want] ? 24 : 18; controls.minPolarAngle = 0.35; controls.maxPolarAngle = Math.PI / 2 + 0.3;
-      if (!was) frameForBackdrop();
+      if (!was || wasWing !== (PANO_UP[want] === "wing")) frameForBackdrop();
     } else if (plain && (!curBg || curBg === "white")) {   // white studio: light seamless sweep with her shadow on the floor
       backdrop.visible = false; floor.visible = false; skyFill.visible = false; hideSky(); panoOn = false;
       canvasWrap.style.background = "radial-gradient(120% 85% at 50% 35%, #ffffff 0%, #f1f1f2 45%, #dcdcde 100%)";
@@ -3097,9 +3119,10 @@ function init() {
     }
   }
   // fixed "scene" framing: fits a 7'6" person, so shorter heights read as shorter against the background
+  function wingLift() { return bgOn && PANO_UP[panoId] === "wing" ? 1.15 : 0; }   // on the 777 wing the camera sits a little above her head, looking down onto the wing
   function frameForBackdrop() {
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
-    off.setLength(5.6); controls.target.set(0, 1.05, 0); camera.position.set(off.x, 1.1, off.z); controls.update();
+    const lift = wingLift(); off.setLength(5.6); controls.target.set(0, 1.05 - lift * 0.09, 0); camera.position.set(off.x, 1.1 + lift, off.z); controls.update();
   }
   function unframeBackdrop() {   // back to the normal follow-her-height framing
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
@@ -3452,7 +3475,7 @@ function init() {
   function setView(az) {
     const d = camera.position.distanceTo(controls.target);
     controls.autoRotate = false; syncSpin();
-    camera.position.set(Math.sin(az) * d, controls.target.y + 0.15, Math.cos(az) * d); controls.update();
+    camera.position.set(Math.sin(az) * d, controls.target.y + 0.15 + wingLift(), Math.cos(az) * d); controls.update();
   }
   // one-tap camera angles: from above, from the ground, and a close-up (keeps the current side)
   function camPreset(v) {
