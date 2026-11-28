@@ -144,10 +144,10 @@ function init() {
     const wingDraw = (mir) => (x, W, H) => {
       x.fillStyle = "#c7cbd0"; x.fillRect(0, 0, W, H);
       const r = rnd(5); for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(${r() < 0.5 ? "255,255,255" : "0,0,0"},0.035)`; x.fillRect(r() * W, r() * H, 3, 2); }
-      x.strokeStyle = "rgba(70,76,84,0.1)"; x.lineWidth = 1;
-      for (let s = 0; s < W; s += 150) { x.beginPath(); x.moveTo(s, H * 0.17); x.lineTo(s, H * 0.72); x.stroke(); }      // spanwise skin joints, wide apart and faint
-      for (const v of [0.3, 0.58]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }
-      x.strokeStyle = "rgba(60,66,74,0.2)"; for (const v of [0.17, 0.72]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }   // spar lines
+      x.strokeStyle = "rgba(70,76,84,0.17)"; x.lineWidth = 1;
+      for (let s = 0; s < W; s += 96) { x.beginPath(); x.moveTo(s, H * 0.17); x.lineTo(s, H * 0.72); x.stroke(); }      // spanwise skin joints, wide apart and faint
+      for (const v of [0.3, 0.45, 0.58]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }
+      x.strokeStyle = "rgba(60,66,74,0.24)"; for (const v of [0.17, 0.72]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }   // spar lines
       x.strokeStyle = "rgba(40,44,50,0.5)"; x.lineWidth = 2;
       for (let s = 0; s < W; s += 205) { x.beginPath(); x.moveTo(s, 0); x.lineTo(s, H * 0.17); x.stroke(); }              // slat segments
       for (const s of [0, 380, 760, 1150, 1520]) { x.beginPath(); x.moveTo(s, H * 0.72); x.lineTo(s, H); x.stroke(); }     // flap / aileron breaks
@@ -162,15 +162,15 @@ function init() {
     const wingTex = canvasTexture(2048, 512, wingDraw(false));
     const wingBump = bumpTexture(2048, 512, (x, W, H) => {
       x.strokeStyle = "#6c6c6c"; x.lineWidth = 1.5;
-      for (let s = 0; s < W; s += 150) { x.beginPath(); x.moveTo(s, H * 0.17); x.lineTo(s, H * 0.72); x.stroke(); }
-      for (const v of [0.17, 0.3, 0.58, 0.72]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }
+      for (let s = 0; s < W; s += 96) { x.beginPath(); x.moveTo(s, H * 0.17); x.lineTo(s, H * 0.72); x.stroke(); }
+      for (const v of [0.17, 0.3, 0.45, 0.58, 0.72]) { x.beginPath(); x.moveTo(0, H * v); x.lineTo(W, H * v); x.stroke(); }
       x.lineWidth = 4; x.strokeStyle = "#202020";
       for (let s = 0; s < W; s += 205) { x.beginPath(); x.moveTo(s, 0); x.lineTo(s, H * 0.17); x.stroke(); }
       for (const s of [0, 380, 760, 1150, 1520]) { x.beginPath(); x.moveTo(s, H * 0.72); x.lineTo(s, H); x.stroke(); }
       x.fillStyle = "#949494"; for (const v of [0.17, 0.72]) for (let s = 4; s < W; s += 12) x.fillRect(s, H * v + 3, 1.5, 1.5);   // rivet rows beside the seams
     });
     const wingRough = bumpTexture(1024, 256, (x, W, H) => { const r = rnd(9); for (let i = 0; i < 2600; i++) { const v = 100 + r() * 70 | 0; x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(r() * W, r() * H, 6 + r() * 30, 2 + r() * 6); } });   // weathering: uneven sheen
-    const wingMat = std({ map: wingTex, bumpMap: wingBump, bumpScale: 0.9, roughnessMap: wingRough, color: 0xffffff, roughness: 0.75, metalness: 0.25, side: THREE.DoubleSide });
+    const wingMat = std({ map: wingTex, bumpMap: wingBump, bumpScale: 1.2, roughnessMap: wingRough, color: 0xffffff, roughness: 0.75, metalness: 0.25, side: THREE.DoubleSide });
     // airfoil loft (NACA-style thickness with slight camber), cosine chord spacing, raked tip
     const NS = 44, NC = 26, pos = [], uv = [], idx = [];
     for (let i = 0; i <= NS; i++) {

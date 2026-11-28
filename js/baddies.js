@@ -1235,6 +1235,8 @@
     var plan = planSteps0(), A = aspectDims();
     if (sceneLock() && !plan.some(function (st) { return st.inputs.indexOf("cam") >= 0; })) {
       var CVs = camShot(), b0 = plan[plan.length - 1].batch; delete plan[plan.length - 1].batch;
+      if (state["with"] && plan.some(function (st) { return st.lora; }) && !plan.some(function (st) { return st.inputs.length; }))
+        plan.push({ label: "fixing the jewelry", inputs: ["prev"], prompt: "Keep this picture exactly as it is: the same two people, faces, bodies, poses, clothes, tattoos, background, lighting and framing. " + neckFix() });
       plan.push({ label: "matching the 3D scene", inputs: ["plate", "prev"], multi: true, place: true, w: CVs.w, h: CVs.h, prompt: placePrompt(), batch: b0 });
     }
     else if (state["with"] && plan.some(function (st) { return st.lora; }) && !plan.some(function (st) { return st.inputs.length; })) {   // LoRA duo drawn from text: fix who wears which jewelry
