@@ -91,7 +91,7 @@ function init() {
   // 360° scenes: an equirectangular panorama projected onto the ground (img/baddies/pano/<id>.webp, shot from 1.6 m),
   // so the scenery and the floor are there from every angle, above and below. Scenes without one keep the flat photo.
   const PANO_H = 1.6, PANO_R = 38, PANO_BASE = Math.PI / 2;
-  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b", southbeach: "1125a", hawaii: "1125a", malibu: "1125a", everest: "1125a", overlook: "1125a", nyroof: "1125a", antdubai: "1125a", anttokyo: "1125a", antshanghai: "1125a", wing777: "1125a", mars: "1125a", moon: "1125a", sigbridge: "1127a" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
+  const PANOS = { desert: "1124a", miami: "1124b", snow: "1124b", jungle: "1124b", christmas: "1124b", halloween: "1124b", newyear: "1124b", valentine: "1124b", july4: "1124a", brickellam: "1124a", brickell: "1124a", brickellpm: "1124a", ultra: "1124a", timessquare: "1124b", pyramids: "1124a", santamonica: "1124a", vegas: "1124a", niagara: "1124b", burj: "1124b", eiffel: "1124a", liberty: "1124b", vizcaya: "1124b", frenchmans: "1124a", bamboo: "1124a", chinasnow: "1124b", southbeach: "1125a", hawaii: "1125a", malibu: "1125a", everest: "1125a", overlook: "1125a", nyroof: "1125a", antdubai: "1125a", anttokyo: "1125a", antshanghai: "1125a", wing777: "1127b", mars: "1125a", moon: "1125a", sigbridge: "1127a" };   // scene id -> version, for the scenes that have a 360 panorama in img/baddies/pano/
   let sky = null, panoOn = false; const panoTex = {}, panoMiss = {};
   // 4K loads first; on desktops whose GPU takes 8192-px textures the 8K version follows and swaps in when ready
   const PANO_8K = !/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && renderer.capabilities.maxTextureSize >= 8192;
@@ -140,7 +140,7 @@ function init() {
     const tr = (t) => 0.14 - 0.045 * t;
     const wy = (xs) => { const t = (xs - ROOTX) / (TIPX - ROOTX); return (xs - TIPX) * DIH * 0.8 - 0.9 * (1 - t * t); };   // dihedral plus the upward flex of a loaded wing in flight
     // wing skin: light Boeing grey, panel lines, slat / flap / aileron breaks, walkway-free outer wing
-    const wingTex = canvasTexture(2048, 512, (x, W, H) => {
+    const wingDraw = (mir) => (x, W, H) => {
       x.fillStyle = "#c7cbd0"; x.fillRect(0, 0, W, H);
       const r = rnd(5); for (let i = 0; i < 9000; i++) { x.fillStyle = `rgba(${r() < 0.5 ? "255,255,255" : "0,0,0"},0.035)`; x.fillRect(r() * W, r() * H, 3, 2); }
       x.strokeStyle = "rgba(60,66,74,0.28)"; x.lineWidth = 1.1;
@@ -151,8 +151,13 @@ function init() {
       for (const s of [0, 380, 760, 1150, 1520]) { x.beginPath(); x.moveTo(s, H * 0.72); x.lineTo(s, H); x.stroke(); }     // flap / aileron breaks
       x.fillStyle = "rgba(30,34,40,0.18)"; x.fillRect(0, H * 0.72, W, H * 0.28);
       const le = x.createLinearGradient(0, 0, 0, H * 0.07); le.addColorStop(0, "#e9ecef"); le.addColorStop(0.6, "#d4d8dd"); le.addColorStop(1, "rgba(199,203,208,0)"); x.fillStyle = le; x.fillRect(0, 0, W, H * 0.07);
-      x.fillStyle = "rgba(210,40,40,0.9)"; x.font = "bold 22px Arial"; for (let s = 120; s < W * 0.8; s += 420) x.fillText("NO STEP", s, H * 0.8);
-    });
+      x.fillStyle = "rgba(210,40,40,0.9)"; x.font = "bold 22px Arial";
+      for (let s = 120; s < W * 0.8; s += 420) {   // the far wing is a mirrored clone: draw its stencils mirrored so they read right
+        if (!mir) { x.fillText("NO STEP", s, H * 0.8); continue; }
+        const tw = x.measureText("NO STEP").width; x.save(); x.translate(s + tw, H * 0.8); x.scale(-1, 1); x.fillText("NO STEP", 0, 0); x.restore();
+      }
+    };
+    const wingTex = canvasTexture(2048, 512, wingDraw(false));
     const wingBump = bumpTexture(2048, 512, (x, W, H) => {
       x.strokeStyle = "#3a3a3a"; x.lineWidth = 2;
       for (let s = 0; s < W; s += 46) { x.beginPath(); x.moveTo(s, H * 0.17); x.lineTo(s, H * 0.72); x.stroke(); }
@@ -181,9 +186,15 @@ function init() {
     const wg = new THREE.BufferGeometry(); wg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); wg.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); wg.setIndex(idx); wg.computeVertexNormals();
     const wing = new THREE.Mesh(wg, wingMat); g.add(wing);
     const canoeMat = std({ color: 0xc9cdd2, roughness: 0.4, metalness: 0.3 });
-    for (const cx of [-22.5, -12.5, -7.5, -3.2]) {
-      const ct = (cx - ROOTX) / (TIPX - ROOTX), cte = zTE(ct), cl = cx > -5 ? 3 : 4.6;
-      const cn = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), canoeMat); cn.scale.set(cx > -5 ? 0.22 : 0.32, cx > -5 ? 0.26 : 0.38, cl); cn.position.set(cx, wy(cx) - 0.28, cte - cl * 0.35); g.add(cn);
+    const canoeProf = []; for (let i = 0; i <= 24; i++) {   // lathe profile along the length (0 = blunt nose, 1 = pointed tail)
+      const u = i / 24, r = u < 0.42 ? Math.pow(Math.sin(Math.PI / 2 * u / 0.42), 0.55) : Math.pow(1 - (u - 0.42) / 0.58, 1.35) * 0.97 + 0.03 * (1 - u);
+      canoeProf.push(new THREE.Vector2(Math.max(0.001, r), u));
+    }
+    const canoeGeo = new THREE.LatheGeometry(canoeProf, 24); canoeGeo.rotateX(Math.PI / 2);   // length along +z (rearward)
+    for (const [cx, cl, cr] of [[-22.5, 5.6, 0.5], [-12.5, 5, 0.44], [-7.5, 4.2, 0.36], [-3.2, 2.7, 0.24]]) {
+      const ct = (cx - ROOTX) / (TIPX - ROOTX), cte = zTE(ct);
+      const cn = new THREE.Mesh(canoeGeo, canoeMat); cn.scale.set(cr * 0.72, cr, cl);
+      cn.position.set(cx, wy(cx) - 0.04 - cr * 0.62, cte - cl * 0.6); g.add(cn);   // tucked up into the wing, 40% hanging out behind it
     }
     const wickMat = std({ color: 0x5b6067, roughness: 0.5, metalness: 0.5 });
     for (const t of [0.74, 0.8, 0.86, 0.92, 0.975]) {   // static wicks: thin rods off the aileron / tip trailing edge
@@ -203,7 +214,7 @@ function init() {
     const inner = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.4, 48, 1, true), darkMat); inner.position.y = 0.7; eng.add(inner);
     const fan = new THREE.Mesh(new THREE.CircleGeometry(1.6, 48), darkMat); fan.rotation.x = Math.PI / 2; fan.position.y = 1.35; eng.add(fan);
     const bladeMat = std({ color: 0x5a6068, roughness: 0.35, metalness: 0.9, side: THREE.DoubleSide });
-    for (let b = 0; b < 22; b++) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 1.42), bladeMat); bl.position.set(0, 1.0, 0); bl.rotation.y = b / 22 * Math.PI * 2; bl.translateZ(0.85); bl.rotateZ(0.6); eng.add(bl); }
+    for (let b = 0; b < 22; b++) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.03, 1.12), bladeMat); bl.position.set(0, 1.0, 0); bl.rotation.y = b / 22 * Math.PI * 2; bl.translateZ(1.02); bl.rotateZ(0.62); eng.add(bl); }
     const lip = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.09, 12, 64), chrome); lip.rotation.x = Math.PI / 2; lip.position.y = 0.06; eng.add(lip);
     const swirl = canvasTexture(512, 256, (x, W, H) => { x.fillStyle = "#2b2f35"; x.fillRect(0, 0, W, H); x.strokeStyle = "#f2f2f2"; x.lineWidth = 16; x.beginPath(); for (let i = 0; i <= 60; i++) { const v = i / 60; const px = (v * W * 0.9) % W, py = H * (1 - v); i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke(); });
     const spin = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.1, 48), std({ map: swirl, roughness: 0.3, metalness: 0.5 })); spin.rotation.x = Math.PI; spin.position.y = 0.75; eng.add(spin);
@@ -212,7 +223,13 @@ function init() {
     const plug = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.2, 32), darkMat); plug.position.y = 7.6; eng.add(plug);
     eng.rotation.x = Math.PI / 2;                                    // lathe axis +y -> +z (intake faces the nose, -z)
     const ex = -17.6, et = (ex - ROOTX) / (TIPX - ROOTX); eng.position.set(ex, wy(ex) - 2.75, zLE(et) - 3.2); g.add(eng);
-    const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 5.6, 20), nacMat); pylon.rotation.x = Math.PI / 2; pylon.scale.set(0.28, 0.75, 0.75); pylon.position.set(ex, wy(ex) - 0.78, zLE(et) - 0.1); g.add(pylon);
+    const ez = zLE(et) - 3.2, ey = wy(ex) - 2.75, etop = ey + 1.8, wyl = wy(ex);
+    const pyS = new THREE.Shape(), pyPts = [[ez + 1.3, etop - 0.25], [ez + 2.4, etop + 0.22], [zLE(et) - 0.6, wyl - 0.55], [zLE(et) + 0.4, wyl - 0.1], [zLE(et) + 4.2, wyl - 0.25],
+      [ez + 8.1, ey + 0.95], [ez + 7.3, ey + 0.75], [ez + 6.2, etop - 0.62], [ez + 3, etop - 0.3]];
+    pyS.moveTo(pyPts[0][0], pyPts[0][1]); pyPts.slice(1).forEach(([a, b]) => pyS.lineTo(a, b)); pyS.closePath();
+    const pyG = new THREE.ExtrudeGeometry(pyS, { depth: 0.62, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.12, bevelSegments: 5, curveSegments: 8 });
+    pyG.translate(0, 0, -0.31); pyG.rotateY(-Math.PI / 2);   // shape x -> world z, extrusion -> across x
+    const pylon = new THREE.Mesh(pyG, nacMat); pylon.position.set(ex, 0, 0); g.add(pylon);
     // fuselage: lathe with ogive nose and tail cone, white with grey belly, window row and a blue cheatline on her side
     const FX = -29.8, FY = wy(ROOTX) + 1.55, NOSE = -42, L = 63.7;
     const fuseTex = canvasTexture(512, 4096, (x, W, H) => {
@@ -283,7 +300,7 @@ function init() {
       const el = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.02, 0.03), std({ color: 0x5a616b, roughness: 0.6 })); el.position.set(FX + sgn * (2.2 + 5.2), FY + 0.6 + 0.3 + 0.08, NOSE + 51 + 5.4 + 0.25 * 5.2 / 10.5 * 2.5); el.rotation.y = sgn * -0.25; g.add(el);   // elevator hinge seam
     }
     // far (left) wing and engine, mirrored across the fuselage centre line
-    const lw = wing.clone(); lw.scale.x = -1; lw.position.x = 2 * FX; g.add(lw);
+    const lw = wing.clone(); lw.scale.x = -1; lw.position.x = 2 * FX; lw.material = wingMat.clone(); lw.material.map = canvasTexture(2048, 512, wingDraw(true)); g.add(lw);
     const le2 = eng.clone(); le2.position.x = 2 * FX - ex; g.add(le2);
     const pl2 = pylon.clone(); pl2.position.x = 2 * FX - ex; g.add(pl2);
     const navR = navG.clone(); navR.material = new THREE.MeshBasicMaterial({ color: 0xff2a2a }); navR.position.x = 2 * FX - navG.position.x; g.add(navR);
