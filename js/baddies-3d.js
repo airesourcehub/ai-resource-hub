@@ -170,11 +170,11 @@ function init() {
           wingM.material.aoMap = ao; wingM.material.aoMapIntensity = 1;
           wingM.material.bumpMap = bt; wingM.material.bumpScale = 1.2; wingM.material.roughness = 0.5; wingM.material.needsUpdate = true;
         }
-        // her spot: 2.5 m in from the right (+x) tip, 42% back from the leading edge, on the top skin
-        const bb = new THREE.Box3().setFromObject(P), sx = bb.max.x - 2.5, rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
+        // her spot: 4.5 m in from the right (+x) tip, 65% back from the leading edge, on the top skin
+        const bb = new THREE.Box3().setFromObject(P), sx = bb.max.x - 4.5, rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
         let le = 1e9, te = -1e9;
         for (let z = bb.min.z; z <= bb.max.z; z += 0.05) { rc.set(new THREE.Vector3(sx, bb.max.y + 5, z), down); if (rc.intersectObjects(keep, false).length) { le = Math.min(le, z); te = Math.max(te, z); } }
-        const sz = le < te ? le + 0.42 * (te - le) : 0;
+        const sz = le < te ? le + 0.65 * (te - le) : 0;   // toward the trailing edge: the wing reaches past whoever stands beside her
         rc.set(new THREE.Vector3(sx, bb.max.y + 5, sz), down); const hit = rc.intersectObjects(keep, false)[0];
         const sy = hit ? hit.point.y : 0;
         P.position.set(-sx, -sy, -sz); g.add(P);
@@ -3122,7 +3122,7 @@ function init() {
   function wingLift() { return bgOn && PANO_UP[panoId] === "wing" ? 1.15 : 0; }   // on the 777 wing the camera sits a little above her head, looking down onto the wing
   function frameForBackdrop() {
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
-    const lift = wingLift(); off.setLength(5.6); controls.target.set(0, 1.05 - lift * 0.09, 0); camera.position.set(off.x, 1.1 + lift, off.z); controls.update();
+    const lift = wingLift(), sx = lift ? 0.45 : 0; off.setLength(lift ? 6.5 : 5.6); controls.target.set(sx, 1.05 - lift * 0.09, 0); camera.position.set(sx + off.x, 1.1 + lift * 1.09, off.z); controls.update();   // on the wing: back a little and 0.45 m to the side, so the pair stands on the wing and the engine shows beside them
   }
   function unframeBackdrop() {   // back to the normal follow-her-height framing
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
@@ -3475,7 +3475,7 @@ function init() {
   function setView(az) {
     const d = camera.position.distanceTo(controls.target);
     controls.autoRotate = false; syncSpin();
-    camera.position.set(Math.sin(az) * d, controls.target.y + 0.15 + wingLift(), Math.cos(az) * d); controls.update();
+    camera.position.set(controls.target.x + Math.sin(az) * d, controls.target.y + 0.15 + wingLift() * 1.09, controls.target.z + Math.cos(az) * d); controls.update();
   }
   // one-tap camera angles: from above, from the ground, and a close-up (keeps the current side)
   function camPreset(v) {
