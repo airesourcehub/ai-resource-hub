@@ -134,7 +134,7 @@ function init() {
     sp.scale.setScalar(size); return sp;
   }
   function make777(g0, std) {
-    const g = new THREE.Group(); g.position.set(1.6, 0.146, 0.777); g0.add(g); g0.userData = g.userData;   // her spot: 1.6 m inboard of the old tip spot, mid-chord
+    const g = new THREE.Group(); g.rotation.y = Math.PI; g.position.set(-1.6, 0.146, -0.777); g0.add(g);   // nose toward +z: she faces the way the plane flies g0.userData = g.userData;   // her spot: 1.6 m inboard of the old tip spot, mid-chord
     const TIPX = 0.9, ROOTX = -27.1, DIH = Math.tan(6 * Math.PI / 180);
     const zLE = (t) => -16 + 15.4 * t + (t > 0.9 ? Math.pow((t - 0.9) / 0.1, 2) * 1.1 : 0);
     const zTE = (t) => (t < 0.33 ? -2 : -2 + (t - 0.33) / 0.67 * 3.3);
