@@ -134,7 +134,7 @@ function init() {
     sp.scale.setScalar(size); return sp;
   }
   function makeE777(g0, std) {
-    const g = new THREE.Group(); g.rotation.y = 5.2709; g0.add(g);   // 302 deg: fuselage behind her, the near engine hangs under the leading edge further in (seen with the raised wing camera)
+    const g = new THREE.Group(); g.rotation.y = 5.3756; g0.add(g);   // 308 deg: the wide shot looks back down the swept wing to the fuselage, nose to the right
     g0.userData.ready = new Promise((done) => {
       new GLTFLoader().load(new URL("models/e777.glb?v=1", document.baseURI).href, (gltf) => {
         const P = gltf.scene; P.rotation.y = Math.PI;   // model nose is +z; turn it so the nose is -z and her wing is +x
@@ -149,6 +149,29 @@ function init() {
         });
         P.updateMatrixWorld(true);
         const wingM = keep.find((o) => o.name === "node_32");
+        if (wingM && wingM.geometry.index) {   // drop the tiny upright sliver faces on the outer wings (they render as a dark spike on the skin)
+          const ix = wingM.geometry.index, pa = wingM.geometry.attributes.position, A = new THREE.Vector3(), Bv = new THREE.Vector3(), Cv = new THREE.Vector3(), N = new THREE.Vector3();
+          for (let t = 0; t < ix.count; t += 3) {
+            A.fromBufferAttribute(pa, ix.getX(t)); Bv.fromBufferAttribute(pa, ix.getX(t + 1)); Cv.fromBufferAttribute(pa, ix.getX(t + 2));
+            if (Math.abs(A.x + Bv.x + Cv.x) / 3 < 8) continue;
+            N.subVectors(Bv, A).cross(Cv.clone().sub(A)); const area = N.length() / 2; N.normalize();
+            const uvA = wingM.geometry.attributes.uv, u0 = ix.getX(t), u1 = ix.getX(t + 1), u2 = ix.getX(t + 2);
+            const flatUV = Math.max(Math.abs(uvA.getX(u0) - uvA.getX(u1)), Math.abs(uvA.getX(u0) - uvA.getX(u2)), Math.abs(uvA.getY(u0) - uvA.getY(u1)), Math.abs(uvA.getY(u0) - uvA.getY(u2))) < 0.006;
+            // tiny upright slivers, and the hidden underside skirt (one texel, facing down) that shows through the top skin as a dark streak
+            if ((area < 0.06 && Math.abs(N.y) < 0.1) || (flatUV && N.y < -0.5)) { ix.setX(t + 1, ix.getX(t)); ix.setX(t + 2, ix.getX(t)); }
+          }
+          ix.needsUpdate = true;
+          // a few skin corners carry normals that point the wrong way (one at ~9.7 m in from each tip): the shading streaks dark there.
+          // Give every triangle its own corners and turn any corner normal that disagrees with its face back toward the face.
+          const g2 = wingM.geometry.toNonIndexed(), P2 = g2.attributes.position, N2 = g2.attributes.normal, fn = new THREE.Vector3(), cn = new THREE.Vector3();
+          for (let t = 0; t < P2.count; t += 3) {
+            A.fromBufferAttribute(P2, t); Bv.fromBufferAttribute(P2, t + 1); Cv.fromBufferAttribute(P2, t + 2);
+            fn.subVectors(Bv, A).cross(Cv.clone().sub(A)); if (fn.lengthSq() < 1e-12) continue; fn.normalize();
+            for (let k = 0; k < 3; k++) { cn.fromBufferAttribute(N2, t + k); if (cn.dot(fn) < 0.3) N2.setXYZ(t + k, fn.x, fn.y, fn.z); }
+          }
+          for (let i = 0; i < P2.count; i++) { const ax = Math.abs(P2.getX(i)), z = P2.getZ(i); if (Math.abs(ax - 23.04) < 0.06 && z < -7.3 && z > -8.2) P2.setY(i, 1.75); }   // the little notch in the skin there (it shades as a dark tick): level it
+          P2.needsUpdate = true; N2.needsUpdate = true; wingM.geometry = g2; wingM.castShadow = false;   // the wing shading itself left a thin dark shadow streak on the skin
+        }
         if (wingM) {   // wings + tailplanes: top-down planar UVs (1 unit = 1 m) for a seam / rivet bump map
           const pa = wingM.geometry.attributes.position, uv1 = new Float32Array(pa.count * 2);
           for (let i = 0; i < pa.count; i++) { const ax = Math.abs(pa.getX(i)); uv1[i * 2] = ax / 6; uv1[i * 2 + 1] = (pa.getZ(i) + ax * 0.6) / 6; }   // sheared by the ~31 deg sweep: spanwise seams run along the spar
@@ -162,19 +185,20 @@ function init() {
           });
           bt.wrapS = bt.wrapT = THREE.RepeatWrapping; bt.channel = 1;
           const ao = bumpTexture(1024, 1024, (x, W, H) => {   // the same seams, faintly darker, so they show in soft light too
-            x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H); x.strokeStyle = "rgba(120,120,120,0.85)"; x.lineWidth = 2.5;
+            x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H); x.strokeStyle = "rgba(70,70,70,0.9)"; x.lineWidth = 3;
             for (let k = 0; k <= 4; k++) { const u = k * W / 4; x.beginPath(); x.moveTo(u, 0); x.lineTo(u, H); x.stroke(); }
             for (let k = 0; k <= 3; k++) { const v = k * H / 3; x.beginPath(); x.moveTo(0, v); x.lineTo(W, v); x.stroke(); }
           });
           ao.wrapS = ao.wrapT = THREE.RepeatWrapping; ao.channel = 1;
           wingM.material.aoMap = ao; wingM.material.aoMapIntensity = 1;
-          wingM.material.bumpMap = bt; wingM.material.bumpScale = 1.2; wingM.material.roughness = 0.5; wingM.material.needsUpdate = true;
+          wingM.material.bumpMap = bt; wingM.material.bumpScale = 1.2;
+          wingM.material.map = null; wingM.material.color.set(0xd3d6da); wingM.material.metalness = 0.3; wingM.material.roughness = 0.38;   // own clean light-grey skin: the baked texture is smeared on the wings and streaks dark at one corner wingM.material.roughness = 0.5; wingM.material.needsUpdate = true;
         }
-        // her spot: 4.5 m in from the right (+x) tip, 65% back from the leading edge, on the top skin
-        const bb = new THREE.Box3().setFromObject(P), sx = bb.max.x - 4.5, rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
+        // her spot: 3 m in from the right (+x) tip (as far out as two people fit), 72% back from the leading edge, on the top skin
+        const bb = new THREE.Box3().setFromObject(P), sx = bb.max.x - 3.0, rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
         let le = 1e9, te = -1e9;
         for (let z = bb.min.z; z <= bb.max.z; z += 0.05) { rc.set(new THREE.Vector3(sx, bb.max.y + 5, z), down); if (rc.intersectObjects(keep, false).length) { le = Math.min(le, z); te = Math.max(te, z); } }
-        const sz = le < te ? le + 0.65 * (te - le) : 0;   // toward the trailing edge: the wing reaches past whoever stands beside her
+        const sz = le < te ? le + 0.72 * (te - le) : 0;   // toward the trailing edge: the pair stands across the chord, both on the wing
         rc.set(new THREE.Vector3(sx, bb.max.y + 5, sz), down); const hit = rc.intersectObjects(keep, false)[0];
         const sy = hit ? hit.point.y : 0;
         P.position.set(-sx, -sy, -sz); g.add(P);
@@ -3119,12 +3143,15 @@ function init() {
     }
   }
   // fixed "scene" framing: fits a 7'6" person, so shorter heights read as shorter against the background
-  function wingLift() { return bgOn && PANO_UP[panoId] === "wing" ? 1.15 : 0; }   // on the 777 wing the camera sits a little above her head, looking down onto the wing
+  function wingLift() { return bgOn && PANO_UP[panoId] === "wing" ? 1 : 0; }   // the 777 wing scene uses its own wide-angle framing
+  function wingFov() { const f = wingLift() ? 58 : 28; if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix(); } }
   function frameForBackdrop() {
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
-    const lift = wingLift(), sx = lift ? 0.45 : 0; off.setLength(lift ? 6.5 : 5.6); controls.target.set(sx, 1.05 - lift * 0.09, 0); camera.position.set(sx + off.x, 1.1 + lift * 1.09, off.z); controls.update();   // on the wing: back a little and 0.45 m to the side, so the pair stands on the wing and the engine shows beside them
+    wingFov(); if (wingLift()) { controls.target.set(0, 0.9, -2); camera.position.set(0, 2.6, 3.6); controls.update(); return; }   // wide shot on the wing: out past them, above, looking back down the wing to the plane
+    off.setLength(5.6); controls.target.set(0, 1.05, 0); camera.position.set(off.x, 1.1, off.z); controls.update();
   }
   function unframeBackdrop() {   // back to the normal follow-her-height framing
+    wingFov();
     const off = camera.position.clone().sub(controls.target); off.y = 0; if (off.lengthSq() < 1e-6) off.set(0, 0, 1);
     off.setLength(3.9); controls.target.set(0, lastTy, 0); camera.position.set(off.x, lastTy + 0.18, off.z); controls.update();
   }
@@ -3475,7 +3502,8 @@ function init() {
   function setView(az) {
     const d = camera.position.distanceTo(controls.target);
     controls.autoRotate = false; syncSpin();
-    camera.position.set(controls.target.x + Math.sin(az) * d, controls.target.y + 0.15 + wingLift() * 1.09, controls.target.z + Math.cos(az) * d); controls.update();
+    if (wingLift()) { controls.target.set(0, 0.9, -2); camera.position.set(Math.sin(az) * 5.6, 2.6, -2 + Math.cos(az) * 5.6); controls.update(); return; }
+    camera.position.set(controls.target.x + Math.sin(az) * d, controls.target.y + 0.15, controls.target.z + Math.cos(az) * d); controls.update();
   }
   // one-tap camera angles: from above, from the ground, and a close-up (keeps the current side)
   function camPreset(v) {
