@@ -1357,7 +1357,7 @@
   function withNote(c) {   // what the other person wears, kept apart from hers (text-to-image mixes two people's details)
     if (!c) return "";
     var h = String(c.handle || "").toLowerCase(), who = c.handle ? "@" + c.handle : "the other person";
-    var outfit = { own: OUTFIT_DEF[h] || "their own everyday clothes", match: "a tactical outfit in the same colors as hers (but none of her tattoos, jewelry or hairstyle)",
+    var outfit = { own: OUTFIT_DEF[h] || ((withIsMale(c) ? "his" : withIsFemale(c) ? "her" : "their") + " own everyday streetwear (a casual shirt or t-shirt, regular trousers or jeans and sneakers; nothing tactical: no vest, no harness, no knee pads, no combat boots)"), match: "a tactical outfit in the same colors as hers (but none of her tattoos, jewelry or hairstyle)",
       suit: "a sharp black two-button suit with a crisp white shirt and black leather shoes", street: "streetwear: a plain black oversized t-shirt, dark jeans and clean white sneakers" }[withOpt("outfit")];
     var jewel = withOpt("jewel") === "on" ? (JEWEL[h] ? JEWEL[h] + " as real jewelry over the shirt" : "their own jewelry") : "no chain, necklace, pendant or jewelry of " + (withIsMale(c) ? "his" : who + "'s") + " own (the woman keeps all of her own jewelry)";
     var glasses = withOpt("glasses") === "keep" ? (GLASSES_DEF[h] ? ", " + GLASSES_DEF[h] : "") : ", and " + who + " has no sunglasses or glasses, eyes visible (the woman keeps her own eyewear exactly as chosen for her)";
