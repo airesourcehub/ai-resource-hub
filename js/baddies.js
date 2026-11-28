@@ -918,7 +918,7 @@
     if (o.lora) {   // a trained character drawn straight from their LoRA (the @handle loads it on the GPU)
       parts.push(V.lead + " @" + o.lora + " as a soldier character called a Baddie, unmistakably the same person with the same face");
     } else if (o.duo) {
-      parts.push("Wide full-body shot of two people together, head to toe: a stunning adult woman in her late twenties, a female soldier character called a Baddie, and @" + o.duo +
+      parts.push("Wide full-body shot of two people together, head to toe: a stunning adult woman in her late twenties, a female soldier character called a Baddie, and @" + o.duo + withWho(state["with"]) +
         " (exactly as they really look, in their own clothes)." + withNote(state["with"]) + " They are " + fromList(DUO, state.duo || "side")[2] + ". Everything below describes the woman");
     } else if (C) {
       parts.push("Restyle the exact person in this photo as a soldier character called a Baddie. IDENTITY FIRST: it must stay unmistakably this same person: same face, same age, same facial features and bone structure, same skin color (do not lighten or darken it), same head shape and neck, same eyes, nose, lips and eyebrows, and any glasses or distinctive features they have, recognizable in every view");
@@ -1000,6 +1000,11 @@
     (function walk(a) { (a || []).forEach(function (x) { if (hit || !x) return; if (x.id === id) hit = x; else if (Array.isArray(x.items)) walk(x.items); else if (Array.isArray(x.presets)) walk(x.presets); }); })(arr);
     return hit && hit.t ? gWord(hit.t.gender) : "";
   }
+  function traitLook(t) {   // physical look from a saved description: before any " — ", minus jewelry / eyewear / style words
+    if (typeof t === "string") { try { t = JSON.parse(t); } catch (e) { return ""; } }
+    var d = t && typeof t.description === "string" ? t.description.split(/\s[—–-]\s/)[0] : "";
+    return d.split(",").map(function (x) { return x.trim(); }).filter(function (x) { return x && !/chain|necklace|pendant|jewel|sunglass|glasses|style|wears|artist|rapper|singer/i.test(x); }).slice(0, 7).join(", ");
+  }
   function traitGender(t) {
     if (!t) return "";
     if (typeof t === "string") { try { t = JSON.parse(t); } catch (e) { return ""; } }
@@ -1031,7 +1036,7 @@
           rows.sort(function (a, b) { return (b.handle ? 2 : 0) + (b.favorite ? 1 : 0) - (a.handle ? 2 : 0) - (a.favorite ? 1 : 0); });
           rows.forEach(function (x) {
             if (!urls[x.job_id]) return;
-            list.push({ key: "i:" + x.id, name: x.name || "Influencer", handle: x.handle || "", kind: "Yours", thumb: urls[x.job_id], url: urls[x.job_id], gender: traitGender(x.traits) });
+            list.push({ key: "i:" + x.id, name: x.name || "Influencer", handle: x.handle || "", kind: "Yours", thumb: urls[x.job_id], url: urls[x.job_id], gender: traitGender(x.traits), desc: traitLook(x.traits) });
           });
         } catch (e) {}
       }
@@ -1343,6 +1348,12 @@
   function withIsMale(c) { return charGender(c) === "male"; }
   function withIsFemale(c) { return charGender(c) === "female"; }
   function withOpt(k) { var o = state.withOpts || {}; return o[k] || WITH_OPTS.filter(function (w) { return w[0] === k; })[0][2][0][0]; }
+  function withWho(c) {   // " (a man: …)" right after their @handle
+    if (!c) return "";
+    var g = charGender(c), d = c.desc ? ", " + c.desc : "";
+    return g === "male" ? " (a man" + d + ": an adult male with a masculine face and a man's build, definitely not a woman)"
+      : g === "female" ? " (a woman" + d + ")" : d ? " (" + d.slice(2) + ")" : "";
+  }
   function withNote(c) {   // what the other person wears, kept apart from hers (text-to-image mixes two people's details)
     if (!c) return "";
     var h = String(c.handle || "").toLowerCase(), who = c.handle ? "@" + c.handle : "the other person";
@@ -1359,7 +1370,7 @@
   }
   function duoPrompt() {
     var d = fromList(DUO, state.duo || "side")[2];
-    return "This picture shows two people side by side. Make one new photo of both of them together in the same scene: on the LEFT the woman soldier (keep her exact face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon); on the RIGHT the other person (keep their exact face, age, skin color, hair, body and clothes)." + withNote(state["with"]) + " They are " + d +
+    return "This picture shows two people side by side. Make one new photo of both of them together in the same scene: on the LEFT the woman soldier (keep her exact face, age, skin color, hair, body proportions, outfit, tattoos, jewelry, boots and weapon); on the RIGHT the other person" + withWho(state["with"]) + " (keep their exact face, age, skin color, hair, body and clothes)." + withNote(state["with"]) + " They are " + d +
       ", both full body head to toe and both clearly recognizable, exactly two people. " + fromList(BGS, state.bg)[2] + ". " + fromList(STYLES, state.style)[2] + ".";
   }
   async function composite(blobs) {
