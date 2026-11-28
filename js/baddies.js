@@ -512,9 +512,10 @@
           '<div class="bd-scale"><span>' + x[5] + "</span><span>" + x[6] + "</span></div></div>";
       }).join("") +
       '<label class="bd-toggle"><input type="checkbox" id="bdPoseMatch" /> <span>Match my 3D pose exactly in the AI render</span></label>';
-    $("bdDuo").innerHTML = '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>" +
-      WITH_OPTS.map(function (w) { return '<div class="bd-group"><div class="bd-row-lbl"><span>' + esc(w[1]) + '</span></div><div class="bd-chips">' +
-        w[2].map(function (o) { return '<button type="button" data-wo="' + w[0] + '" data-v="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>"; }).join("");
+    $("bdDuo").innerHTML = '<p class="bd-note" id="bdWoNote"></p>' +
+      WITH_OPTS.map(function (w) { return '<div class="bd-group"><div class="bd-row-lbl"><span><b class="bd-wo-who"></b> ' + esc(w[1].replace(/^Their /, "")) + '</span></div><div class="bd-chips">' +
+        w[2].map(function (o) { return '<button type="button" data-wo="' + w[0] + '" data-v="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>"; }).join("") +
+      '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
       '<div class="bd-camlock">' + chipRow("camlock", "Viewer angle: match it", [["on", "Exactly (3D picture)"], ["off", "Words only (faster)"]]) +
       '<p class="bd-note">Frame her in the 3D viewer (drag, scroll, or High / Low / Close), then Generate. "Exactly" sends a picture from your camera so the render copies the angle.</p></div>' +
@@ -595,6 +596,9 @@
     });
     $("bdPoseNote").textContent = pid === "custom" ? "Drag the colored dots in the 3D preview: blue = hands, green = feet, orange = hips. To sit her down, pick what she sits on above. The AI render copies this pose."
       : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the " + (fromList(WEAPONS, state.weapon)[3] === "pistol" ? "pistol goes in a thigh holster" : "gun is slung across her back") + ". To have her hold it, pick Low ready, Shouldered or At her side (that switches to the Gun hold pose). " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
+    var wn = state["with"] ? whoName(state["with"]) : "";
+    each(document.querySelectorAll("#bdDuo .bd-wo-who"), function (el) { el.textContent = wn ? wn + "'s" : "Their"; });
+    var won = $("bdWoNote"); if (won) won.textContent = wn ? "These only change " + wn + " in the AI render. Her own look (and the 3D preview) comes from the settings above." : "";
     each(document.querySelectorAll("#bdDuo [data-wo]"), function (b) { b.classList.toggle("is-on", withOpt(b.getAttribute("data-wo")) === b.getAttribute("data-v")); });
     each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
     $("bdDuo").hidden = !state["with"];
@@ -1310,8 +1314,8 @@
     var h = String(c.handle || "").toLowerCase(), who = c.handle ? "@" + c.handle : "the other person";
     var outfit = { own: OUTFIT_DEF[h] || "their own everyday clothes", match: "a tactical outfit in the same colors as hers (but none of her tattoos, jewelry or hairstyle)",
       suit: "a sharp black two-button suit with a crisp white shirt and black leather shoes", street: "streetwear: a plain black oversized t-shirt, dark jeans and clean white sneakers" }[withOpt("outfit")];
-    var jewel = withOpt("jewel") === "on" ? (JEWEL[h] ? JEWEL[h] + " as real jewelry over the shirt" : "their own jewelry") : "no chain, no necklace, no pendant and no jewelry at all";
-    var glasses = withOpt("glasses") === "keep" ? (GLASSES_DEF[h] ? ", " + GLASSES_DEF[h] : "") : ", no sunglasses or glasses, eyes visible";
+    var jewel = withOpt("jewel") === "on" ? (JEWEL[h] ? JEWEL[h] + " as real jewelry over the shirt" : "their own jewelry") : "no chain, necklace, pendant or jewelry of his own (the woman keeps all of her own jewelry)";
+    var glasses = withOpt("glasses") === "keep" ? (GLASSES_DEF[h] ? ", " + GLASSES_DEF[h] : "") : ", and he has no sunglasses or glasses, his eyes visible (the woman keeps her own eyewear exactly as chosen for her)";
     return " " + who + " wears " + outfit + ", " + jewel + glasses + ". These are worn only by " + who + ": the woman does not wear his chain, pendant, watch or clothes (she wears only the jewelry listed for her, dog tags on a thin silver ball chain, no gold Cuban link chain unless listed for her), and " + who +
       " has none of her tattoos, gear, knee pads, boots or jewelry." + (withOpt("jewel") === "on" ? " " + CHAIN_NOTE : "");
   }
