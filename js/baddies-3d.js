@@ -1407,7 +1407,7 @@ function init() {
     const gold = new THREE.MeshPhysicalMaterial({ color: 0xd8b25a, roughness: 0.18, metalness: 1 });
     const lensDark = new THREE.MeshPhysicalMaterial({ color: 0x1b2a22, roughness: 0.04, metalness: 0.25, transparent: true, opacity: 0.86, clearcoat: 1, envMapIntensity: 2, side: THREE.DoubleSide });
     const lensGrad = new THREE.MeshPhysicalMaterial({ color: 0x3a2c22, roughness: 0.04, metalness: 0.35, transparent: true, opacity: 0.8, clearcoat: 1, envMapIntensity: 2.2, side: THREE.DoubleSide });
-    const mirror = new THREE.MeshPhysicalMaterial({ color: 0x7fb4ff, roughness: 0.04, metalness: 0.9, envMapIntensity: 2.2, transparent: true, opacity: 0.94, side: THREE.DoubleSide });
+    const mirror = new THREE.MeshPhysicalMaterial({ color: 0x7fb4ff, roughness: 0.04, metalness: 0.95, envMapIntensity: 2.4, transparent: true, opacity: 0.985, side: THREE.DoubleSide, iridescence: 0.6, iridescenceIOR: 1.6 });
     // lenses and polished frames reflect a studio room even when the look has no environment light
     if (!envTex) envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     for (const m of [frameBlack, gold, lensDark, lensGrad, mirror]) m.envMap = envTex;
@@ -1510,7 +1510,7 @@ function init() {
       return S;
     };
     if (type === "shield") {   // sport wraparound (Oakley-style): one mirrored lens, slim brow bar, nose pads, straight stems
-      const zL = z0 + 0.001, r0 = zL - zcF, W = 0.074;
+      const zL = z0 + 0.0045, r0 = zL - zcF, W = 0.074;
       const lensS = outline(W, 0.022, -0.024, 0.012, 0.02, 0.75);
       const lens = new THREE.Mesh(bend(new THREE.ShapeGeometry(lensS, 40).translate(0, eyeY, zL), r0, 0.6), mirror); G.add(lens);
       const brow = new THREE.Shape(); { const pts = lensS.getPoints(40).filter((p) => p.y > 0.024 * 0.42); pts.sort((a, b) => a.x - b.x);
@@ -2271,7 +2271,7 @@ function init() {
     if (lobes && (has("jewelry", "hoops") || has("jewelry", "studs"))) for (let k = 0; k < 2; k++) { const L = lobes[k]; if (L) (L.x > 0 ? HAIRU.uEarL : HAIRU.uEarR).value.set(L.x, L.y, L.z, 1); }
     if (lobes && has("jewelry", "hoops")) for (let k = 0; k < 2; k++) {
       const L = lobes[k], sd = Math.sign(L.x) || 1, h = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.0022, 12, 56), goldP);
-      h.position.set(L.x + sd * 0.004, L.y - 0.02, L.z + 0.002); h.rotation.set(0, Math.PI / 2, sd * 0.08); HG.add(h);
+      h.position.set(L.x + sd * 0.0012, L.y - 0.0172, L.z + 0.0015); h.rotation.set(0, Math.PI / 2 - sd * 0.12, sd * 0.06); HG.add(h);   // ring top runs through the lobe
     }
     if (lobes && has("jewelry", "studs")) for (let k = 0; k < 2; k++) {
       const L = lobes[k], sd = Math.sign(L.x) || 1, dm = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0, ior: 2.4, clearcoat: 1, envMap: getEnv(), envMapIntensity: 4, emissive: 0x15161a });

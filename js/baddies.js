@@ -178,15 +178,15 @@
       ["holster", "Thigh holster", "a drop-leg thigh holster"]] },
     { id: "eyewear", label: "Eyewear", opts: [
       ["none", "None", ""],
-      ["wayfarer", "Wayfarers (Ray-Ban style)", "classic black Ray-Ban Wayfarer style sunglasses"],
-      ["aviator", "Aviators", "gold aviator sunglasses with gradient lenses"],
-      ["round", "Round shades", "round retro sunglasses with thin gold frames"],
-      ["cateye", "Cat-eye", "glamorous black cat-eye sunglasses"],
-      ["shield", "Wraparound shades", "sleek wraparound mirrored shield sunglasses"],
+      ["wayfarer", "Wayfarers (Ray-Ban style)", "classic black Ray-Ban Wayfarer style sunglasses with dark green lenses"],
+      ["aviator", "Aviators", "gold-framed teardrop aviator sunglasses with dark brown gradient lenses"],
+      ["round", "Round shades", "round retro sunglasses with thin gold frames and dark green lenses"],
+      ["cateye", "Cat-eye", "glamorous black cat-eye sunglasses with upswept corners and dark lenses"],
+      ["shield", "Wraparound shades", "sleek black wraparound sport sunglasses with one blue mirrored shield lens"],
       ["smart", "Smart glasses (Meta Ray-Ban style)", "Ray-Ban Meta style smart glasses with a tiny camera in the frame"],
       ["vr", "VR headset", "a white virtual reality headset over her eyes, like a Meta Quest"],
       ["goggles", "Tactical goggles", "black tactical ballistic goggles over her eyes"],
-      ["nvg", "Night-vision goggles", "military night vision goggles lowered over her eyes"]] },
+      ["nvg", "Night-vision goggles", "an olive military ballistic helmet with twin night vision goggles lowered over her eyes"]] },
     { id: "boots", label: "Boots", opts: [
       ["white", "White combat", "chunky white combat boots"], ["black", "Black combat", "black combat boots"],
       ["tan", "Tan combat", "tan desert combat boots"], ["sneakers", "Sneakers", "chunky sneakers"]] }
