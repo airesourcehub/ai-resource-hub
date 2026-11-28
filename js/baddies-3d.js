@@ -1285,15 +1285,16 @@ function init() {
     const S = new THREE.Shape(), k = scale;
     const poly = (pts) => { pts.forEach(([x, y], i) => (i ? S.lineTo(x * k, y * k) : S.moveTo(x * k, y * k))); S.closePath(); return S; };
     if (type === "round") { S.absarc(0, 0, 0.0215 * k, 0, Math.PI * 2, false); return S; }
-    if (type === "aviator") { // teardrop
-      S.moveTo(-0.026 * k, 0.012 * k); S.bezierCurveTo(-0.012 * k, 0.02 * k, 0.014 * k, 0.02 * k, 0.026 * k, 0.012 * k);
-      S.bezierCurveTo(0.03 * k, -0.006 * k, 0.012 * k, -0.026 * k, -0.004 * k, -0.026 * k);
-      S.bezierCurveTo(-0.02 * k, -0.026 * k, -0.03 * k, -0.006 * k, -0.026 * k, 0.012 * k); return S;
+    if (type === "aviator") { // teardrop: nearly straight brow, big lobe that drops toward the nose (inner = -x)
+      S.moveTo(-0.025 * k, 0.014 * k); S.bezierCurveTo(-0.01 * k, 0.019 * k, 0.016 * k, 0.019 * k, 0.028 * k, 0.014 * k);
+      S.bezierCurveTo(0.033 * k, 0.004 * k, 0.026 * k, -0.019 * k, 0.006 * k, -0.027 * k);
+      S.bezierCurveTo(-0.012 * k, -0.033 * k, -0.027 * k, -0.02 * k, -0.027 * k, -0.004 * k);
+      S.bezierCurveTo(-0.027 * k, 0.004 * k, -0.027 * k, 0.011 * k, -0.025 * k, 0.014 * k); return S;
     }
     if (type === "cateye") { // swept up at the outer corner (outer = +x)
-      S.moveTo(-0.024 * k, 0.008 * k); S.bezierCurveTo(-0.01 * k, 0.016 * k, 0.016 * k, 0.016 * k, 0.03 * k, 0.022 * k);
-      S.bezierCurveTo(0.028 * k, 0.004 * k, 0.02 * k, -0.018 * k, 0.002 * k, -0.019 * k);
-      S.bezierCurveTo(-0.018 * k, -0.019 * k, -0.026 * k, -0.006 * k, -0.024 * k, 0.008 * k); return S;
+      S.moveTo(-0.025 * k, 0.006 * k); S.bezierCurveTo(-0.012 * k, 0.012 * k, 0.014 * k, 0.012 * k, 0.031 * k, 0.021 * k);
+      S.bezierCurveTo(0.031 * k, 0.006 * k, 0.024 * k, -0.016 * k, 0.004 * k, -0.018 * k);
+      S.bezierCurveTo(-0.016 * k, -0.019 * k, -0.026 * k, -0.009 * k, -0.025 * k, 0.006 * k); return S;
     }
     // wayfarer / smart: trapezoid, wide top, rounded corners
     S.moveTo(-0.025 * k, 0.015 * k); S.lineTo(0.026 * k, 0.017 * k); S.quadraticCurveTo(0.029 * k, 0.017 * k, 0.028 * k, 0.012 * k);
@@ -1420,24 +1421,52 @@ function init() {
       const A = new THREE.Vector3(...a), Bv = new THREE.Vector3(...b), m = new THREE.Mesh(new THREE.BoxGeometry(th, hgt, A.distanceTo(Bv)), mat);
       m.position.copy(A).add(Bv).multiplyScalar(0.5); m.lookAt(m.position.clone().add(Bv.clone().sub(A))); G.add(m); return m;
     };
+    var hingeF = null;
     const temples = (mat, th = 0.0035, hgt = 0.006, y = 0.009) => {
       for (const sd of [-1, 1]) {
         const e = ears ? ears[sd > 0 ? 0 : 1] : new THREE.Vector3(sd * (ex + 0.035), eyeY - 0.005, z0 - 0.1);
-        const ox = sd * Math.max(ex + 0.031, Math.abs(e.x) + th);           // hinge at the frame corner, never inside the head
-        const earPt = [sd * (Math.abs(e.x) + th * 0.6 + 0.0015), e.y + 0.01, e.z + 0.008];
-        bar([ox, eyeY + y * 0.5, z0 - 0.002], earPt, th, hgt, mat);
+        const cx = hingeF ? hingeF.x : ex + 0.031, cz = hingeF ? hingeF.z : z0 - 0.002;
+        const ox = sd * (hingeF ? cx + 0.003 : Math.max(cx, Math.abs(e.x) + th));           // hinge just past the frame corner
+        const hz = Math.min(cz, cz - (Math.abs(ox) - cx) * 0.9) - 0.002;
+        if (Math.abs(ox) > cx + 0.001) bar([sd * (cx - 0.001), eyeY + y * 0.5, cz], [ox, eyeY + y * 0.5, hz], th * 1.15, hgt, mat);   // endpiece
+        const earPt = [sd * (hingeF ? Math.max(Math.abs(e.x) - 0.007, cx + 0.002) : Math.abs(e.x) + th * 0.6 + 0.0015), e.y + 0.01, e.z + 0.008];   // tucked in where the ear meets the head
+        bar([ox, eyeY + y * 0.5, hz], earPt, th, hgt, mat);
         bar(earPt, [earPt[0] - sd * 0.003, earPt[1] - 0.026, earPt[2] - 0.016], th, hgt * 0.8, mat);   // tip curls down behind the ear
       }
     };
     if (["wayfarer", "smart", "aviator", "round", "cateye"].includes(type)) {
       const metal = type === "aviator" || type === "round";
       const fMat = metal ? gold : frameBlack, lMat = type === "aviator" ? lensGrad : lensDark;
-      const thick = type === "smart" ? 1.32 : (metal ? 1.1 : 1.24);
+      const thick = type === "smart" ? 1.26 : (metal ? 1.1 : 1.22);
+      const SC = ears ? Math.min(1, Math.max(0.8, (Math.abs(ears[0].x - ears[1].x) / 2) / 0.095)) : 0.9;   // frames sized to her head (ear to ear)
+      // each half pivots about its nose-side edge so the outer corners come back toward the temples (face-form wrap),
+      // and the lens / rim get a base-6 style curve; the endpiece then carries on back to where the arm can clear the head
+      const WRAP = metal ? 0.16 : 0.2, CURVE = 4.5, bb = new THREE.Box2(); lensShape(type, thick * SC).getPoints(48).forEach((q) => bb.expandByPoint(q));
+      const curve = (geo) => { const P = geo.attributes.position; for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i); P.setZ(i, P.getZ(i) - CURVE * (x * x + y * y)); } geo.computeVertexNormals(); return geo; };
+      const xi = Math.max(0.006, ex + bb.min.x), dOut = ex + bb.max.x - xi;   // nose-side edge, and its distance to the outer edge
+      var hingeF = { x: xi + Math.cos(WRAP) * dOut, z: z0 - Math.sin(WRAP) * dOut - CURVE * bb.max.x * bb.max.x };
+      if (type === "aviator") {   // gradient tint: darker at the top, fading toward the bottom
+        lMat.vertexColors = true; lMat.opacity = 1; lMat.color.set(0x2e2016);
+      }
       for (const sd of [-1, 1]) {
-        const outer = lensShape(type, thick), hole = lensShape(type, 1); outer.holes.push(new THREE.Path(hole.getPoints(48)));
-        const fr = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: metal ? 0.0016 : 0.0045, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0006, bevelSegments: 2, curveSegments: 32 }), fMat);
-        const ln = new THREE.Mesh(new THREE.ShapeGeometry(lensShape(type, 1), 32), lMat);
-        for (const m of [fr, ln]) { m.scale.x = sd; m.position.set(sd * ex, eyeY, z0 + (m === ln ? 0.0016 : 0)); m.rotation.y = sd * 0.1; G.add(m); }
+        const half = new THREE.Group(); half.position.set(sd * xi, eyeY, z0); half.rotation.y = sd * WRAP; G.add(half);
+        const outer = lensShape(type, thick * SC), hole = lensShape(type, SC); outer.holes.push(new THREE.Path(hole.getPoints(48)));
+        const frG = curve(new THREE.ExtrudeGeometry(outer, { depth: metal ? 0.0016 : 0.0045, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0006, bevelSegments: 2, curveSegments: 32 }));
+        const lnG = curve(new THREE.ShapeGeometry(lensShape(type, SC), 32).translate(0, 0, 0.0016));
+        if (type === "aviator") { const P = lnG.attributes.position, C = []; for (let i = 0; i < P.count; i++) { const t = Math.min(1, Math.max(0, (0.018 - P.getY(i)) / 0.045)); C.push(1 - 0.25 * t, 1 - 0.2 * t, 1 - 0.1 * t, 0.97 - 0.32 * t); } lnG.setAttribute("color", new THREE.Float32BufferAttribute(C, 4)); }
+        for (const [geo, mat] of [[frG, fMat], [lnG, lMat]]) { const m = new THREE.Mesh(geo, mat); m.scale.x = sd; m.position.x = sd * (ex - xi); half.add(m); }
+        if (type === "wayfarer" || type === "smart") {   // Ray-Ban style: thicker brow line and two small metal studs at the outer top corner
+          const brow = new THREE.Mesh(new THREE.BoxGeometry(bb.max.x - bb.min.x - 0.008, 0.0035, 0.0048), fMat);
+          brow.position.set(sd * (ex - xi + (bb.max.x + bb.min.x) / 2 * 1), bb.max.y - 0.002, 0.0004 - CURVE * 0.0003); half.add(brow);
+          const stud = new THREE.MeshPhysicalMaterial({ color: 0xc9ccd2, roughness: 0.2, metalness: 1, envMap: envTex });
+          for (const dx of [0, -0.0045]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.0012, 10), stud); st.rotation.x = Math.PI / 2;
+            st.position.set(sd * (ex - xi + bb.max.x - 0.004 + dx), bb.max.y - 0.0035, 0.0052 - CURVE * (bb.max.x * bb.max.x)); half.add(st); }
+        }
+      }
+      if (metal) for (const sd of [-1, 1]) {   // nose pads on little pad arms
+        const pad = new THREE.Mesh(new THREE.SphereGeometry(0.0042, 14, 10), new THREE.MeshPhysicalMaterial({ color: 0xe9e6df, roughness: 0.15, transmission: 0.6, transparent: true, opacity: 0.75, clearcoat: 1 }));
+        pad.scale.set(0.45, 1, 0.6); pad.position.set(sd * 0.0085, eyeY - 0.006, z0 - 0.007); pad.rotation.y = sd * 0.5; G.add(pad);
+        G.add(limb([sd * (xi + 0.001), eyeY + 0.002, z0 - 0.0005], [sd * 0.0092, eyeY - 0.004, z0 - 0.006], 0.0005, 0.0005, gold));
       }
       // bridge
       if (metal) { G.add(limb([-0.009, eyeY + 0.012, z0 + 0.003], [0.009, eyeY + 0.012, z0 + 0.003], 0.0012, 0.0012, gold));
@@ -1446,9 +1475,9 @@ function init() {
       temples(fMat, metal ? 0.0014 : (type === "smart" ? 0.006 : 0.0045), metal ? 0.0016 : (type === "smart" ? 0.009 : 0.007));
       if (type === "smart") {   // camera + LED in the frame corners
         const cam = new THREE.Mesh(new THREE.CylinderGeometry(0.0024, 0.0024, 0.002, 20), new THREE.MeshPhysicalMaterial({ color: 0x050505, roughness: 0.02, metalness: 0.6, clearcoat: 1 }));
-        cam.rotation.x = Math.PI / 2; cam.position.set(ex + 0.029, eyeY + 0.016, z0 + 0.006); G.add(cam);
+        cam.rotation.x = Math.PI / 2; cam.position.set(hingeF.x - 0.004, eyeY + 0.013, hingeF.z + 0.0075); cam.rotation.z = 0; cam.rotation.y = 0.2; G.add(cam);
         const led = new THREE.Mesh(new THREE.SphereGeometry(0.0011, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.5 }));
-        led.position.set(-(ex + 0.029), eyeY + 0.016, z0 + 0.006); G.add(led);
+        led.position.set(-(hingeF.x - 0.004), eyeY + 0.013, hingeF.z + 0.0075); G.add(led);
       }
       return G;
     }
@@ -1462,7 +1491,7 @@ function init() {
     const wrapTemples = (mat, xEnd, zEnd, r0, th, hgt, yOff = 0.004) => {
       for (const sd of [-1, 1]) {
         const e = ears ? ears[sd > 0 ? 0 : 1] : new THREE.Vector3(sd * (ex + 0.035), eyeY - 0.005, z0 - 0.1);
-        const hinge = atWrap(sd * xEnd, eyeY + yOff, zEnd, r0), earPt = new THREE.Vector3(sd * (Math.abs(e.x) + th * 0.6 + 0.0015), e.y + 0.01, e.z + 0.008);
+        const hinge = atWrap(sd * xEnd, eyeY + yOff, zEnd, r0), earPt = new THREE.Vector3(sd * (Math.abs(e.x) - 0.006), e.y + 0.01, e.z + 0.008);
         if (Math.abs(hinge.x) < Math.abs(earPt.x)) hinge.x = sd * Math.abs(earPt.x);
         bar(hinge.toArray(), earPt.toArray(), th, hgt, mat);
         bar(earPt.toArray(), [earPt.x - sd * 0.003, earPt.y - 0.026, earPt.z - 0.016], th, hgt * 0.8, mat);
@@ -1481,12 +1510,12 @@ function init() {
       return S;
     };
     if (type === "shield") {   // sport wraparound (Oakley-style): one mirrored lens, slim brow bar, nose pads, straight stems
-      const zL = z0 + 0.006, r0 = zL - zcF, W = 0.084;
-      const lensS = outline(W, 0.024, -0.024, 0.012, 0.02, 0.75);
-      const lens = new THREE.Mesh(bend(new THREE.ShapeGeometry(lensS, 40).translate(0, eyeY, zL), r0, 1.2), mirror); G.add(lens);
+      const zL = z0 + 0.001, r0 = zL - zcF, W = 0.074;
+      const lensS = outline(W, 0.022, -0.024, 0.012, 0.02, 0.75);
+      const lens = new THREE.Mesh(bend(new THREE.ShapeGeometry(lensS, 40).translate(0, eyeY, zL), r0, 0.6), mirror); G.add(lens);
       const brow = new THREE.Shape(); { const pts = lensS.getPoints(40).filter((p) => p.y > 0.024 * 0.42); pts.sort((a, b) => a.x - b.x);
         brow.moveTo(pts[0].x, pts[0].y + 0.003); pts.forEach((p) => brow.lineTo(p.x, p.y + 0.003)); [...pts].reverse().forEach((p) => brow.lineTo(p.x, p.y - 0.0035)); brow.closePath(); }
-      const bm = new THREE.Mesh(bend(new THREE.ExtrudeGeometry(brow, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0007, bevelSegments: 2, curveSegments: 24 }).translate(0, eyeY, zL - 0.002), r0, 1.2), frameBlack); G.add(bm);
+      const bm = new THREE.Mesh(bend(new THREE.ExtrudeGeometry(brow, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0007, bevelSegments: 2, curveSegments: 24 }).translate(0, eyeY, zL - 0.002), r0, 0.6), frameBlack); G.add(bm);
       for (const sd of [-1, 1]) { const np = new THREE.Mesh(new THREE.SphereGeometry(0.004, 12, 8), new THREE.MeshPhysicalMaterial({ color: 0x9a9aa0, roughness: 0.3, transparent: true, opacity: 0.85 })); np.scale.set(0.6, 1, 0.5); np.position.set(sd * 0.0085, eyeY - 0.006, z0 - 0.002); G.add(np); }
       wrapTemples(frameBlack, W - 0.004, zL - 0.002, r0, 0.0045, 0.008, 0.012);
       return G;
