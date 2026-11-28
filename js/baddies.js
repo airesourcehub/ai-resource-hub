@@ -253,7 +253,7 @@
   function seatId() { var p = poseId(), s = state.pose && state.pose.seat; if (p === "sit") return s && s !== "none" ? s : "chair"; if (p === "custom") return s || "none"; return "none"; }
   var DUO = [
     ["side", "Side by side", "standing side by side, shoulder to shoulder, facing the camera"],
-    ["arm", "Arm around", "standing close together, her arm around their shoulders, both facing the camera"],
+    ["arm", "Arm around", "standing close together, the other person's arm around her shoulders, both facing the camera"],
     ["back", "Back to back", "standing back to back with arms crossed, both looking at the camera"],
     ["squad", "Squad pose", "posing together like a squad, confident, facing the camera"]
   ];
@@ -598,6 +598,7 @@
       : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the " + (fromList(WEAPONS, state.weapon)[3] === "pistol" ? "pistol goes in a thigh holster" : "gun is slung across her back") + ". To have her hold it, pick Low ready, Shouldered or At her side (that switches to the Gun hold pose). " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
     var wn = state["with"] ? whoName(state["with"]) : "";
     each(document.querySelectorAll("#bdDuo .bd-wo-who"), function (el) { el.textContent = wn ? wn + "'s" : "Their"; });
+    each(document.querySelectorAll('#bdDuo [data-wo="outfit"][data-v="own"]'), function (b) { b.textContent = withIsMale(state["with"]) ? "His usual look" : wn ? wn + "'s usual look" : "Their usual look"; });
     var dl = $("bdDuoLbl"); if (dl) dl.textContent = wn ? "How " + wn + " poses with her" : "How they pose together";
     var won = $("bdWoNote"); if (won) won.textContent = wn ? "These only change " + wn + " in the AI render. Her own look (and the 3D preview) comes from the settings above." : "";
     each(document.querySelectorAll("#bdDuo [data-wo]"), function (b) { b.classList.toggle("is-on", withOpt(b.getAttribute("data-wo")) === b.getAttribute("data-v")); });
@@ -1309,14 +1310,16 @@
     ["outfit", "Their outfit", [["own", "Their usual look"], ["match", "Match her gear"], ["suit", "Black suit"], ["street", "Streetwear"]]],
     ["jewel", "Their jewelry", [["on", "On"], ["off", "Off"]]],
     ["glasses", "Their glasses", [["keep", "Keep"], ["off", "Off"]]]];
+  var MALE_CHARS = { crissp: 1, amarich: 1 };
+  function withIsMale(c) { return !!(c && MALE_CHARS[String(c.handle || "").toLowerCase()]); }
   function withOpt(k) { var o = state.withOpts || {}; return o[k] || WITH_OPTS.filter(function (w) { return w[0] === k; })[0][2][0][0]; }
   function withNote(c) {   // what the other person wears, kept apart from hers (text-to-image mixes two people's details)
     if (!c) return "";
     var h = String(c.handle || "").toLowerCase(), who = c.handle ? "@" + c.handle : "the other person";
     var outfit = { own: OUTFIT_DEF[h] || "their own everyday clothes", match: "a tactical outfit in the same colors as hers (but none of her tattoos, jewelry or hairstyle)",
       suit: "a sharp black two-button suit with a crisp white shirt and black leather shoes", street: "streetwear: a plain black oversized t-shirt, dark jeans and clean white sneakers" }[withOpt("outfit")];
-    var jewel = withOpt("jewel") === "on" ? (JEWEL[h] ? JEWEL[h] + " as real jewelry over the shirt" : "their own jewelry") : "no chain, necklace, pendant or jewelry of his own (the woman keeps all of her own jewelry)";
-    var glasses = withOpt("glasses") === "keep" ? (GLASSES_DEF[h] ? ", " + GLASSES_DEF[h] : "") : ", and he has no sunglasses or glasses, his eyes visible (the woman keeps her own eyewear exactly as chosen for her)";
+    var jewel = withOpt("jewel") === "on" ? (JEWEL[h] ? JEWEL[h] + " as real jewelry over the shirt" : "their own jewelry") : "no chain, necklace, pendant or jewelry of " + (withIsMale(c) ? "his" : who + "'s") + " own (the woman keeps all of her own jewelry)";
+    var glasses = withOpt("glasses") === "keep" ? (GLASSES_DEF[h] ? ", " + GLASSES_DEF[h] : "") : ", and " + who + " has no sunglasses or glasses, eyes visible (the woman keeps her own eyewear exactly as chosen for her)";
     return " " + who + " wears " + outfit + ", " + jewel + glasses + ". These are worn only by " + who + ": the woman does not wear his chain, pendant, watch or clothes (she wears only the jewelry listed for her, dog tags on a thin silver ball chain, no gold Cuban link chain unless listed for her), and " + who +
       " has none of her tattoos, gear, knee pads, boots or jewelry." + (withOpt("jewel") === "on" ? " " + CHAIN_NOTE : "");
   }
