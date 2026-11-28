@@ -894,7 +894,7 @@
     parts.push("Change only: " + ch.join("; "));
     parts.push("Full body head to toe, standing, facing the camera, whole body in frame including boots");
     parts.push(fromList(STYLES, state.style)[2]);
-    return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
+    return realPhoto(parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".");
   }
   function buildCharStep2() {
     if (state.view === "full") return "";
@@ -959,7 +959,7 @@
     if (C) parts.push("Most important: the face in every view is clearly the same person as in the photo, same age and same skin color");
     parts.push(fromList(BGS, state.bg)[2]);
     parts.push(fromList(STYLES, state.style)[2]);
-    return parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".";
+    return realPhoto(parts.join(". ").replace(/\s+/g, " ").replace(/\.\./g, ".") + ".");
   }
 
   // Second Qwen Edit pass: only when the curves are pushed hard (models tend to normalise them).
@@ -1214,6 +1214,11 @@
   var PLACE_DESC = {   // what the match step may say about a scene (it must only clean up what the 3D picture already shows)
     wing777: "on top of the wing of a Boeing 777 airliner at cruising altitude at sunset, above a sea of clouds; keep every part of the plane exactly as it appears in the picture (the wing under their feet, the white fuselage with its windows and blue stripe, the tail), with the same shape, size, position and direction; do not add, move or turn any engine, wing, tail or fuselage, never put an engine on top of the wing or next to them (the engines hang below the wing, out of this view)"
   };
+  var REAL_LEAD = "A real photograph of real people taken with a real camera, not a 3D render, not CGI, not a video game, not a cartoon or illustration. ";
+  function realPhoto(t) {   // Realistic style: lead with "real photograph" and drop the game-character wording
+    if (state.style !== "photo") return t;
+    return REAL_LEAD + t.replace(/soldier character called a Baddie/g, "soldier woman nicknamed a Baddie").replace(/ character design/g, "").replace(/as a soldier character/g, "as a soldier");
+  }
   function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one real photo
     var two = !!state["with"];
     return "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. Turn it into one seamless real photo. " +
@@ -1221,6 +1226,7 @@
       " position, size, pose, face, hair, body, clothes, tattoos and jewelry. Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add real contact shadows under the feet, " +
       "and give the scene real photographic detail and texture. The place is: " + (PLACE_DESC[state.bg] || fromList(BGS, state.bg)[2]) + ". Do not add, remove or move any person or object, and do not add any city, buildings, water, land or structures that are not already in the picture; keep the background exactly as it is. " +
       (two ? neckFix() : "") +
+      (state.style === "photo" ? "Make it look like a real photograph, not a 3D render: replace every smooth CGI or video-game look with real photographic texture (real skin with pores and natural shine, real fabric folds, real metal, real painted aircraft aluminium with fine wear, real clouds and sky), natural sunlight with real depth of field and film grain. " : "") +
       fromList(STYLES, state.style)[2] + ".";
   }
   function scenePrompt() {
