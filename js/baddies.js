@@ -1215,16 +1215,16 @@
     return "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. Turn it into one seamless real photo. " +
       "Keep everything exactly where it is: the camera angle, framing, horizon, the background, the structure under their feet, and " + (two ? "each person's" : "her") +
       " position, size, pose, face, hair, body, clothes, tattoos and jewelry. Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add real contact shadows under the feet, " +
-      "and give the scene real photographic detail and texture (smooth white concrete, glowing lights, a real city, water and sky). Do not add, remove or move any person, arch, tower, road or building. " +
+      "and give the scene real photographic detail and texture. The place is: " + fromList(BGS, state.bg)[2] + ". Do not add, remove or move any person or object, and do not add any city, buildings, water, land or structures that are not already in the picture; keep the background exactly as it is. " +
       (two ? neckFix() : "") +
       fromList(STYLES, state.style)[2] + ".";
   }
   function scenePrompt() {
     var two = !!state["with"];
     return "Picture 1 is a 3D preview that shows the exact place, structure and camera angle to use. Picture 2 shows the real " + (two ? "people" : "woman") + ". " +
-      "Make one real photo that keeps exactly Picture 1's camera position, height, angle, lens, framing, horizon and background: the same structure under her feet in the same place, running the same direction, the same city, water and sky in the same places. " +
-      "Do not add, move or redraw any arch, bridge, tower, road or building that is not in Picture 1; only give everything real detail and real lighting. " +
-      "The woman stands exactly where the 3D figure stands, at the same size in the frame, in the same pose" + (two ? ", and the man from Picture 2 stands right next to her on the same surface, side by side, at real human scale" : "") + ". " +
+      "Make one real photo that keeps exactly Picture 1's camera position, height, angle, lens, framing, horizon and background: the same structure under her feet in the same place, running the same direction, the same scenery and sky in the same places. " +
+      "Do not add, move or redraw anything that is not in Picture 1 (no extra city, buildings, water or structures); only give everything real detail and real lighting. " +
+      "The woman stands exactly where the 3D figure stands, at the same size in the frame, in the same pose" + (two ? ", and " + (withIsMale(state["with"]) ? "the man" : withIsFemale(state["with"]) ? "the other woman" : "the other person") + " from Picture 2 stands right next to her on the same surface, side by side, at real human scale" : "") + ". " +
       "Copy " + (two ? "each person's" : "her") + " exact appearance from Picture 2: same face, age, skin color, hair, body proportions, clothes, tattoos and jewelry" + (two ? ", each keeping their own clothes and jewelry" : "") + ". " +
       fromList(STYLES, state.style)[2] + ".";
   }
