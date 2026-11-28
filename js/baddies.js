@@ -603,6 +603,12 @@
     var won = $("bdWoNote"); if (won) won.textContent = wn ? "These only change " + wn + " in the AI render. Her own look (and the 3D preview) comes from the settings above." : "";
     each(document.querySelectorAll("#bdDuo [data-wo]"), function (b) { b.classList.toggle("is-on", withOpt(b.getAttribute("data-wo")) === b.getAttribute("data-v")); });
     each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
+    var TH = window.BADDIES_THUMBS || {}, fem = withIsFemale(state["with"]);
+    each(document.querySelectorAll("#bdDuo [data-duo] img.bd-th"), function (im) {
+      var id = im.parentNode.getAttribute("data-duo"), k = (fem && TH["duo-f-" + id] ? "duo-f-" : "duo-") + id;
+      var src = "img/baddies/opt/" + k + ".webp?v=" + (TH[k] || "");
+      if (im.getAttribute("src") !== src) im.setAttribute("src", src);
+    });
     $("bdDuo").hidden = !state["with"];
     var holdG = document.querySelector('[data-single="hold"]'); if (holdG) holdG.closest(".bd-group").classList.toggle("is-dim", state.weapon === "none");
     if (handsBusy() && state.weapon !== "none" && state.hold !== "sling") state.hold = "sling";   // keep the chips honest
@@ -987,6 +993,21 @@
   // Saved influencers: the user's own rows in "influencers" (with their image job's first picture).
   // A picked character turns the render into a Qwen Edit of their picture, keeping their face.
   var IMG_INF = "img/influencer/";
+  function gWord(v) { v = String(Array.isArray(v) ? v[0] || "" : v || "").toLowerCase(); return /^(female|woman|girl|f)$/.test(v) ? "female" : /^(male|man|boy|m)$/.test(v) ? "male" : ""; }
+  function presetGender(id) {
+    var P = window.AIRH_INF_PRESETS || [], arr = Array.isArray(P) ? P : (P.presets || P.list || Object.keys(P).map(function (k) { return P[k]; }));
+    var hit = null;
+    (function walk(a) { (a || []).forEach(function (x) { if (hit || !x) return; if (x.id === id) hit = x; else if (Array.isArray(x.items)) walk(x.items); else if (Array.isArray(x.presets)) walk(x.presets); }); })(arr);
+    return hit && hit.t ? gWord(hit.t.gender) : "";
+  }
+  function traitGender(t) {
+    if (!t) return "";
+    if (typeof t === "string") { try { t = JSON.parse(t); } catch (e) { return ""; } }
+    var g = gWord(t.gender || (t.traits && t.traits.gender));
+    if (g || !t.description) return g;
+    var d = String(t.description).toLowerCase();   // a description-only character: read it from the words
+    return /\b(woman|women|girl|female|lady|she|her)\b/.test(d) ? "female" : /\b(man|men|guy|male|boy|he|his)\b/.test(d) ? "male" : "";
+  }
   async function loadChars() {
     var list = [];
     if (client) {
@@ -994,13 +1015,13 @@
         var hs = await client.from("site_settings").select("value").eq("key", "influencer_handles").maybeSingle();
         var handles = (hs.data && hs.data.value && hs.data.value.handles) || {};
         Object.keys(handles).forEach(function (id) {
-          list.push({ key: "p:" + id, name: niceName(id), handle: handles[id], kind: "Trained",
+          list.push({ key: "p:" + id, name: niceName(id), handle: handles[id], kind: "Trained", gender: presetGender(id),
             thumb: IMG_INF + "pv/" + id + "-close.jpg", url: new URL(IMG_INF + "pv/" + id + "-full.jpg", document.baseURI).href });
         });
       } catch (e) {}
       if (state.user) {
         try {
-          var r = await client.from("influencers").select("id, name, handle, job_id, favorite, created_at").eq("user_id", state.user.id).order("created_at", { ascending: false }).limit(60);
+          var r = await client.from("influencers").select("id, name, handle, job_id, favorite, created_at, traits").eq("user_id", state.user.id).order("created_at", { ascending: false }).limit(60);
           var rows = (r.data || []).filter(function (x) { return x.job_id; });
           var ids = rows.map(function (x) { return x.job_id; }), urls = {};
           if (ids.length) {
@@ -1010,7 +1031,7 @@
           rows.sort(function (a, b) { return (b.handle ? 2 : 0) + (b.favorite ? 1 : 0) - (a.handle ? 2 : 0) - (a.favorite ? 1 : 0); });
           rows.forEach(function (x) {
             if (!urls[x.job_id]) return;
-            list.push({ key: "i:" + x.id, name: x.name || "Influencer", handle: x.handle || "", kind: "Yours", thumb: urls[x.job_id], url: urls[x.job_id] });
+            list.push({ key: "i:" + x.id, name: x.name || "Influencer", handle: x.handle || "", kind: "Yours", thumb: urls[x.job_id], url: urls[x.job_id], gender: traitGender(x.traits) });
           });
         } catch (e) {}
       }
@@ -1021,6 +1042,7 @@
       var fj = await fr.json(), fam = {};
       (fj.characters || []).forEach(function (x) { if (x.handle) fam[String(x.handle).toLowerCase()] = x.families || []; });
       list.forEach(function (c) { c.fams = c.handle ? (fam[String(c.handle).toLowerCase()] || []) : []; });
+      (fj.characters || []).forEach(function (x) { if (!x.handle || !x.gender) return; list.forEach(function (c) { if (!c.gender && String(c.handle).toLowerCase() === String(x.handle).toLowerCase()) c.gender = String(x.gender).toLowerCase(); }); });
     } catch (e) { list.forEach(function (c) { c.fams = c.fams || []; }); }
     state.chars = list;
     if (state.char) { var fresh = list.filter(function (c) { return c.key === state.char.key; })[0]; if (fresh) state.char = fresh; }
@@ -1310,8 +1332,16 @@
     ["outfit", "Their outfit", [["own", "Their usual look"], ["match", "Match her gear"], ["suit", "Black suit"], ["street", "Streetwear"]]],
     ["jewel", "Their jewelry", [["on", "On"], ["off", "Off"]]],
     ["glasses", "Their glasses", [["keep", "Keep"], ["off", "Off"]]]];
-  var MALE_CHARS = { crissp: 1, amarich: 1 };
-  function withIsMale(c) { return !!(c && MALE_CHARS[String(c.handle || "").toLowerCase()]); }
+  var MALE_CHARS = { crissp: 1, amarich: 1, amarichbabyy: 1 };
+  // A character's gender: from its stock preset (influencer-presets.js t.gender), the user's saved traits,
+  // or the GPU registry; the short list above is only a fallback for older characters.
+  function charGender(c) {
+    if (!c) return "";
+    if (c.gender) return c.gender;
+    return MALE_CHARS[String(c.handle || "").toLowerCase()] ? "male" : "";
+  }
+  function withIsMale(c) { return charGender(c) === "male"; }
+  function withIsFemale(c) { return charGender(c) === "female"; }
   function withOpt(k) { var o = state.withOpts || {}; return o[k] || WITH_OPTS.filter(function (w) { return w[0] === k; })[0][2][0][0]; }
   function withNote(c) {   // what the other person wears, kept apart from hers (text-to-image mixes two people's details)
     if (!c) return "";
