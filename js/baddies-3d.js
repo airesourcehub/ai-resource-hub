@@ -3367,7 +3367,14 @@ function init() {
   // The 3D scene from the viewer camera WITHOUT her (a clean plate), plus where she stands in it (pixel box of her body).
   window.BADDIES_SCENE_PLATE = async function (W, H) {
     const vis = [ruler.visible, handleGroup.visible, holder.visible], ar = controls.autoRotate, pr = renderer.getPixelRatio();
+    const lookWas = curLookId, styl = curLookId && curLookId !== "game" && curLookId !== "photo";
+    const camWas = camera.position.clone(), tgtWas = controls.target.clone();
     try {
+      if (styl) {   // show the real scene for the plate: everyday look, scene framing, panorama + prop loaded
+        applyLook("game"); controls.update();
+        for (let i = 0; i < 80 && !(panoOn && sky && sky.visible); i++) await new Promise((r) => setTimeout(r, 100));
+        upShadowFix();
+      }
       ruler.visible = false; handleGroup.visible = false; controls.autoRotate = false;
       renderer.setPixelRatio(1); renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
       placeBackdrop(); upShadowFix();
@@ -3389,7 +3396,8 @@ function init() {
       return { blob, box };
     } finally {
       ruler.visible = vis[0]; handleGroup.visible = vis[1]; holder.visible = vis[2]; controls.autoRotate = ar;
-      renderer.setPixelRatio(pr); resize(); controls.update();
+      if (styl) { applyLook(lookWas); camera.position.copy(camWas); controls.target.copy(tgtWas); }
+      renderer.setPixelRatio(styl ? basePR * (curLook.pixel || 1) : pr); resize(); controls.update();
     }
   };
   window.BADDIES_CAMERA_SNAPSHOT = async function (W, H) {
