@@ -1207,7 +1207,8 @@
     var hisChain = JEWEL[h] ? "his " + JEWEL[h].replace(/^his /, "") : "his own necklace";
     return (his ? "The man keeps " + hisChain + " exactly as it is in the picture: do not change, shrink or remove his chain or pendant. "
                 : "The man wears no chain, necklace or pendant: remove them from him. ") +
-      "Only on the woman: her neck has " + (mine.length ? "only " + mine.join(" and ") : "no necklace at all") +
+      "Never move jewelry from one person to the other: the man gets none of her necklaces or dog tags. " +
+      "Only on the woman: her neck has " + (mine.length ? "only " + mine.join(" and ") + " (keep hers exactly where they are, on her)" : "no necklace at all") +
       (mine.indexOf(N.chain) < 0 ? "; if the woman has a thick gold chain or a lion pendant, take it off her (only hers)" : "") + ". ";
   }
   var PLACE_DESC = {   // what the match step may say about a scene (it must only clean up what the 3D picture already shows)
