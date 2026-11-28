@@ -1219,12 +1219,28 @@
     if (state.style !== "photo") return t;
     return REAL_LEAD + t.replace(/soldier character called a Baddie/g, "soldier woman nicknamed a Baddie").replace(/ character design/g, "").replace(/as a soldier character/g, "as a soldier");
   }
-  function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one real photo
-    var two = !!state["with"];
-    return "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. Turn it into one seamless real photo. " +
+  var STYLE_PLACE = {   // how the match step restyles the whole picture (people, plane, sky), layout unchanged
+    anime: "Redraw the whole picture as a crisp anime illustration: cel shading, clean bold black line art, flat vivid colors, for the people, the plane and the sky alike.",
+    comic: "Redraw the whole picture as an American comic book panel: thick black ink outlines, halftone dot shading, flat vivid colors, for the people, the plane and the sky alike.",
+    clay: "Turn the whole scene into a claymation set: the people, their clothes and the plane are handmade plasticine models with fingerprints and sculpting marks, under soft studio light.",
+    sculpt: "Turn both people into matte grey digital clay sculptures: skin, hair, clothes, boots and jewelry all one uniform matte grey clay with no colors and no textures; the plane and sky become a plain grey clay render too.",
+    marble: "Turn both people into classical carved white marble statues: their skin, hair, clothes, jewelry, sunglasses and boots are all polished white stone with soft grey veins, no skin color and no fabric; they stand on the wing like statues.",
+    gold: "Turn both people into solid polished gold statues: their skin, hair, clothes, jewelry, sunglasses and boots are all reflective gold metal, no skin color and no fabric; they stand on the wing like trophies.",
+    synth: "Make it a synthwave scene: night sky with a huge glowing retro sun, magenta and cyan neon rim light on both people, neon reflections on the plane, retro 80s look.",
+    pencil: "Redraw the whole picture as a detailed graphite pencil sketch on white paper: black and grey pencil lines and hatching only, no color at all, for the people, the plane and the sky.",
+    ps1: "Turn the whole picture into a 1990s PS1 video game screenshot: blocky low-poly people and plane with pixelated low-resolution textures.",
+    watercolor: "Paint the whole picture as a soft watercolor painting: loose brush strokes, pastel washes, visible paper texture, for the people, the plane and the sky.",
+    nightvision: "Make the whole picture night-vision camera footage: green monochrome only, heavy grain, glowing highlights, no other colors.",
+    thermal: "Make the whole picture a thermal camera image: heat-map colors only, the people glowing hot yellow, orange and white, the plane and sky cold blue and purple.",
+    hologram: "Turn both people into glowing blue translucent sci-fi holograms with scanlines and light flicker, standing on the plane's wing; the plane and sky stay as they are."
+  };
+  function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one picture
+    var two = !!state["with"], sty = STYLE_PLACE[state.style];
+    return (sty ? "STYLE, most important: " + sty + " " : "") +
+      "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. " + (sty ? "Turn it into one seamless picture in that style. " : "Turn it into one seamless real photo. ") +
       "Keep everything exactly where it is: the camera angle, framing, horizon, the background, the structure under their feet, and " + (two ? "each person's" : "her") +
-      " position, size, pose, face, hair, body, clothes, tattoos and jewelry. Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add real contact shadows under the feet, " +
-      "and give the scene real photographic detail and texture. The place is: " + (PLACE_DESC[state.bg] || fromList(BGS, state.bg)[2]) + ". Do not add, remove or move any person or object, and do not add any city, buildings, water, land or structures that are not already in the picture; keep the background exactly as it is. " +
+      " position, size, pose, face, hair, body, clothes, tattoos and jewelry" + (sty ? " (their shapes and layout; only the colors, materials and rendering change to the style)" : "") + ". Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add contact shadows under the feet, " +
+      (sty ? "and keep the scene's layout. The place is: " : "and give the scene real photographic detail and texture. The place is: ") + (PLACE_DESC[state.bg] || fromList(BGS, state.bg)[2]) + ". Do not add, remove or move any person or object, and do not add any city, buildings, water, land or structures that are not already in the picture; keep the background exactly as it is. " +
       (two ? neckFix() : "") +
       (state.style === "photo" ? "Make it look like a real photograph, not a 3D render: replace every smooth CGI or video-game look with real photographic texture (real skin with pores and natural shine, real fabric folds, real metal, real painted aircraft aluminium with fine wear, real clouds and sky), natural sunlight with real depth of field and film grain. " : "") +
       fromList(STYLES, state.style)[2] + ".";
