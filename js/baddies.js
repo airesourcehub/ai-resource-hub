@@ -515,7 +515,7 @@
     $("bdDuo").innerHTML = '<p class="bd-note" id="bdWoNote"></p>' +
       WITH_OPTS.map(function (w) { return '<div class="bd-group"><div class="bd-row-lbl"><span><b class="bd-wo-who"></b> ' + esc(w[1].replace(/^Their /, "")) + '</span></div><div class="bd-chips">' +
         w[2].map(function (o) { return '<button type="button" data-wo="' + w[0] + '" data-v="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>"; }).join("") +
-      '<div class="bd-group"><div class="bd-row-lbl"><span>How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
+      '<div class="bd-group"><div class="bd-row-lbl"><span id="bdDuoLbl">How they pose together</span></div><div class="bd-chips">' + DUO.map(function (o) { return '<button type="button" data-duo="' + o[0] + '">' + esc(o[1]) + "</button>"; }).join("") + "</div></div>";
     $("bdScene").innerHTML = chipRow("view", "Shot", Object.keys(VIEWS).map(function (k) { return [k, VIEWS[k].label]; })) +
       '<div class="bd-camlock">' + chipRow("camlock", "Viewer angle: match it", [["on", "Exactly (3D picture)"], ["off", "Words only (faster)"]]) +
       '<p class="bd-note">Frame her in the 3D viewer (drag, scroll, or High / Low / Close), then Generate. "Exactly" sends a picture from your camera so the render copies the angle.</p></div>' +
@@ -598,6 +598,7 @@
       : (handsBusy() && state.weapon !== "none" ? "Her hands are busy in this pose, so the " + (fromList(WEAPONS, state.weapon)[3] === "pistol" ? "pistol goes in a thigh holster" : "gun is slung across her back") + ". To have her hold it, pick Low ready, Shouldered or At her side (that switches to the Gun hold pose). " : "") + (poseMatch() ? "The AI render copies the 3D pose." : "Turn on matching to copy the exact 3D pose; otherwise the pose is described in words.");
     var wn = state["with"] ? whoName(state["with"]) : "";
     each(document.querySelectorAll("#bdDuo .bd-wo-who"), function (el) { el.textContent = wn ? wn + "'s" : "Their"; });
+    var dl = $("bdDuoLbl"); if (dl) dl.textContent = wn ? "How " + wn + " poses with her" : "How they pose together";
     var won = $("bdWoNote"); if (won) won.textContent = wn ? "These only change " + wn + " in the AI render. Her own look (and the 3D preview) comes from the settings above." : "";
     each(document.querySelectorAll("#bdDuo [data-wo]"), function (b) { b.classList.toggle("is-on", withOpt(b.getAttribute("data-wo")) === b.getAttribute("data-v")); });
     each(document.querySelectorAll("#bdDuo [data-duo]"), function (b) { b.classList.toggle("is-on", b.getAttribute("data-duo") === (state.duo || "side")); });
