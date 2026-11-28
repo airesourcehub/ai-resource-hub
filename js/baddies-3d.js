@@ -133,6 +133,34 @@ function init() {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
     sp.scale.setScalar(size); return sp;
   }
+  function makeE777(g0, std) {
+    const g = new THREE.Group(); g.rotation.y = 5.2360; g0.add(g);   // same yaw as before: fuselage behind her in the front view
+    g0.userData.ready = new Promise((done) => {
+      new GLTFLoader().load(new URL("models/e777.glb?v=1", document.baseURI).href, (gltf) => {
+        const P = gltf.scene; P.rotation.y = Math.PI;   // model nose is +z; turn it so the nose is -z and her wing is +x
+        const keep = [];
+        P.traverse((o) => {
+          if (!o.isMesh) return;
+          if (/gear|prop\d_(blurred|slow)/i.test(o.name)) { o.visible = false; return; }   // in flight: gear up, fans still
+          const m0 = o.material, glass = /02$/.test(m0.name || "");
+          o.material = std({ map: m0.map || null, color: 0xffffff, roughness: glass ? 0.15 : 0.42, metalness: glass ? 0.5 : 0.18, side: THREE.DoubleSide, transparent: !!m0.transparent, opacity: m0.opacity ?? 1 });
+          if (o.material.map) { o.material.map.anisotropy = 8; }
+          o.receiveShadow = true; o.castShadow = true; o.userData.lookShadow = true; keep.push(o);
+        });
+        P.updateMatrixWorld(true);
+        // her spot: 2.5 m in from the right (+x) tip, 42% back from the leading edge, on the top skin
+        const bb = new THREE.Box3().setFromObject(P), sx = bb.max.x - 2.5, rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0);
+        let le = 1e9, te = -1e9;
+        for (let z = bb.min.z; z <= bb.max.z; z += 0.05) { rc.set(new THREE.Vector3(sx, bb.max.y + 5, z), down); if (rc.intersectObjects(keep, false).length) { le = Math.min(le, z); te = Math.max(te, z); } }
+        const sz = le < te ? le + 0.42 * (te - le) : 0;
+        rc.set(new THREE.Vector3(sx, bb.max.y + 5, sz), down); const hit = rc.intersectObjects(keep, false)[0];
+        const sy = hit ? hit.point.y : 0;
+        P.position.set(-sx, -sy, -sz); g.add(P);
+        const env = upEnv.wing777; if (env) keep.forEach((o) => { o.material.envMap = env; o.material.envMapIntensity = 1; o.material.needsUpdate = true; });
+        done();
+      }, undefined, () => done());
+    });
+  }
   function make777(g0, std) {
     const g = new THREE.Group(); g.rotation.y = 5.2360; g.position.set(0.127, 0.146, 1.774); g0.add(g);   // nose toward +z: she faces the way the plane flies g0.userData = g.userData;   // her spot: 1.6 m inboard of the old tip spot, mid-chord
     const TIPX = 0.9, ROOTX = -27.1, DIH = Math.tan(6 * Math.PI / 180);
@@ -391,7 +419,7 @@ function init() {
       }
       const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2a1a })); beacon.position.set(0.66, 0.06, -0.1); g.add(beacon);
     } else if (kind === "wing") {
-      make777(g, std);
+      makeE777(g, std);
     } else if (kind === "arch") {
       makeArch(g, std); g.rotation.y = Math.PI / 2;   // the arches run along the highway in the panorama
     }
@@ -3370,6 +3398,7 @@ function init() {
     const lookWas = curLookId, styl = curLookId && curLookId !== "game" && curLookId !== "photo";
     const camWas = camera.position.clone(), tgtWas = controls.target.clone();
     try {
+      const upP = props[PANO_UP[panoId]]; if (upP && upP.userData.ready) await upP.userData.ready;
       if (styl) {   // show the real scene for the plate: everyday look, scene framing, panorama + prop loaded
         applyLook("game"); controls.update();
         for (let i = 0; i < 80 && !(panoOn && sky && sky.visible); i++) await new Promise((r) => setTimeout(r, 100));
