@@ -437,7 +437,7 @@
     ["antdubai", "Burj Khalifa spire", "standing on the tiny top of the Burj Khalifa spire in Dubai at sunset, more than 800 meters up, the whole city, desert and Persian Gulf far below her, a daring rooftopper selfie background"],
     ["anttokyo", "Tokyo Skytree antenna", "standing on the tiny top of the Tokyo Skytree antenna at dusk, more than 600 meters up, the endless lights of Tokyo far below her and Mount Fuji on the horizon, a daring rooftopper selfie background"],
     ["antshanghai", "Shanghai Tower top", "standing on the tiny top of the Shanghai Tower at blue hour, more than 600 meters up, the glowing Lujiazui skyline and Huangpu River far below her, a daring rooftopper selfie background"],
-    ["wing777", "777 wingtip", "standing on top of the wing of a Boeing 777 airliner near the wingtip, at cruising altitude at sunset; the long white wing stretches from under her feet toward the fuselage, and the big jet engine hangs underneath the wing further inboard, below the wing surface (not on top of the wing and not beside her), its round intake facing forward the same way the plane flies; a sea of clouds far below and a glowing orange and pink sky"],
+    ["wing777", "777 wingtip", "standing on top of the wing of a Boeing 777 airliner at cruising altitude at sunset, the white fuselage with its long row of windows and a blue stripe right behind her, the wing surface under her feet, a sea of clouds far below and a glowing orange and pink sky; the jet engines hang underneath the wing, out of view (no engine next to her and never on top of the wing)"],
     ["sigbridge", "Miami Signature Bridge", "standing high in the air on top of the curved white crown of the tallest arch of Miami's I-395 Signature Bridge at dusk, about 100 meters above the highway: under her boots is only the narrow rounded white top of the arch, no road, deck, ledge or railing at her level. The arch curves down and away behind her toward the downtown Miami and Brickell skyline, the bridge's other white arches with cyan blue lights and their fanning white cables are below her, the highway with red and white car light trails is far, far below, Biscayne Bay and an orange and pink sunset sky, a daring rooftopper-style aerial photo"],
     ["mars", "Mars", "standing on the surface of Mars, rust red dust and rocks, red mountains and a huge crater rim on the horizon, hazy butterscotch sky background"],
     ["moon", "The Moon", "standing on the surface of the Moon, grey lunar dust and craters, a black starry sky with the blue Earth above the horizon, a lunar lander in the distance background"],
@@ -1210,12 +1210,15 @@
       "Only on the woman: her neck has " + (mine.length ? "only " + mine.join(" and ") : "no necklace at all") +
       (mine.indexOf(N.chain) < 0 ? "; if the woman has a thick gold chain or a lion pendant, take it off her (only hers)" : "") + ". ";
   }
+  var PLACE_DESC = {   // what the match step may say about a scene (it must only clean up what the 3D picture already shows)
+    wing777: "on top of the wing of a Boeing 777 airliner at cruising altitude at sunset, above a sea of clouds; keep every part of the plane exactly as it appears in the picture (the wing under their feet, the white fuselage with its windows and blue stripe, the tail), with the same shape, size, position and direction; do not add, move or turn any engine, wing, tail or fuselage, never put an engine on top of the wing or next to them (the engines hang below the wing, out of this view)"
+  };
   function placePrompt() {   // the people are already pasted into the 3D scene plate on the server; this only makes it one real photo
     var two = !!state["with"];
     return "This picture is a rough photo composite: " + (two ? "two real people" : "a real woman") + " placed into a 3D scene. Turn it into one seamless real photo. " +
       "Keep everything exactly where it is: the camera angle, framing, horizon, the background, the structure under their feet, and " + (two ? "each person's" : "her") +
       " position, size, pose, face, hair, body, clothes, tattoos and jewelry. Only fix the lighting so " + (two ? "they" : "she") + " match the scene, add real contact shadows under the feet, " +
-      "and give the scene real photographic detail and texture. The place is: " + fromList(BGS, state.bg)[2] + ". Do not add, remove or move any person or object, and do not add any city, buildings, water, land or structures that are not already in the picture; keep the background exactly as it is. " +
+      "and give the scene real photographic detail and texture. The place is: " + (PLACE_DESC[state.bg] || fromList(BGS, state.bg)[2]) + ". Do not add, remove or move any person or object, and do not add any city, buildings, water, land or structures that are not already in the picture; keep the background exactly as it is. " +
       (two ? neckFix() : "") +
       fromList(STYLES, state.style)[2] + ".";
   }
